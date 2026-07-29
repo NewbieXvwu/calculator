@@ -28,8 +28,23 @@ struct GraphExpression {
 
     /// 在给定 x 处求值；非有限（NaN/Inf，如定义域外）返回 nil。
     func evaluate(x: Double) -> Double? {
-        let value = root.eval(x: x)
+        let value = root.eval(x: x, y: 0)
         return value.isFinite ? value : nil
+    }
+
+    /// 双变量求值（隐式方程 F(x,y) 用）；非有限返回 nil。
+    func evaluate(x: Double, y: Double) -> Double? {
+        let value = root.eval(x: x, y: y)
+        return value.isFinite ? value : nil
+    }
+
+    /// 解析双变量表达式（不剥离 y= 前缀），供隐式方程 F(x,y)=LHS-RHS 使用。
+    init?(rawTwoVariable raw: String) {
+        let cleaned = raw.trimmingCharacters(in: .whitespaces)
+        guard !cleaned.isEmpty else { return nil }
+        var parser = Parser(cleaned)
+        guard let node = parser.parseExpression(), parser.isAtEnd else { return nil }
+        root = node
     }
 
     private static func stripPrefix(_ s: String) -> String {
@@ -46,17 +61,19 @@ struct GraphExpression {
     private indirect enum Node {
         case number(Double)
         case variable
+        case variableY
         case negate(Node)
         case binary(Character, Node, Node)
         case call(String, Node)
 
-        func eval(x: Double) -> Double {
+        func eval(x: Double, y: Double) -> Double {
             switch self {
             case .number(let v): return v
             case .variable: return x
-            case .negate(let n): return -n.eval(x: x)
+            case .variableY: return y
+            case .negate(let n): return -n.eval(x: x, y: y)
             case .binary(let op, let l, let r):
-                let a = l.eval(x: x), b = r.eval(x: x)
+                let a = l.eval(x: x, y: y), b = r.eval(x: x, y: y)
                 switch op {
                 case "+": return a + b
                 case "-": return a - b
@@ -66,7 +83,7 @@ struct GraphExpression {
                 default: return .nan
                 }
             case .call(let name, let arg):
-                let v = arg.eval(x: x)
+                let v = arg.eval(x: x, y: y)
                 switch name {
                 case "sin": return sin(v)
                 case "cos": return cos(v)
@@ -235,6 +252,7 @@ struct GraphExpression {
 
             switch name {
             case "x": return .variable
+            case "y": return .variableY
             case "pi", "π": return .number(Double.pi)
             case "e": return .number(M_E)
             default:

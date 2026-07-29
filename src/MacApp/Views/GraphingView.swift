@@ -90,7 +90,7 @@ struct GraphingView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(graph.equations) { eq in
-                    if eq.isVisible, let expr = eq.compiled {
+                    if eq.isVisible, let expr = eq.explicitExpression {
                         analysisRow(eq: eq, expr: expr)
                     }
                 }
@@ -106,7 +106,7 @@ struct GraphingView: View {
         return VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Circle().fill(eq.color).frame(width: 8, height: 8)
-                Text("y=\(eq.text)")
+                Text(eq.text)
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .lineLimit(1)
             }
@@ -161,10 +161,10 @@ struct GraphingView: View {
             .help(eq.wrappedValue.isVisible ? "隐藏" : "显示")
 
             HStack(spacing: 2) {
-                Text("y=")
+                Text("ƒ")
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(.secondary)
-                TextField("表达式", text: Binding(
+                TextField("x^2 或 x^2+y^2=25", text: Binding(
                     get: { eq.wrappedValue.text },
                     set: { graph.updateEquation(id: eq.wrappedValue.id, text: $0) }))
                     .textFieldStyle(.plain)
@@ -221,8 +221,13 @@ private struct GraphCanvas: View {
                 drawGrid(context: context, size: canvasSize)
                 drawAxes(context: context, size: canvasSize)
                 for eq in graph.equations where eq.isVisible {
-                    if let expr = eq.compiled {
+                    switch eq.compiled {
+                    case .explicitFn(let expr):
                         drawCurve(expr, color: eq.color, context: context, size: canvasSize)
+                    case .implicitEq(let expr):
+                        drawImplicit(expr, color: eq.color, context: context, size: canvasSize)
+                    case nil:
+                        break
                     }
                 }
             }
@@ -357,6 +362,26 @@ private struct GraphCanvas: View {
             lastScreenY = sy
         }
 
+        context.stroke(path, with: .color(color), lineWidth: 1.8)
+    }
+
+    /// 隐式方程 F(x,y)=0：marching squares 等值线（约 3px 网格）。
+    private func drawImplicit(_ expr: GraphExpression, color: Color, context: GraphicsContext, size: CGSize) {
+        guard size.width > 1, size.height > 1 else { return }
+        let cellPx = 3.0
+        let cols = max(8, Int(size.width / cellPx))
+        let rows = max(8, Int(size.height / cellPx))
+
+        let segments = MarchingSquares.trace(
+            f: { expr.evaluate(x: $0, y: $1) },
+            xMin: graph.xMin, xMax: graph.xMax, yMin: graph.yMin, yMax: graph.yMax,
+            cols: cols, rows: rows)
+
+        var path = Path()
+        for seg in segments {
+            path.move(to: CGPoint(x: toScreenX(seg.x1, size), y: toScreenY(seg.y1, size)))
+            path.addLine(to: CGPoint(x: toScreenX(seg.x2, size), y: toScreenY(seg.y2, size)))
+        }
         context.stroke(path, with: .color(color), lineWidth: 1.8)
     }
 }

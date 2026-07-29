@@ -13,14 +13,26 @@ import SwiftUI
 final class GraphingViewModel: ObservableObject {
     /// 单条方程。
     struct Equation: Identifiable {
+        /// 编译结果：显式 y=f(x) 走逐列采样；隐式 F(x,y)=0 走 marching squares。
+        enum Compiled {
+            case explicitFn(GraphExpression)
+            case implicitEq(GraphExpression)
+        }
+
         let id = UUID()
         var text: String
         var color: Color
         var isVisible: Bool = true
 
         /// 已解析的表达式（nil 表示语法错误或空）。
-        var compiled: GraphExpression?
+        var compiled: Compiled?
         var hasError: Bool = false
+
+        /// 显式函数表达式（分析面板只支持显式）。
+        var explicitExpression: GraphExpression? {
+            if case .explicitFn(let expr) = compiled { return expr }
+            return nil
+        }
     }
 
     @Published var equations: [Equation] = []
@@ -65,6 +77,10 @@ final class GraphingViewModel: ObservableObject {
         equations[index].isVisible.toggle()
     }
 
+    /// 解析输入：
+    ///   - "y=…"/"f(x)=…" 或不含 "=" 的单变量表达式 → 显式 y=f(x)
+    ///   - 其余含 "=" 的（如 x^2+y^2=25、x=5）→ 隐式 F(x,y)=LHS-RHS=0
+    ///   - 不含 "=" 但引用 y 的（如 x^2+y^2-25）→ 隐式 F(x,y)=0
     private func compile(_ eq: inout Equation) {
         let trimmed = eq.text.trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty {
@@ -72,13 +88,38 @@ final class GraphingViewModel: ObservableObject {
             eq.hasError = false
             return
         }
-        if let expr = GraphExpression(trimmed) {
-            eq.compiled = expr
-            eq.hasError = false
+
+        let lower = trimmed.lowercased()
+        var result: Equation.Compiled?
+
+        if lower.hasPrefix("y=") || lower.hasPrefix("f(x)=") {
+            let rest = String(trimmed.dropFirst(lower.hasPrefix("y=") ? 2 : 5))
+            if rest.contains("=") {
+                result = nil // 多个等号
+            } else if rest.lowercased().contains("y") {
+                // y = 含 y 的式子 → 化为隐式 (rest)-(y)=0
+                result = GraphExpression(rawTwoVariable: "(\(rest))-(y)").map { .implicitEq($0) }
+            } else {
+                result = GraphExpression(rest).map { .explicitFn($0) }
+            }
+        } else if let eqIndex = trimmed.firstIndex(of: "=") {
+            let lhs = String(trimmed[..<eqIndex])
+            let rhs = String(trimmed[trimmed.index(after: eqIndex)...])
+            if lhs.trimmingCharacters(in: .whitespaces).isEmpty
+                || rhs.trimmingCharacters(in: .whitespaces).isEmpty || rhs.contains("=") {
+                result = nil
+            } else {
+                result = GraphExpression(rawTwoVariable: "(\(lhs))-(\(rhs))").map { .implicitEq($0) }
+            }
+        } else if lower.contains("y") {
+            // 无等号但引用 y：按 F(x,y)=0 处理（GeoGebra 惯例）。
+            result = GraphExpression(rawTwoVariable: trimmed).map { .implicitEq($0) }
         } else {
-            eq.compiled = nil
-            eq.hasError = true
+            result = GraphExpression(trimmed).map { .explicitFn($0) }
         }
+
+        eq.compiled = result
+        eq.hasError = result == nil
     }
 
     // MARK: - 视窗操作
