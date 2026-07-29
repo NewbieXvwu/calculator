@@ -39,6 +39,11 @@
     });
   });
 
+  // Enter/Return 提交（MathLive 的 change 事件），对应原版 plotButton。
+  mf.addEventListener("change", () => {
+    window.webkit.messageHandlers.mathInput.postMessage({ submit: true });
+  });
+
   // Swift 侧写入初始值 / 外部更新（LaTeX）。
   function setLatexValue(v) {
     mf.setValue(v, { silenceNotifications: true });

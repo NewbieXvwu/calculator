@@ -14,9 +14,11 @@ struct MathInputField: NSViewRepresentable {
     let initialLatex: String
     /// 编辑回调：(归一化 ASCIIMath, LaTeX)。
     let onChange: (String, String) -> Void
+    /// Enter/Return 提交回调（对应原版 plotButton），可选。
+    var onSubmit: (() -> Void)?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(initialLatex: initialLatex, onChange: onChange)
+        Coordinator(initialLatex: initialLatex, onChange: onChange, onSubmit: onSubmit)
     }
 
     func makeNSView(context: Context) -> WKWebView {
@@ -42,10 +44,12 @@ struct MathInputField: NSViewRepresentable {
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         private let initialLatex: String
         private let onChange: (String, String) -> Void
+        private let onSubmit: (() -> Void)?
 
-        init(initialLatex: String, onChange: @escaping (String, String) -> Void) {
+        init(initialLatex: String, onChange: @escaping (String, String) -> Void, onSubmit: (() -> Void)?) {
             self.initialLatex = initialLatex
             self.onChange = onChange
+            self.onSubmit = onSubmit
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -59,8 +63,12 @@ struct MathInputField: NSViewRepresentable {
             _ userContentController: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
-            guard let body = message.body as? [String: Any],
-                  let latex = body["latex"] as? String,
+            guard let body = message.body as? [String: Any] else { return }
+            if body["submit"] as? Bool == true {
+                onSubmit?()
+                return
+            }
+            guard let latex = body["latex"] as? String,
                   let ascii = body["ascii"] as? String else { return }
             onChange(MathInputField.normalizeAsciiMath(ascii), latex)
         }

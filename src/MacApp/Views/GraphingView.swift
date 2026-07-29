@@ -152,10 +152,18 @@ private struct EquationRow: View {
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(.secondary)
                 MathInputField(
-                    initialLatex: eq.latex.isEmpty ? eq.text : eq.latex
-                ) { ascii, latex in
-                    graph.updateEquation(id: eq.id, ascii: ascii, latex: latex)
-                }
+                    initialLatex: eq.latex.isEmpty ? eq.text : eq.latex,
+                    onChange: { ascii, latex in
+                        graph.updateEquation(id: eq.id, ascii: ascii, latex: latex)
+                    },
+                    onSubmit: {
+                        // 原版 Enter 提交（plotButton）：末行非空时补一个空输入行。
+                        if graph.equations.last?.id == eq.id,
+                           !eq.text.trimmingCharacters(in: .whitespaces).isEmpty {
+                            graph.addEquation()
+                        }
+                    }
+                )
                 .frame(height: 32)
                 if eq.hasError {
                     Image(systemName: "exclamationmark.circle.fill")
