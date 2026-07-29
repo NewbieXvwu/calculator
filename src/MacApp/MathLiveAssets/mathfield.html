@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
+  math-field {
+    display: block;
+    width: 100%;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    padding: 2px 0;
+    background: transparent;
+  }
+  math-field:focus-within { outline: none; }
+  /* 隐藏虚拟键盘开关与菜单开关（macOS 上用实体键盘） */
+  math-field::part(virtual-keyboard-toggle),
+  math-field::part(menu-toggle) { display: none; }
+  @media (prefers-color-scheme: dark) {
+    math-field { color: #ffffff; }
+  }
+</style>
+<script src="mathlive.min.js"></script>
+</head>
+<body>
+<math-field id="mf"></math-field>
+<script>
+  MathfieldElement.fontsDirectory = "fonts";
+  MathfieldElement.soundsDirectory = null;
+
+  const mf = document.getElementById("mf");
+  mf.mathVirtualKeyboardPolicy = "manual";
+
+  mf.addEventListener("input", () => {
+    window.webkit.messageHandlers.mathInput.postMessage({
+      latex: mf.getValue("latex"),
+      ascii: mf.getValue("ascii-math"),
+    });
+  });
+
+  // Swift 侧写入初始值 / 外部更新（LaTeX）。
+  function setLatexValue(v) {
+    mf.setValue(v, { silenceNotifications: true });
+  }
+</script>
+</body>
+</html>

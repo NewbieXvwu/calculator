@@ -234,7 +234,15 @@
       - MarchingSquares：网格采样符号 + 边线性插值求交，鞍点格用中心采样消歧，
         节点恰为 0 时钳到 +ε 防退化；画布按约 3px 网格追踪等值线渲染。
       - 数值校验：圆 x^2+y^2=25 径向误差 <3e-4；x=5 全竖直段；xy=4 误差 ~1e-14。
-- [ ] MathLive + WKWebView 公式输入编辑器
+- [x] MathLive + WKWebView 公式输入编辑器
+      - 本地打包 MathLive 0.110.0（src/MacApp/MathLiveAssets：mathlive.min.js +
+        20 个 KaTeX woff2 字体 + mathfield.html，离线加载，Package 以 .copy 保留目录）。
+      - MathInputField(NSViewRepresentable)：WKWebView 装载 math-field，input 事件
+        经 messageHandler 回传 LaTeX + ASCIIMath；normalizeAsciiMath 把 ⋅×÷−√π 等
+        归一化为计算器语法后驱动重编译；Equation 增加 latex 字段双格式保存。
+      - 方程行以公式编辑器替换纯文本框，解析失败显示红色告警图标。
+      - 测试：资源打包存在性 + 归一化 6 例（MathInputFieldTests）。
+      - （待人工确认：真机核对公式渲染、聚焦与输入体验）
 - [x] 变量滑块、函数分析面板等 `GraphControl` 周边 UI
       - 函数分析面板：右栏可切换的分析区，按方程列出零点/y 截距/极值，随视窗联动。
       - 变量滑块：表达式中除 x/y/e/pi 外的单字母（a、b、k…）自动识别为参数，

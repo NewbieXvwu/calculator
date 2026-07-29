@@ -24,6 +24,9 @@ final class GraphingViewModel: ObservableObject {
         var color: Color
         var isVisible: Bool = true
 
+        /// MathLive 编辑器的 LaTeX 形式（text 是其 ASCIIMath 等价物，供引擎解析）。
+        var latex: String = ""
+
         /// 已解析的表达式（nil 表示语法错误或空）。
         var compiled: Compiled?
         var hasError: Bool = false
@@ -55,15 +58,15 @@ final class GraphingViewModel: ObservableObject {
     ]
 
     init() {
-        addEquation(text: "x^2")
-        addEquation(text: "sin(x)")
+        addEquation(text: "x^2", latex: "x^2")
+        addEquation(text: "sin(x)", latex: "\\sin(x)")
     }
 
     // MARK: - 方程编辑
 
-    func addEquation(text: String = "") {
+    func addEquation(text: String = "", latex: String = "") {
         let color = Self.palette[equations.count % Self.palette.count]
-        var eq = Equation(text: text, color: color)
+        var eq = Equation(text: text, color: color, latex: latex)
         compile(&eq)
         equations.append(eq)
         syncParameters()
@@ -77,6 +80,15 @@ final class GraphingViewModel: ObservableObject {
     func updateEquation(id: UUID, text: String) {
         guard let index = equations.firstIndex(where: { $0.id == id }) else { return }
         equations[index].text = text
+        compile(&equations[index])
+        syncParameters()
+    }
+
+    /// MathLive 编辑器回调：同时更新 LaTeX 与 ASCIIMath（后者驱动引擎重编译）。
+    func updateEquation(id: UUID, ascii: String, latex: String) {
+        guard let index = equations.firstIndex(where: { $0.id == id }) else { return }
+        equations[index].latex = latex
+        equations[index].text = ascii
         compile(&equations[index])
         syncParameters()
     }

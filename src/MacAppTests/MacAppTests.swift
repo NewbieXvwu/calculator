@@ -297,6 +297,30 @@ final class GiacMathSolverTests: XCTestCase {
     }
 }
 
+// MARK: - MathLive 公式编辑器
+
+final class MathInputFieldTests: XCTestCase {
+    func testBundledAssetsPresent() {
+        let html = Bundle.module.url(forResource: "mathfield", withExtension: "html", subdirectory: "MathLiveAssets")
+        XCTAssertNotNil(html)
+        let js = Bundle.module.url(forResource: "mathlive.min", withExtension: "js", subdirectory: "MathLiveAssets")
+        XCTAssertNotNil(js)
+        let font = Bundle.module.url(
+            forResource: "KaTeX_Main-Regular", withExtension: "woff2", subdirectory: "MathLiveAssets/fonts")
+        XCTAssertNotNil(font)
+    }
+
+    func testAsciiMathNormalization() {
+        XCTAssertEqual(MathInputField.normalizeAsciiMath("2⋅x"), "2*x")
+        XCTAssertEqual(MathInputField.normalizeAsciiMath("x×y÷2"), "x*y/2")
+        XCTAssertEqual(MathInputField.normalizeAsciiMath("−x^2"), "-x^2")
+        XCTAssertEqual(MathInputField.normalizeAsciiMath("√(x)"), "sqrt(x)")
+        XCTAssertEqual(MathInputField.normalizeAsciiMath(" sin(π) "), "sin(pi)")
+        // 归一化结果应能被计算器语法解析。
+        XCTAssertNotNil(GraphExpression(MathInputField.normalizeAsciiMath("(x+1)⋅(x−1)")))
+    }
+}
+
 // MARK: - 单位换算
 
 final class UnitConverterDataTests: XCTestCase {

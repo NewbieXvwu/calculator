@@ -148,12 +148,18 @@ struct GraphingView: View {
                 Text("ƒ")
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(.secondary)
-                TextField("x^2 或 x^2+y^2=25", text: Binding(
-                    get: { eq.wrappedValue.text },
-                    set: { graph.updateEquation(id: eq.wrappedValue.id, text: $0) }))
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(eq.wrappedValue.hasError ? Color.red : Color.primary)
+                MathInputField(
+                    initialLatex: eq.wrappedValue.latex.isEmpty ? eq.wrappedValue.text : eq.wrappedValue.latex
+                ) { ascii, latex in
+                    graph.updateEquation(id: eq.wrappedValue.id, ascii: ascii, latex: latex)
+                }
+                .frame(height: 32)
+                if eq.wrappedValue.hasError {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.red)
+                        .help("表达式无法解析")
+                }
             }
 
             Button {

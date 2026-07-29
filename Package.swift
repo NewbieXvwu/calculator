@@ -52,7 +52,11 @@ let package = Package(
             name: "MacCalculator",
             dependencies: ["CalcManagerBridge", "GiacBridge"],
             path: "src/MacApp",
-            resources: [.process("Resources")]
+            resources: [
+                .process("Resources"),
+                // MathLive 需保留目录结构（mathfield.html 相对引用 js/fonts）。
+                .copy("MathLiveAssets"),
+            ]
         ),
         .executableTarget(
             name: "calc-smoke",
