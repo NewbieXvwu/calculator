@@ -5,7 +5,7 @@
 
 #include <vector>
 #include <unordered_map>
-#include <ppltasks.h>
+#include "ppltasks_cross_platform.h"
 #include "sal_cross_platform.h" // for SAL
 #include <memory>               // for std::shared_ptr
 
