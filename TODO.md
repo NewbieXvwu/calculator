@@ -54,15 +54,17 @@
 - 豁免与顺延：Insert 复制粘贴备选键无 Mac 等价物（豁免）；`Ctrl+Home/End` graphView 与 plotButton 回车归 P2-5；
   「全部进菜单栏」并入 P3-1 设置/菜单项工作。
 
-### P1-2 CopyPasteManager 完整移植
-现状：`pasteFromPasteboard` 只识别数字/小数点/前导负号（`StandardCalculatorViewModel.swift:565`）。
-规格：`src/CalcViewModel/Common/CopyPasteManager.cpp`（621 行）。
-- [ ] 按模式×进制×字长的合法性校验（正则表 `c_programmerHexPatterns` 等全套）
-- [ ] 表达式粘贴：运算符/括号/科学计数 `e±n` 逐 token 送引擎；非法输入整体拒绝（对应原版行为）而非静默丢字符
-- [ ] 进制前缀：`0x`/`0b`、程序员模式按当前进制解析；字长溢出检查（`TryOperandToULL`/位宽上限）
-- [ ] 最大长度/最大位数检查（`MaxOperandLengthForViewMode` 等价物）
-- [ ] 日期/换算/绘图模式的粘贴行为对照（原版禁用或按数字处理）
-- [ ] 迁移 `src/CalculatorUnitTests/CopyPasteManagerTest.cpp` 全部用例到 `MacAppTests`
+### P1-2 CopyPasteManager 完整移植 ✅
+规格：`src/CalcViewModel/Common/CopyPasteManager.cpp`（621 行）→ `src/MacApp/CopyPasteManager.swift`。
+- [x] 按模式×进制×字长的合法性校验（standard/scientific/programmer hex·dec·oct·bin/converter 全套正则，
+  `\A(?:…)\z` 全串匹配；ICU `\s` 不含 `\v`，wspc 显式补 `\x{0B}\x{85}`）
+- [x] 表达式粘贴：`onPaste` 先送 CENTR，逐字符映射按键（负号延迟、括号 negateStack、`e±n` 前瞻），
+  非法输入整体拒绝并经 `DisplayPasteError()`（CalcSession→bridge 新增）显示引擎 CALC_E_DOMAIN 错误
+- [x] 进制前缀/后缀：`0x/0b/0y/0n/0t/0o`、`h/b/u/l/ul/ull`；`TryOperandToULL` 按 stoull 语义含溢出检测
+- [x] 最大长度/最大值检查：`maxOperandLengthAndValue` 16 组（hex/dec/oct/bin × qword/dword/word/byte）
+- [x] 日期/绘图模式禁粘贴；换算器经 NotificationCenter（`.converterPasteRequested/.converterCopyRequested`）
+  转发到 `UnitConverterViewModel.onPaste`（含前导负号 pendingNegate）
+- [x] 迁移 `CopyPasteManagerTest.cpp` 全部用例：`CopyPasteManagerTests` 16 项 + `PasteFunctionalTests` 6 项，全绿
 
 ### P2-1 程序员模式：移位模式联动键盘 ✅（7aa738b）
 规格：`CalculatorProgrammerRadixOperators.xaml:368-483`——RadioButton 选择算术/逻辑/循环/带进位后，

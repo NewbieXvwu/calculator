@@ -7,6 +7,7 @@
 //   - 换算与补充结果（CalculateSuggested）。
 // 换算数据与算法在 UnitConverterData 中（静态单位；货币后续单独接入）。
 
+import AppKit
 import Foundation
 
 @MainActor
@@ -223,6 +224,55 @@ final class UnitConverterViewModel: ObservableObject {
             inputBuffer = "-" + inputBuffer
         }
         recalculate()
+    }
+
+    // MARK: - 复制 / 粘贴（对应原版 OnCopyCommand / OnPaste）
+
+    /// 拷贝活动框的值。
+    func copyToPasteboard() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(isFromActive ? fromDisplay : toDisplay, forType: .string)
+    }
+
+    /// 粘贴：CopyPasteManager 校验（换算器只收纯数字），非法整体拒绝。
+    func pasteFromPasteboard() {
+        guard let raw = NSPasteboard.general.string(forType: .string) else { return }
+        guard let validated = CopyPasteManager.validate(raw, mode: .converter) else { return }
+        onPaste(validated)
+    }
+
+    /// 对应原版 UnitConverterViewModel::OnPaste：首个合法字符前先清空，
+    /// 前导负号延迟到有数字后再应用。
+    func onPaste(_ text: String) {
+        var isFirstLegalChar = true
+        var pendingNegate = false
+
+        for ch in text {
+            let digit: Int? = ("0"..."9").contains(ch) ? ch.wholeNumberValue : nil
+            let isDecimal = (ch == ".")
+            let isNegate = (ch == "-")
+            guard digit != nil || isDecimal || isNegate else { continue }
+
+            if isFirstLegalChar {
+                clear()
+                isFirstLegalChar = false
+                if isNegate {
+                    pendingNegate = true
+                    continue
+                }
+            }
+
+            if let digit {
+                inputDigit(digit)
+            } else if isDecimal {
+                inputDecimal()
+            }
+        }
+
+        if pendingNegate {
+            toggleSign()
+        }
     }
 
     // MARK: - 换算

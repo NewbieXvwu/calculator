@@ -553,3 +553,576 @@ final class UnitConverterDataTests: XCTestCase {
         XCTAssertEqual(vm.supplementaryResults.last!.value, "1")
     }
 }
+
+// MARK: - CopyPasteManager（迁移自 CalculatorUnitTests/CopyPasteManagerTest.cpp）
+
+final class CopyPasteManagerTests: XCTestCase {
+    private typealias CPM = CopyPasteManager
+
+    private func assertPositive(
+        _ inputs: [String], mode: CPM.PasteMode,
+        radix: RadixKind = .dec, wordSize: WordSize = .qword,
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        for input in inputs {
+            XCTAssertEqual(
+                CPM.validate(input, mode: mode, radix: radix, wordSize: wordSize), input,
+                "应接受: \(input.debugDescription)", file: file, line: line)
+        }
+    }
+
+    private func assertNegative(
+        _ inputs: [String], mode: CPM.PasteMode,
+        radix: RadixKind = .dec, wordSize: WordSize = .qword,
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        for input in inputs {
+            XCTAssertNil(
+                CPM.validate(input, mode: mode, radix: radix, wordSize: wordSize),
+                "应拒绝: \(input.debugDescription)", file: file, line: line)
+        }
+    }
+
+    func testValidatePasteExpressionErrorStates() {
+        var expTooLong = ""
+        for _ in 0..<(CPM.maxPasteableLength / 8) {
+            expTooLong += "-1234567"
+        }
+        XCTAssertEqual(CPM.validate(expTooLong, mode: .standard), expTooLong, "最大长度以内应接受")
+        expTooLong += "1"
+        XCTAssertNil(CPM.validate(expTooLong, mode: .standard), "超出最大长度应拒绝")
+
+        XCTAssertNil(CPM.validate("", mode: .standard), "空串应拒绝")
+        XCTAssertNil(CPM.validate("1a23f456", mode: .standard), "当前模式不支持的字符应拒绝")
+    }
+
+    func testValidateExtractOperands() {
+        XCTAssertEqual(CPM.extractOperands("123456", mode: .standard), ["123456"])
+        XCTAssertEqual(CPM.extractOperands("123^456", mode: .standard), ["123^456"])
+        XCTAssertEqual(CPM.extractOperands("123+456", mode: .standard), ["123", "456"])
+        XCTAssertEqual(CPM.extractOperands("123-456", mode: .standard), ["123", "456"])
+        XCTAssertEqual(CPM.extractOperands("123*456", mode: .standard), ["123", "456"])
+        XCTAssertEqual(CPM.extractOperands("123/456", mode: .standard), ["123", "456"])
+        XCTAssertEqual(CPM.extractOperands("123e456", mode: .standard), ["123e456"])
+        XCTAssertEqual(CPM.extractOperands("123e4567", mode: .standard), ["123e4567"])
+        XCTAssertEqual(CPM.extractOperands("((45)+(-30))", mode: .scientific), ["((45)", "(-30))"])
+    }
+
+    func testValidateExtractOperandsErrors() {
+        var expOperandLimit = ""
+        for _ in 0..<CPM.maxOperandCount {
+            expOperandLimit += "+1"
+        }
+        XCTAssertEqual(CPM.extractOperands(expOperandLimit, mode: .standard).count, 100, "最多允许 100 个操作数")
+        expOperandLimit += "+1"
+        XCTAssertEqual(CPM.extractOperands(expOperandLimit, mode: .standard).count, 0, "操作数过多返回空")
+
+        XCTAssertEqual(CPM.extractOperands("12e9999", mode: .standard).count, 1, "指数最多 4 位")
+        XCTAssertEqual(CPM.extractOperands("12e10000", mode: .standard).count, 0, "指数过长返回空")
+    }
+
+    func testValidateExpressionRegExMatch() {
+        XCTAssertFalse(CPM.expressionRegExMatch([], mode: .standard), "空操作数列表返回 false")
+
+        // 超长操作数
+        XCTAssertFalse(CPM.expressionRegExMatch(["12345678901234567"], mode: .standard))
+        XCTAssertFalse(CPM.expressionRegExMatch(["123456789012345678901234567890123"], mode: .scientific))
+        XCTAssertFalse(CPM.expressionRegExMatch(["12345678901234567"], mode: .converter))
+        XCTAssertFalse(CPM.expressionRegExMatch(["11111111111111111"], mode: .programmer, radix: .hex, wordSize: .qword))
+        XCTAssertFalse(CPM.expressionRegExMatch(["12345678901234567890"], mode: .programmer, radix: .dec, wordSize: .qword))
+        XCTAssertFalse(CPM.expressionRegExMatch(["11111111111111111111111"], mode: .programmer, radix: .oct, wordSize: .qword))
+        XCTAssertFalse(CPM.expressionRegExMatch(
+            ["10000000000000000000000000000000000000000000000000000000000000000"],
+            mode: .programmer, radix: .bin, wordSize: .qword))
+
+        // 超最大值
+        XCTAssertFalse(
+            CPM.expressionRegExMatch(["9223372036854775808"], mode: .programmer, radix: .dec, wordSize: .qword),
+            "超最大值应返回 false")
+
+        XCTAssertTrue(
+            CPM.expressionRegExMatch(["((((((((((((((((((((123))))))))))))))))))))"], mode: .scientific),
+            "清洗后的操作数应视为长度以内")
+        XCTAssertTrue(
+            CPM.expressionRegExMatch(["9223372036854775807"], mode: .programmer, radix: .dec, wordSize: .qword),
+            "等于最大值应返回 true")
+        XCTAssertTrue(
+            CPM.expressionRegExMatch(["-9223372036854775808"], mode: .programmer, radix: .dec, wordSize: .qword),
+            "等于最小负值应返回 true")
+
+        // 所有操作数都必须匹配
+        XCTAssertTrue(CPM.expressionRegExMatch(["123", "456"], mode: .standard))
+        XCTAssertTrue(CPM.expressionRegExMatch(["123", "1e23"], mode: .standard))
+        XCTAssertFalse(CPM.expressionRegExMatch(["123", "fab10"], mode: .standard))
+
+        XCTAssertTrue(
+            CPM.expressionRegExMatch(
+                ["1.23e+456", "1.23e456", ".23e+456", "123e-456", "12e2", "12e+2", "12e-2", "-12e2", "-12e+2", "-12e-2"],
+                mode: .scientific),
+            "科学模式接受指数")
+
+        XCTAssertFalse(
+            CPM.expressionRegExMatch(["123", "12345678901234567"], mode: .standard),
+            "所有操作数都要在最大长度内")
+        XCTAssertFalse(
+            CPM.expressionRegExMatch(["123", "9223372036854775808"], mode: .programmer, radix: .dec, wordSize: .qword),
+            "所有操作数都要在最大值内")
+    }
+
+    func testValidateGetMaxOperandLengthAndValue() {
+        typealias LV = CopyPasteManager.MaxOperandLengthAndValue
+
+        XCTAssertEqual(
+            CPM.maxOperandLengthAndValue(mode: .standard, radix: .dec, wordSize: .qword),
+            LV(maxLength: CPM.maxStandardOperandLength, maxValue: 0))
+        XCTAssertEqual(
+            CPM.maxOperandLengthAndValue(mode: .scientific, radix: .dec, wordSize: .qword),
+            LV(maxLength: CPM.maxScientificOperandLength, maxValue: 0))
+        XCTAssertEqual(
+            CPM.maxOperandLengthAndValue(mode: .converter, radix: .dec, wordSize: .qword),
+            LV(maxLength: CPM.maxConverterInputLength, maxValue: 0))
+
+        let qwordMax = UInt64.max
+        let dwordMax = UInt64(UInt32.max)
+        let wordMax = UInt64(UInt16.max)
+        let byteMax = UInt64(UInt8.max)
+
+        // Hex
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .hex, wordSize: .qword), LV(maxLength: 16, maxValue: qwordMax))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .hex, wordSize: .dword), LV(maxLength: 8, maxValue: dwordMax))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .hex, wordSize: .word), LV(maxLength: 4, maxValue: wordMax))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .hex, wordSize: .byte), LV(maxLength: 2, maxValue: byteMax))
+        // Dec
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .dec, wordSize: .qword), LV(maxLength: 19, maxValue: qwordMax >> 1))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .dec, wordSize: .dword), LV(maxLength: 10, maxValue: dwordMax >> 1))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .dec, wordSize: .word), LV(maxLength: 5, maxValue: wordMax >> 1))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .dec, wordSize: .byte), LV(maxLength: 3, maxValue: byteMax >> 1))
+        // Oct
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .oct, wordSize: .qword), LV(maxLength: 22, maxValue: qwordMax))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .oct, wordSize: .dword), LV(maxLength: 11, maxValue: dwordMax))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .oct, wordSize: .word), LV(maxLength: 6, maxValue: wordMax))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .oct, wordSize: .byte), LV(maxLength: 3, maxValue: byteMax))
+        // Bin
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .bin, wordSize: .qword), LV(maxLength: 64, maxValue: qwordMax))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .bin, wordSize: .dword), LV(maxLength: 32, maxValue: dwordMax))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .bin, wordSize: .word), LV(maxLength: 16, maxValue: wordMax))
+        XCTAssertEqual(CPM.maxOperandLengthAndValue(mode: .programmer, radix: .bin, wordSize: .byte), LV(maxLength: 8, maxValue: byteMax))
+    }
+
+    func testValidateSanitizeOperand() {
+        XCTAssertEqual(CPM.sanitizeOperand("((1234"), "1234")
+        XCTAssertEqual(CPM.sanitizeOperand("1234))"), "1234")
+        XCTAssertEqual(CPM.sanitizeOperand("-1234"), "1234")
+        XCTAssertEqual(CPM.sanitizeOperand("+1234"), "1234")
+        XCTAssertEqual(CPM.sanitizeOperand("-(1234)"), "1234")
+        XCTAssertEqual(CPM.sanitizeOperand("+(1234)"), "1234")
+        XCTAssertEqual(CPM.sanitizeOperand("12-34"), "1234")
+        XCTAssertEqual(CPM.sanitizeOperand("((((1234))))"), "1234")
+        XCTAssertEqual(CPM.sanitizeOperand("1'2'3'4"), "1234")
+        XCTAssertEqual(CPM.sanitizeOperand("'''''1234''''"), "1234")
+        XCTAssertEqual(CPM.sanitizeOperand("1_2_3_4"), "1234")
+        XCTAssertEqual(CPM.sanitizeOperand("______1234___"), "1234")
+    }
+
+    func testValidatePrefixCurrencySymbols() {
+        XCTAssertEqual(CPM.removeUnwantedChars("\u{00A5}5"), "5") // ¥
+        XCTAssertEqual(CPM.removeUnwantedChars("\u{00A4}5"), "5") // ¤
+        XCTAssertEqual(CPM.removeUnwantedChars("\u{20B5}5"), "5") // ₵
+        XCTAssertEqual(CPM.removeUnwantedChars("$5"), "5")
+        XCTAssertEqual(CPM.removeUnwantedChars("\u{20A1}5"), "5") // ₡
+        XCTAssertEqual(CPM.removeUnwantedChars("\u{20A9}5"), "5") // ₩
+        XCTAssertEqual(CPM.removeUnwantedChars("\u{20AA}5"), "5") // ₪
+        XCTAssertEqual(CPM.removeUnwantedChars("\u{20A6}5"), "5") // ₦
+        XCTAssertEqual(CPM.removeUnwantedChars("\u{20B9}5"), "5") // ₹
+        XCTAssertEqual(CPM.removeUnwantedChars("\u{00A3}5"), "5") // £
+        XCTAssertEqual(CPM.removeUnwantedChars("\u{20AC}5"), "5") // €
+    }
+
+    func testValidateTryOperandToULL() {
+        // Hex
+        XCTAssertEqual(CPM.tryOperandToULL("1234", radix: .hex), 0x1234)
+        XCTAssertEqual(CPM.tryOperandToULL("FF", radix: .hex), 0xFF)
+        XCTAssertEqual(CPM.tryOperandToULL("FFFFFFFFFFFFFFFF", radix: .hex), UInt64.max)
+        XCTAssertEqual(CPM.tryOperandToULL("0xFFFFFFFFFFFFFFFF", radix: .hex), UInt64.max)
+        XCTAssertEqual(CPM.tryOperandToULL("0XFFFFFFFFFFFFFFFF", radix: .hex), UInt64.max)
+        XCTAssertEqual(CPM.tryOperandToULL("0X0FFFFFFFFFFFFFFFF", radix: .hex), UInt64.max)
+        // Dec
+        XCTAssertEqual(CPM.tryOperandToULL("1234", radix: .dec), 1234)
+        XCTAssertEqual(CPM.tryOperandToULL("18446744073709551615", radix: .dec), UInt64.max)
+        XCTAssertEqual(CPM.tryOperandToULL("018446744073709551615", radix: .dec), UInt64.max)
+        // Oct
+        XCTAssertEqual(CPM.tryOperandToULL("777", radix: .oct), 0o777)
+        XCTAssertEqual(CPM.tryOperandToULL("0777", radix: .oct), 0o777)
+        XCTAssertEqual(CPM.tryOperandToULL("1777777777777777777777", radix: .oct), UInt64.max)
+        XCTAssertEqual(CPM.tryOperandToULL("01777777777777777777777", radix: .oct), UInt64.max)
+        // Bin
+        XCTAssertEqual(CPM.tryOperandToULL("1111", radix: .bin), 0b1111)
+        XCTAssertEqual(CPM.tryOperandToULL("0010", radix: .bin), 0b10)
+        XCTAssertEqual(
+            CPM.tryOperandToULL("1111111111111111111111111111111111111111111111111111111111111111", radix: .bin),
+            UInt64.max)
+        XCTAssertEqual(
+            CPM.tryOperandToULL("01111111111111111111111111111111111111111111111111111111111111111", radix: .bin),
+            UInt64.max)
+
+        // 溢出 / 非法输入返回 nil
+        XCTAssertNil(CPM.tryOperandToULL("0xFFFFFFFFFFFFFFFFF1", radix: .hex))
+        XCTAssertNil(CPM.tryOperandToULL("18446744073709551616", radix: .dec))
+        XCTAssertNil(CPM.tryOperandToULL("2000000000000000000000", radix: .oct))
+        XCTAssertNil(CPM.tryOperandToULL(
+            "11111111111111111111111111111111111111111111111111111111111111111", radix: .bin))
+        XCTAssertNil(CPM.tryOperandToULL("-1", radix: .dec))
+        XCTAssertNil(CPM.tryOperandToULL("5555", radix: .bin))
+        XCTAssertNil(CPM.tryOperandToULL("xyz", radix: .bin))
+    }
+
+    func testValidateStandardScientificOperandLength() {
+        XCTAssertEqual(CPM.standardScientificOperandLength(""), 0)
+        XCTAssertEqual(CPM.standardScientificOperandLength("0.2"), 1)
+        XCTAssertEqual(CPM.standardScientificOperandLength("1.2"), 2)
+        XCTAssertEqual(CPM.standardScientificOperandLength("0."), 0)
+        XCTAssertEqual(CPM.standardScientificOperandLength("12345"), 5)
+        XCTAssertEqual(CPM.standardScientificOperandLength("-12345"), 6)
+    }
+
+    func testValidateProgrammerOperandLength() {
+        XCTAssertEqual(CPM.programmerOperandLength("1001", radix: .bin), 4)
+        XCTAssertEqual(CPM.programmerOperandLength("1001b", radix: .bin), 4)
+        XCTAssertEqual(CPM.programmerOperandLength("1001B", radix: .bin), 4)
+        XCTAssertEqual(CPM.programmerOperandLength("0b1001", radix: .bin), 4)
+        XCTAssertEqual(CPM.programmerOperandLength("0B1001", radix: .bin), 4)
+        XCTAssertEqual(CPM.programmerOperandLength("0y1001", radix: .bin), 4)
+        XCTAssertEqual(CPM.programmerOperandLength("0Y1001", radix: .bin), 4)
+        XCTAssertEqual(CPM.programmerOperandLength("0b", radix: .bin), 1)
+
+        XCTAssertEqual(CPM.programmerOperandLength("123456", radix: .oct), 6)
+        XCTAssertEqual(CPM.programmerOperandLength("0t123456", radix: .oct), 6)
+        XCTAssertEqual(CPM.programmerOperandLength("0T123456", radix: .oct), 6)
+        XCTAssertEqual(CPM.programmerOperandLength("0o123456", radix: .oct), 6)
+        XCTAssertEqual(CPM.programmerOperandLength("0O123456", radix: .oct), 6)
+
+        XCTAssertEqual(CPM.programmerOperandLength("", radix: .dec), 0)
+        XCTAssertEqual(CPM.programmerOperandLength("-", radix: .dec), 0)
+        XCTAssertEqual(CPM.programmerOperandLength("12345", radix: .dec), 5)
+        XCTAssertEqual(CPM.programmerOperandLength("-12345", radix: .dec), 5)
+        XCTAssertEqual(CPM.programmerOperandLength("0n12345", radix: .dec), 5)
+        XCTAssertEqual(CPM.programmerOperandLength("0N12345", radix: .dec), 5)
+
+        XCTAssertEqual(CPM.programmerOperandLength("123ABC", radix: .hex), 6)
+        XCTAssertEqual(CPM.programmerOperandLength("0x123ABC", radix: .hex), 6)
+        XCTAssertEqual(CPM.programmerOperandLength("0X123ABC", radix: .hex), 6)
+        XCTAssertEqual(CPM.programmerOperandLength("123ABCh", radix: .hex), 6)
+        XCTAssertEqual(CPM.programmerOperandLength("123ABCH", radix: .hex), 6)
+    }
+
+    func testValidateStandardPasteExpression() {
+        assertPositive([
+            "123", "+123", "-133", "12345.", "+12.34", "12.345", "012.034", "-23.032",
+            "-.123", ".1234", "012.012", "123+456", "123+-234", "123*-345", "123*4*-3",
+            "123*+4*-3", "1,234", "1 2 3", "\n\r1,234\n", "\u{0C}\n1+2\t\r\u{0B}\u{85}",
+            "\n 1+\n2 ", "1\"2", "1234567891234567", "2+2=", "2+2=   ", "1.2e23", "12345e-23",
+        ], mode: .standard)
+        assertNegative([
+            "(123)+(456)", "abcdef", "xyz", "ABab", "e+234", "12345678912345678",
+            "SIN(2)", "2+2==", "2=+2", "2%2", "10^2",
+        ], mode: .standard)
+    }
+
+    func testValidateScientificPasteExpression() {
+        assertPositive([
+            "123", "+123", "-133", "123+456", "12345e+023", "1,234", "1.23", "-.123",
+            ".1234", "012.012", "123+-234", "123*-345", "123*4*-3", "123*+4*-3", "1 2 3",
+            "\n\r1,234\n", "\u{0C}\n1+2\t\r\u{0B}\u{85}", "\n 1+\n2 ", "1\"2", "1.2e+023",
+            "12345e-23", "(123)+(456)", "12345678912345678123456789012345", "(123)+(456)=",
+            "2+2=   ", "-(43)", "+(41213)", "-(432+3232)", "-(+(-3213)+(-2312))",
+            "-(-(432+3232))", "1.2e23", "12^2", "-12.12^-2", "61%99-6.1%99",
+            "1.1111111111111111111111111111111e+1142",
+        ], mode: .scientific)
+        assertNegative([
+            "abcdef", "xyz", "ABab", "e+234", "123456789123456781234567890123456",
+            "11.1111111111111111111111111111111e+1142", "1.1e+10001",
+            "0.11111111111111111111111111111111111e+111111SIN(2)", "2+2==", "2=+2",
+        ], mode: .scientific)
+    }
+
+    func testValidateProgrammerHexPasteExpression() {
+        assertPositive([
+            "123", "123+456", "1,234", "1 2 3", "1'2'3'4", "1_2_3_4", "12345e-23",
+            "\n\r1,234\n", "\u{0C}\n1+2\t\r\u{0B}\u{85}", "\n 1+\n2 ", "e+234", "1\"2",
+            "(123)+(456)", "abcdef", "ABab", "ABCDF21abc41a", "0x1234", "0xab12", "0X1234",
+            "AB12h", "BC34H", "1234u", "1234ul", "1234ULL", "2+2=", "2+2=   ",
+            "A4C3%12", "1233%AB", "FFC1%F2",
+        ], mode: .programmer, radix: .hex, wordSize: .qword)
+        assertNegative([
+            "+123", "1.23", "1''2", "'123", "123'", "1__2", "_123", "123_", "-133",
+            "1.2e+023", "1.2e23", "xyz", "ABCDEF21abc41abc7", "SIN(2)", "123+-234",
+            "1234x", "A0x1234", "0xx1234", "1234uu", "1234ulll", "2+2==", "2=+2",
+        ], mode: .programmer, radix: .hex, wordSize: .qword)
+
+        assertPositive([
+            "123", "123+456", "1,234", "1 2 3", "1'2'3'4", "1_2_3_4", "12345e-23",
+            "\n\r1,234\n", "\u{0C}\n1+2\t\r\u{0B}\u{85}", "\n 1+\n2 ", "e+234", "1\"2",
+            "(123)+(456)", "abcdef", "ABab", "ABCD123a", "0x1234", "0xab12", "0X1234",
+            "AB12h", "BC34H", "1234u", "1234ul", "1234ULL",
+        ], mode: .programmer, radix: .hex, wordSize: .dword)
+        assertNegative([
+            "+123", "1.23", "1''2", "'123", "123'", "1__2", "_123", "123_", "-133",
+            "1.2e+023", "1.2e23", "xyz", "ABCD123ab", "SIN(2)", "123+-234", "1234x",
+            "A0x1234", "0xx1234", "1234uu", "1234ulll",
+        ], mode: .programmer, radix: .hex, wordSize: .dword)
+
+        assertPositive([
+            "123", "13+456", "1,34", "12 3", "1'2'3'4", "1_2_3_4", "15e-23", "\r1",
+            "\n\r1,4", "\n1,4\n", "\u{0C}\n1+2\t\r\u{0B}", "\n 1+\n2 ", "e+24", "1\"2",
+            "(23)+(4)", "aef", "ABab", "A1a3", "FFFF", "0x1234", "0xab12", "0X1234",
+            "AB12h", "BC34H", "1234u", "1234ul", "1234ULL",
+        ], mode: .programmer, radix: .hex, wordSize: .word)
+        assertNegative([
+            "+123", "1.23", "1''2", "'123", "123'", "1__2", "_123", "123_", "-133",
+            "1.2e+023", "1.2e23", "xyz", "A1a3b", "SIN(2)", "123+-234", "1234x",
+            "A0x1234", "0xx1234", "1234uu", "1234ulll",
+        ], mode: .programmer, radix: .hex, wordSize: .word)
+
+        assertPositive([
+            "13", "13+6", "1,4", "2 3", "1'2", "1_2", "5e-3", "\r1", "a", "ab", "A1",
+            "0x12", "0xab", "0X12", "A9h", "B8H", "12u", "12ul", "12ULL",
+        ], mode: .programmer, radix: .hex, wordSize: .byte)
+        assertNegative([
+            "+3", "1.2", "1''2", "'12", "12'", "1__2", "_12", "12_", "-3", "1.1e+02",
+            "1.2e3", "xz", "A3a", "SIN(2)", "13+-23", "12x", "A0x1", "0xx12", "12uu", "12ulll",
+        ], mode: .programmer, radix: .hex, wordSize: .byte)
+    }
+
+    func testValidateProgrammerDecPasteExpression() {
+        assertPositive([
+            "123", "+123", "-133", "123+456", "1,234", "1 2 3", "1'2'3'4", "1_2_3_4",
+            "\n\r1,234\n", "\u{0C}\n1+2\t\r\u{0B}\u{85}", "\n 1+\n2 ", "1\"2", "(123)+(456)",
+            "123+-234", "123*-345", "123*4*-3", "123*+4*-3", "9223372036854775807",
+            "-9223372036854775808", "0n1234", "0N1234", "1234u", "1234ul", "1234ULL",
+            "2+2=", "2+2=   ", "823%21",
+        ], mode: .programmer, radix: .dec, wordSize: .qword)
+        assertNegative([
+            "1.23", "1''2", "'123", "123'", "1__2", "_123", "123_", "1.2e23", "1.2e+023",
+            "12345e-23", "abcdef", "xyz", "ABab", "e+234", "9223372036854775808",
+            "9223372036854775809", "SIN(2)", "-0n123", "0nn1234", "1234uu", "1234ulll",
+            "2+2==", "2=+2",
+        ], mode: .programmer, radix: .dec, wordSize: .qword)
+
+        assertPositive([
+            "123", "+123", "-133", "123+456", "1,234", "1 2 3", "1'2'3'4", "1_2_3_4",
+            "\n\r1,234\n", "\u{0C}\n1+2\t\r\u{0B}\u{85}", "\n 1+\n2 ", "1\"2", "(123)+(456)",
+            "123+-234", "123*-345", "123*4*-3", "123*+4*-3", "2147483647", "-2147483647",
+            "0n1234", "0N1234", "1234u", "1234ul", "1234ULL",
+        ], mode: .programmer, radix: .dec, wordSize: .dword)
+        assertNegative([
+            "1.23", "1''2", "'123", "123'", "1__2", "_123", "123_", "1.2e23", "1.2e+023",
+            "12345e-23", "abcdef", "xyz", "ABab", "e+234", "2147483649", "SIN(2)",
+            "-0n123", "0nn1234", "1234uu", "1234ulll",
+        ], mode: .programmer, radix: .dec, wordSize: .dword)
+
+        assertPositive([
+            "123", "+123", "-133", "123+456", "1,234", "1 2 3", "1'2'3'4", "1_2_3_4",
+            "\u{0C}\n1+2\t\r\u{0B}\u{85}", "1\"2", "(123)+(456)", "123+-234", "123*-345",
+            "123*4*-3", "123*+4*-3", "32767", "-32767", "-32768", "0n1234", "0N1234",
+            "1234u", "1234ul", "1234ULL",
+        ], mode: .programmer, radix: .dec, wordSize: .word)
+        assertNegative([
+            "1.23", "1''2", "'123", "123'", "1__2", "_123", "123_", "1.2e23", "1.2e+023",
+            "12345e-23", "abcdef", "xyz", "ABab", "e+234", "32769", "SIN(2)", "-0n123",
+            "0nn1234", "1234uu", "1234ulll",
+        ], mode: .programmer, radix: .dec, wordSize: .word)
+
+        assertPositive([
+            "13", "+13", "-13", "13+46", "13+-34", "13*-3", "3*4*-3", "3*+4*-3", "1,3",
+            "1 3", "1'2'3", "1_2_3", "1\"2", "127", "-127", "0n123", "0N123", "123u",
+            "123ul", "123ULL",
+        ], mode: .programmer, radix: .dec, wordSize: .byte)
+        assertNegative([
+            "1.23", "1''2", "'123", "123'", "1__2", "_123", "123_", "1.2e23", "1.2e+023",
+            "15e-23", "abcdef", "xyz", "ABab", "e+24", "129", "SIN(2)", "-0n123",
+            "0nn1234", "123uu", "123ulll",
+        ], mode: .programmer, radix: .dec, wordSize: .byte)
+    }
+
+    func testValidateProgrammerOctPasteExpression() {
+        assertPositive([
+            "123", "123+456", "1,234", "1 2 3", "1'2'3'4", "1_2_3_4", "\n\r1,234\n",
+            "\u{0C}\n1+2\t\r\u{0B}\u{85}", "\n 1+\n2 ", "1\"2", "(123)+(456)", "0t1234",
+            "0T1234", "0o1234", "0O1234", "1234u", "1234ul", "1234ULL", "2+2=", "2+2=   ",
+            "127%71", "1777777777777777777777",
+        ], mode: .programmer, radix: .oct, wordSize: .qword)
+        assertNegative([
+            "+123", "1.23", "1''2", "'123", "123'", "1__2", "_123", "123_", "-133",
+            "1.2e23", "1.2e+023", "12345e-23", "abcdef", "xyz", "ABab", "e+234",
+            "12345678901234567890123", "2000000000000000000000", "SIN(2)", "123+-234",
+            "0ot1234", "1234uu", "1234ulll", "2+2==", "2=+2", "89%12",
+        ], mode: .programmer, radix: .oct, wordSize: .qword)
+
+        assertPositive([
+            "123", "123+456", "1,234", "1 2 3", "1'2'3'4", "1_2_3_4", "\n\r1,234\n",
+            "\u{0C}\n1+2\t\r\u{0B}\u{85}", "\n 1+\n2 ", "1\"2", "(123)+(456)",
+            "37777777777", "0t1234", "0T1234", "0o1234", "0O1234", "1234u", "1234ul", "1234ULL",
+        ], mode: .programmer, radix: .oct, wordSize: .dword)
+        assertNegative([
+            "+123", "1.23", "1''2", "'123", "123'", "1__2", "_123", "123_", "-133",
+            "1.2e23", "1.2e+023", "12345e-23", "abcdef", "xyz", "ABab", "e+234",
+            "377777777771", "40000000000", "SIN(2)", "123+-234", "0ot1234", "1234uu", "1234ulll",
+        ], mode: .programmer, radix: .oct, wordSize: .dword)
+
+        assertPositive([
+            "123", "123+456", "1,234", "1 2 3", "1'2'3'4", "1_2_3_4",
+            "\u{0C}\n1+2\t\r\u{0B}\u{85}", "1\"2", "(123)+(456)", "177777", "0t1234",
+            "0T1234", "0o1234", "0O1234", "1234u", "1234ul", "1234ULL",
+        ], mode: .programmer, radix: .oct, wordSize: .word)
+        assertNegative([
+            "+123", "1.23", "1''2", "'123", "123'", "1__2", "_123", "123_", "-133",
+            "1.2e23", "1.2e+023", "12345e-23", "abcdef", "xyz", "ABab", "e+234",
+            "1777771", "200000", "SIN(2)", "123+-234", "0ot1234", "1234uu", "1234ulll",
+        ], mode: .programmer, radix: .oct, wordSize: .word)
+
+        assertPositive([
+            "13", "13+46", "1,3", "1 3", "1'2'3", "1_2_3", "1\"2", "377", "0t123",
+            "0T123", "0o123", "0O123", "123u", "123ul", "123ULL",
+        ], mode: .programmer, radix: .oct, wordSize: .byte)
+        assertNegative([
+            "+123", "1.23", "1''2", "'123", "123'", "1__2", "_123", "123_", "-13",
+            "1.2e23", "1.2e+023", "15e-23", "abcdef", "xyz", "ABab", "e+24", "477",
+            "400", "SIN(2)", "123+-34", "0ot123", "123uu", "123ulll",
+        ], mode: .programmer, radix: .oct, wordSize: .byte)
+    }
+
+    func testValidateProgrammerBinPasteExpression() {
+        assertPositive([
+            "100", "100+101", "1,001", "1 0 1", "1'0'0'1", "1_0_0_1", "\n\r1,010\n",
+            "\u{0C}\n1+11\t\r\u{0B}\u{85}", "\n 1+\n1 ", "1\"1", "(101)+(10)", "0b1001",
+            "0B1111", "0y1001", "0Y1001", "1100b", "1101B", "1111u", "1111ul", "1111ULL",
+            "1010101010101010101010101011110110100100101010101001010101001010",
+            "1+10=", "1+10=   ", "1001%10",
+        ], mode: .programmer, radix: .bin, wordSize: .qword)
+        assertNegative([
+            "+10101", "1.01", "1''0", "'101", "101'", "1__0", "_101", "101_",
+            "-10101001", "123", "1.2e23", "1.2e+023", "101010e-1010", "abcdef", "xyz",
+            "ABab", "e+10101", "b1001", "10b01", "0x10", "1001x", "1001h", "0bb1111",
+            "1111uu", "1111ulll",
+            "10101010101010101010101010111101101001001010101010010101010010100",
+            "SIN(01010)", "10+-10101010101", "1+10==", "1=+10",
+        ], mode: .programmer, radix: .bin, wordSize: .qword)
+
+        assertPositive([
+            "100", "100+101", "1,001", "1 0 1", "1'0'0'1", "1_0_0_1", "\n\r1,010\n",
+            "\u{0C}\n1+11\t\r\u{0B}\u{85}", "\n 1+\n1 ", "1\"1", "(101)+(10)", "0b1001",
+            "0B1111", "0y1001", "0Y1001", "1100b", "1101B", "1111u", "1111ul", "1111ULL",
+            "10101001001010101101010111111100",
+        ], mode: .programmer, radix: .bin, wordSize: .dword)
+        assertNegative([
+            "+10101", "1.01", "1''0", "'101", "101'", "1__0", "_101", "101_",
+            "-10101001", "123", "1.2e23", "1.2e+023", "101010e-1010", "abcdef", "xyz",
+            "ABab", "e+10101", "b1001", "10b01", "0x10", "1001x", "1001h", "0bb1111",
+            "1111uu", "1111ulll", "101010010010101011010101111111001", "SIN(01010)",
+            "10+-10101010101",
+        ], mode: .programmer, radix: .bin, wordSize: .dword)
+
+        assertPositive([
+            "100", "100+101", "1,001", "1 0 1", "1'0'0'1", "1_0_0_1", "\n\r1,010\n",
+            "\u{0C}\n1+11\t\r\u{0B}\u{85}", "\n 1+\n1 ", "1\"1", "(101)+(10)", "0b1001",
+            "0B1111", "0y1001", "0Y1001", "1100b", "1101B", "1111u", "1111ul", "1111ULL",
+            "1010101010010010",
+        ], mode: .programmer, radix: .bin, wordSize: .word)
+        assertNegative([
+            "+10101", "1.01", "1''0", "'101", "101'", "1__0", "_101", "101_",
+            "-10101001", "123", "1.2e23", "1.2e+023", "101010e-1010", "abcdef", "xyz",
+            "ABab", "e+10101", "b1001", "10b01", "0x10", "1001x", "1001h", "0bb1111",
+            "1111uu", "1111ulll", "10101010100100101", "SIN(01010)", "10+-10101010101",
+        ], mode: .programmer, radix: .bin, wordSize: .word)
+
+        assertPositive([
+            "100", "100+101", "1,001", "1 0 1", "1'0'0'1", "1_0_0_1", "\n\r1,010\n",
+            "\n 1+\n1 ", "1\"1", "(101)+(10)", "0b1001", "0B1111", "0y1001", "0Y1001",
+            "1100b", "1101B", "1111u", "1111ul", "1111ULL", "10100010", "11111111",
+        ], mode: .programmer, radix: .bin, wordSize: .byte)
+        assertNegative([
+            "+10101", "1.01", "1''0", "'101", "101'", "1__0", "_101", "101_",
+            "-10101001", "123", "1.2e23", "1.2e+023", "101010e-1010", "abcdef", "xyz",
+            "ABab", "e+10101", "b1001", "10b01", "0x10", "1001x", "1001h", "0bb1111",
+            "1111uu", "1111ulll", "101000101", "100000000", "SIN(01010)", "10+-1010101",
+        ], mode: .programmer, radix: .bin, wordSize: .byte)
+    }
+
+    func testValidateConverterPasteExpression() {
+        assertPositive([
+            "123", "+123", "-133", "12345.", "012.012", "1,234", "1 2 3", "\n\r1,234\n",
+            "\u{0C}\n12\t\r\u{0B}\u{85}", "1\"2", "100=", "100=   ",
+        ], mode: .converter)
+        assertNegative([
+            "(123)+(456)", "1.2e23", "12345e-23", "\n 1+\n2 ", "123+456", "abcdef",
+            "xyz", "ABab", "e+234", "12345678912345678", "SIN(2)", "123+-234",
+            "100==", "=100",
+        ], mode: .converter)
+    }
+}
+
+// MARK: - 粘贴功能级测试（对应 FunctionalCopyPasteTest + OnPaste 行为）
+
+@MainActor
+final class PasteFunctionalTests: XCTestCase {
+    private var model: StandardCalculatorViewModel!
+
+    override func setUp() async throws {
+        model = StandardCalculatorViewModel()
+        await drain()
+    }
+
+    private func drain() async {
+        for _ in 0..<50 { await Task.yield() }
+    }
+
+    func testFunctionalCopyPaste() async {
+        // 原版：标准模式粘贴后，显示值应能再次通过标准/科学/程序员Hex校验。
+        let inputs = ["123", "12345", "123+456", "1,234", "1 2 3", "\n\r1,234\n", "\n 1+\n2 ", "1\"2"]
+        for input in inputs {
+            model.buttonPressed(.clear)
+            model.onPaste(input)
+            await drain()
+            let display = model.displayValue.replacingOccurrences(of: " ", with: "")
+            XCTAssertNotNil(CopyPasteManager.validate(display, mode: .standard), "标准应可再粘贴: \(input.debugDescription)")
+            XCTAssertNotNil(CopyPasteManager.validate(display, mode: .scientific), "科学应可再粘贴: \(input.debugDescription)")
+            XCTAssertNotNil(
+                CopyPasteManager.validate(display, mode: .programmer, radix: .hex, wordSize: .qword),
+                "程序员Hex应可再粘贴: \(input.debugDescription)")
+        }
+    }
+
+    func testPasteExpressionEvaluatesOnTrailingEquals() async {
+        model.onPaste("2+2=")
+        await drain()
+        XCTAssertEqual(model.displayValue, "4")
+    }
+
+    func testPasteNegativeNumber() async {
+        model.onPaste("-133")
+        await drain()
+        XCTAssertEqual(model.displayValue, "-133")
+    }
+
+    func testPasteScientificExponent() async {
+        model.setCalculatorType(.scientific)
+        model.onPaste("1.2e2=")
+        await drain()
+        XCTAssertEqual(model.displayValue, "120")
+    }
+
+    func testPasteParenthesizedNegation() async {
+        model.setCalculatorType(.scientific)
+        model.onPaste("(45)+(-30)=")
+        await drain()
+        XCTAssertEqual(model.displayValue, "15")
+    }
+
+    func testConverterPasteFeedsActiveValue() {
+        let vm = UnitConverterViewModel()
+        vm.onPaste("123.5")
+        XCTAssertEqual(vm.fromDisplay, "123.5")
+        vm.onPaste("42")
+        XCTAssertEqual(vm.fromDisplay, "42")
+    }
+}

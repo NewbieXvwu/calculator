@@ -56,6 +56,7 @@ namespace MacCalc
 
         void SetCallbacks(SessionCallbacks callbacks);
         void SendCommand(int command);
+        void DisplayPasteError();
         void Reset(bool clearMemory = true);
         void SetStandardMode();
         void SetScientificMode();

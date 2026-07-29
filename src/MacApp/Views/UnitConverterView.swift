@@ -62,6 +62,12 @@ struct UnitConverterView: View {
                 .padding(.bottom, 8)
         }
         .converterKeyMonitor(converter: converter, supportsNegative: converter.currentCategory.supportsNegative)
+        .onReceive(NotificationCenter.default.publisher(for: .converterPasteRequested)) { _ in
+            converter.pasteFromPasteboard()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .converterCopyRequested)) { _ in
+            converter.copyToPasteboard()
+        }
     }
 
     // MARK: - 类别选择

@@ -164,6 +164,11 @@ namespace MacCalc
         m_impl->m_manager.SendCommand(static_cast<CalculationManager::Command>(command));
     }
 
+    void CalcSession::DisplayPasteError()
+    {
+        m_impl->m_manager.DisplayPasteError();
+    }
+
     void CalcSession::Reset(bool clearMemory)
     {
         m_impl->m_manager.Reset(clearMemory);

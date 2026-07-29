@@ -818,32 +818,189 @@ final class StandardCalculatorViewModel: ObservableObject {
     // MARK: - Copy / paste
 
     func copyDisplay() {
+        if mode == .converter {
+            NotificationCenter.default.post(name: .converterCopyRequested, object: nil)
+            return
+        }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(displayValue, forType: .string)
     }
 
-    /// 基础粘贴：把剪贴板里的合法数字逐字符送入引擎。
-    /// 完整的 CopyPasteManager 解析规则（表达式/进制/科学计数）在后续单独条目补全。
+    /// 粘贴入口（对应原版 OnPasteCommand）：按模式选择校验规则，
+    /// 非法输入整体拒绝并显示引擎错误（DisplayPasteError），合法则逐字符送引擎。
     func pasteFromPasteboard() {
-        guard let raw = NSPasteboard.general.string(forType: .string) else { return }
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        switch mode {
+        case .converter:
+            NotificationCenter.default.post(name: .converterPasteRequested, object: nil)
+            return
+        case .date, .graphing:
+            return // 原版这两个模式不支持粘贴
+        case .standard, .scientific, .programmer:
+            break
+        }
 
-        buttonPressed(.clear)
-        var isFirst = true
-        for ch in trimmed {
-            switch ch {
-            case "0"..."9":
-                digitPressed(Int(String(ch))!)
-            case ".":
-                buttonPressed(.point)
-            case "-" where isFirst:
-                buttonPressed(.sign)
-            default:
-                break // 忽略无法识别的字符
+        guard let raw = NSPasteboard.general.string(forType: .string) else { return }
+
+        let pasteMode: CopyPasteManager.PasteMode
+        switch mode {
+        case .scientific: pasteMode = .scientific
+        case .programmer: pasteMode = .programmer
+        default: pasteMode = .standard
+        }
+
+        guard let validated = CopyPasteManager.validate(raw, mode: pasteMode, radix: currentRadix, wordSize: wordSize) else {
+            bridge.displayPasteError()
+            return
+        }
+        onPaste(validated)
+    }
+
+    private struct PasteButtonInfo {
+        var command: EngineCommand?
+        var canSendNegate = false
+    }
+
+    /// 对应原版 MapCharacterToButtonId：把粘贴字符映射为引擎命令。
+    private func mapCharacterToButtonId(_ ch: Character) -> PasteButtonInfo {
+        var result = PasteButtonInfo(command: nil, canSendNegate: false)
+
+        switch ch {
+        case "0"..."9":
+            result.command = EngineCommand.digit(ch.wholeNumberValue!)
+            result.canSendNegate = true
+        case "*":
+            result.command = .multiply
+        case "+":
+            result.command = .add
+        case "-":
+            result.command = .subtract
+        case "/":
+            result.command = .divide
+        case "^":
+            if mode == .scientific {
+                result.command = .power
             }
-            isFirst = false
+        case "%":
+            if mode == .scientific || mode == .programmer {
+                result.command = .mod
+            }
+        case "=":
+            result.command = .equals
+        case "(":
+            result.command = .openParen
+        case ")":
+            result.command = .closeParen
+        case "a", "A":
+            result.command = .digitA
+        case "b", "B":
+            result.command = .digitB
+        case "c", "C":
+            result.command = .digitC
+        case "d", "D":
+            result.command = .digitD
+        case "e", "E":
+            // 科学计数法只在非程序员模式下生效
+            result.command = (mode == .programmer) ? .digitE : .exp
+        case "f", "F":
+            result.command = .digitF
+        default:
+            if String(ch) == decimalSeparator {
+                result.command = .point
+            }
+        }
+
+        // 前导零不能发送正负号
+        if result.command == .digit(0) {
+            result.canSendNegate = false
+        }
+
+        return result
+    }
+
+    /// 对应原版 OnPaste：逐字符把已通过校验的文本送引擎，
+    /// 处理符号前缀延迟发送、括号负号栈与 e±n 指数符号。
+    func onPaste(_ pastedString: String) {
+        var isFirstLegalChar = true
+        bridge.sendCommand(EngineCommand.clearEntry.rawValue)
+        var sendNegate = false
+        var isPreviousOperator = false
+        var negateStack: [Bool] = []
+
+        let chars = Array(pastedString)
+        var i = 0
+        while i < chars.count {
+            var sendCommand = true
+            let buttonInfo = mapCharacterToButtonId(chars[i])
+
+            guard let mappedNumOp = buttonInfo.command else {
+                i += 1
+                continue
+            }
+            var canSendNegate = buttonInfo.canSendNegate
+
+            if isFirstLegalChar || isPreviousOperator {
+                isFirstLegalChar = false
+                isPreviousOperator = false
+
+                // '-' 前缀要等下一个合法字符发出后再补 negate，现在发会被引擎忽略。
+                if mappedNumOp == .subtract {
+                    sendNegate = true
+                    sendCommand = false
+                }
+                // 支持 '+' 号前缀
+                if mappedNumOp == .add {
+                    sendCommand = false
+                }
+            }
+
+            switch mappedNumOp {
+            case .openParen:
+                // 开括号开新表达式，把当前负号状态压栈
+                negateStack.append(sendNegate)
+                sendNegate = false
+            case .closeParen:
+                if let restored = negateStack.popLast() {
+                    sendNegate = restored
+                    canSendNegate = true
+                } else {
+                    // 没有配对的开括号就不发送闭括号
+                    sendCommand = false
+                }
+            case .add, .subtract, .multiply, .divide:
+                isPreviousOperator = true
+            default:
+                break
+            }
+
+            if sendCommand {
+                bridge.sendCommand(mappedNumOp.rawValue)
+
+                if sendNegate {
+                    if canSendNegate {
+                        bridge.sendCommand(EngineCommand.sign.rawValue)
+                    }
+                    // 前导零上发不了 negate，推迟到合适的字符再发。
+                    if mappedNumOp != .digit(0), mappedNumOp != .point {
+                        sendNegate = false
+                    }
+                }
+            }
+
+            // 处理指数与指数符号（...e+... / ...e-... / ...e...）
+            if mappedNumOp == .exp, i + 1 < chars.count {
+                switch mapCharacterToButtonId(chars[i + 1]).command {
+                case .some(.subtract):
+                    bridge.sendCommand(EngineCommand.sign.rawValue)
+                    i += 1
+                case .some(.add):
+                    i += 1
+                default:
+                    break
+                }
+            }
+
+            i += 1
         }
     }
 
@@ -864,4 +1021,10 @@ final class StandardCalculatorViewModel: ObservableObject {
             return command.rawValue >= 700 && command.rawValue <= 763 // bit-flip range
         }
     }
+}
+
+extension Notification.Name {
+    /// 换算器模式下菜单「粘贴/拷贝」的转发通知（换算 VM 归 UnitConverterView 持有）。
+    static let converterPasteRequested = Notification.Name("MacCalculator.converterPasteRequested")
+    static let converterCopyRequested = Notification.Name("MacCalculator.converterCopyRequested")
 }

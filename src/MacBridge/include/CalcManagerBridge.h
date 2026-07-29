@@ -42,6 +42,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)sendCommand:(NSInteger)command;
 - (void)sendDigit:(NSInteger)digit;
+/// Shows the engine's "Invalid input" error (mirrors CalculatorManager::DisplayPasteError).
+- (void)displayPasteError;
 - (void)reset;
 - (void)resetWithClearMemory:(BOOL)clearMemory;
 - (void)setStandardMode;

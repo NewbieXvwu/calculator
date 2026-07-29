@@ -204,6 +204,11 @@ namespace
     [self sendCommand:kCommandDigit0 + digit];
 }
 
+- (void)displayPasteError
+{
+    _session->DisplayPasteError();
+}
+
 - (void)reset
 {
     _session->Reset(true);
