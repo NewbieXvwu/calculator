@@ -74,8 +74,11 @@
 - [x] 为 `CalcManager` 写 CMake 构建，在 macOS 编译通过
       （已完成：`src/CalcManager/CMakeLists.txt`；PPL 依赖用 `ppltasks_cross_platform.h` 垫片解决；
       冒烟测试 `smoketest/main.cpp` 在 arm64 通过：1+2=3、2*8=16、10/3=3.333333333333333）
-- [ ] **排查 `wchar_t` 坑**：macOS 上 4 字节 vs Windows 2 字节，全库重度使用 `std::wstring`，
+- [x] **排查 `wchar_t` 坑**：macOS 上 4 字节 vs Windows 2 字节，全库重度使用 `std::wstring`，
       逐处核查 UTF-16 假设（Uno 移植踩过，可参考其补丁）
+      （已完成：全库无 `sizeof(wchar_t)` 假设、无代理对处理、无 UINT16 强转；
+      仅有 ASCII 范围的 `wchar_t` 运算（`CalcInput.cpp:63`），4 字节下安全。
+      结论：引擎宽度无关，字符串转换统一在 Swift 桥接层处理）
 - [ ] Swift/C++ interop 或 ObjC++ 桥接层，跑通"引擎算出 1+1"
 - [ ] 迁移 `CalculatorUnitTests` 中引擎相关单测（转 XCTest 或保留 googletest）
 
