@@ -228,7 +228,12 @@
       - 数值校验：a*x^2 / a x+b / a(x+1) / k sin(x) / 2a 及全部既有语法回归通过。
 
 ### Phase 5：收尾
-- [ ] 本地化资源批量转换（.resw → .xcstrings 脚本）
+- [x] 本地化资源批量转换（.resw → .xcstrings 脚本）
+      - tools/resw_to_xcstrings.py：60 个 locale 的 Resources.resw(1166 键)/
+        CEngineStrings.resw(108 键) → src/MacApp/Resources/*.xcstrings，
+        语言映射 zh-CN→zh-Hans、zh-TW→zh-Hant、sr-Latn-RS→sr-Latn、en-US→en(源) 等。
+      - Package.swift 已注册 resources；校验：60 locale 全量、抽样翻译对齐。
+      - （UI 文案目前硬编码中文，接 String Catalog 的逐串替换留待后续）
 - [x] 置顶小窗、窗口尺寸记忆等窗口行为
       - 窗口置顶：菜单 窗口 > 窗口置顶（⌥⌘↑，对应原版 Always-on-Top Alt+Up），
         UserDefaults 持久化并在启动时恢复 window.level=.floating。
