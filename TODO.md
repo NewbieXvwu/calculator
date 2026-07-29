@@ -122,7 +122,15 @@
       1:1 转译（6 行×4 列：%/CE/C/⌫、1/x/x²/√/÷、数字区、±0.=）+ 内存栏 MC/MR/M+/M−/MS；
       HistoryMemoryPanel 对应 HistoryList.xaml/Memory.xaml（宽 ≥560 显示右侧 Dock）。
       注意：无头环境无法截图目测，仅验证编译+运行不崩溃，需人工过一遍视觉）
-- [ ] 科学模式 UI（含 F-E 切换、角度模式等）
+- [x] 科学模式 UI（含 F-E 切换、角度模式等）
+      （已完成：`src/MacApp/Views/ScientificCalculatorView.swift` 按 CalculatorScientificOperators.xaml
+      + CalculatorScientificAngleButtons.xaml 1:1 转译——外层 8 行×5 列铺成 1+6 行网格：
+      行1 = 2nd(INV)/π/e/CE·C/⌫；左侧函数列随 2nd 切换 x²√xxʸ10ˣlogln ↔ x³∛xʸ√x2ˣlogᵧeˣ；
+      行2-7 右侧 = 1/x·|x|·exp·mod / (·)·n!·÷ / 数字区 / ±0.= 运算符列。
+      角度栏 DEG/RAD/GRAD 三段循环 + F-E 切换；三角/函数下拉用原生 Menu（含反/双曲/反双曲子菜单）。
+      复用 Phase 1 Liquid Glass 体系：数字最亮灰阶、函数深灰、运算符列系统橙、2nd/角度态强调橙；
+      抽出 `CalculatorChrome.swift`（顶栏 + 键盘监听修饰符）供标准/科学共用。
+      ContentView 按 mode 切换视图并放宽窗口最小尺寸。无头环境仅验证编译+运行不崩溃 + 引擎冒烟通过）
 - [x] 键盘映射 + 菜单栏快捷键
       （已完成：`StandardCalculatorViewModel.handleKey`（NSEvent .keyDown 本地监听）——
       0-9→数字、+−*/=→运算、.,→小数点、%→百分号、Esc→Clear、Delete/Backspace→退格、

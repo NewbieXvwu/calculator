@@ -61,6 +61,8 @@ final class StandardCalculatorViewModel: ObservableObject {
     @Published private(set) var currentAngleType: EngineCommand = .deg
     @Published var isFToEChecked = false
     @Published private(set) var isFToEEnabled = true
+    /// 科学模式左侧函数列的 2nd/Shift 态（对应原版 ShiftButton）：切换 x²↔x³ 等。
+    @Published private(set) var isInvChecked = false
     /// 物理键盘命中的按键，用于瞬时闪动高亮；短暂置位后自动清空。
     @Published private(set) var flashedCommand: EngineCommand?
 
@@ -125,12 +127,49 @@ final class StandardCalculatorViewModel: ObservableObject {
         buttonPressed(angleType)
     }
 
+    // MARK: - Scientific mode (mirrors ShiftButton / angle cycle)
+
+    /// 切换左侧函数列的 2nd 态（x²↔x³、√↔∛、log↔logₓ 等）。
+    func toggleInv() {
+        isInvChecked.toggle()
+    }
+
+    /// 按下 2nd 态函数键后自动复位 Shift（对应原版 ShiftButton_Uncheck）。
+    func pressInvFunction(_ command: EngineCommand) {
+        buttonPressed(command)
+        if isInvChecked {
+            isInvChecked = false
+        }
+    }
+
+    /// DEG → RAD → GRAD → DEG 三段循环（对应原版单个循环按钮）。
+    func cycleAngle() {
+        let next: EngineCommand
+        switch currentAngleType {
+        case .deg: next = .rad
+        case .rad: next = .grad
+        default: next = .deg
+        }
+        buttonPressed(next)
+    }
+
+    var angleLabel: String {
+        switch currentAngleType {
+        case .rad: return "RAD"
+        case .grad: return "GRAD"
+        default: return "DEG"
+        }
+    }
+
     // MARK: - Mode switching (mirrors SetCalculatorType)
 
     func setCalculatorType(_ newMode: CalculatorMode) {
         isInError = false
         if isFToEChecked {
             isFToEChecked = false
+        }
+        if isInvChecked {
+            isInvChecked = false
         }
         mode = newMode
 

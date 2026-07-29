@@ -17,8 +17,15 @@ struct ContentView: View {
         GeometryReader { proxy in
             let dockVisible = proxy.size.width >= dockVisibleThreshold
             HStack(spacing: 0) {
-                StandardCalculatorView(model: model, showsHistoryButton: !dockVisible)
-                    .frame(minWidth: 280)
+                Group {
+                    switch model.mode {
+                    case .scientific:
+                        ScientificCalculatorView(model: model, showsHistoryButton: !dockVisible)
+                    default:
+                        StandardCalculatorView(model: model, showsHistoryButton: !dockVisible)
+                    }
+                }
+                .frame(minWidth: model.mode == .scientific ? 360 : 280)
 
                 if dockVisible {
                     Divider()
@@ -29,7 +36,7 @@ struct ContentView: View {
         }
         .background(VisualEffectBackground().ignoresSafeArea())
         .background(WindowConfigurator())
-        .frame(minWidth: 322, minHeight: 480)
+        .frame(minWidth: model.mode == .scientific ? 400 : 322, minHeight: model.mode == .scientific ? 560 : 480)
     }
 }
 
