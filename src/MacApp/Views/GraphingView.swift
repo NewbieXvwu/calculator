@@ -16,6 +16,7 @@ struct GraphingView: View {
 
     var showsHistoryButton: Bool = false
     @State private var historyPopoverShown = false
+    @State private var showAnalysis = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,6 +44,14 @@ struct GraphingView: View {
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Button {
+                    showAnalysis.toggle()
+                } label: {
+                    Image(systemName: showAnalysis ? "chart.bar.doc.horizontal.fill" : "chart.bar.doc.horizontal")
+                }
+                .buttonStyle(.borderless)
+                .help("函数分析")
+                .accessibilityLabel("函数分析")
+                Button {
                     graph.addEquation()
                 } label: {
                     Image(systemName: "plus")
@@ -65,9 +74,78 @@ struct GraphingView: View {
                 .padding(10)
             }
 
+            if showAnalysis {
+                Divider()
+                analysisSection
+            }
+
             Divider()
             viewControls
         }
+    }
+
+    // MARK: - 函数分析（数值：零点/y 截距/极值）
+
+    private var analysisSection: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(graph.equations) { eq in
+                    if eq.isVisible, let expr = eq.compiled {
+                        analysisRow(eq: eq, expr: expr)
+                    }
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxHeight: 180)
+    }
+
+    private func analysisRow(eq: GraphingViewModel.Equation, expr: GraphExpression) -> some View {
+        let analysis = GraphAnalyzer.analyze(expr, xMin: graph.xMin, xMax: graph.xMax)
+        return VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Circle().fill(eq.color).frame(width: 8, height: 8)
+                Text("y=\(eq.text)")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .lineLimit(1)
+            }
+            if analysis.isEmpty {
+                Text("当前视窗无可报告特征")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            } else {
+                if let y0 = analysis.yIntercept {
+                    analysisLine("y 截距", "(0, \(fmt(y0)))")
+                }
+                if !analysis.zeros.isEmpty {
+                    analysisLine("零点", analysis.zeros.prefix(6).map { "\(fmt($0))" }.joined(separator: ", "))
+                }
+                if !analysis.maxima.isEmpty {
+                    analysisLine("极大值", analysis.maxima.prefix(4).map { "(\(fmt($0.x)), \(fmt($0.y)))" }.joined(separator: " "))
+                }
+                if !analysis.minima.isEmpty {
+                    analysisLine("极小值", analysis.minima.prefix(4).map { "(\(fmt($0.x)), \(fmt($0.y)))" }.joined(separator: " "))
+                }
+            }
+        }
+    }
+
+    private func analysisLine(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .top, spacing: 4) {
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 42, alignment: .leading)
+            Text(value)
+                .font(.system(size: 10, design: .monospaced))
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func fmt(_ v: Double) -> String {
+        if abs(v) < 5e-7 { return "0" }
+        return String(format: "%.4g", v)
     }
 
     private func equationRow(_ eq: Binding<GraphingViewModel.Equation>) -> some View {
