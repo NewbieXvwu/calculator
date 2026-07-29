@@ -536,15 +536,26 @@ private struct GiacAnalysisRow: View {
                         .foregroundStyle(.secondary)
                 } else {
                     if let d = a.domain { line("定义域", d) }
+                    if let r = a.range { line("值域", r) }
                     if a.parity == .even { line("奇偶性", "偶函数") }
                     if a.parity == .odd { line("奇偶性", "奇函数") }
+                    if let p = a.periodicity { line("周期性", p) }
                     if let y0 = a.yIntercept { line("y 截距", "(0, \(y0))") }
                     if !a.zeros.isEmpty { line("零点", a.zeros.prefix(6).joined(separator: ", ")) }
                     if !a.maxima.isEmpty { line("极大值", a.maxima.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
                     if !a.minima.isEmpty { line("极小值", a.minima.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
                     if !a.inflectionPoints.isEmpty { line("拐点", a.inflectionPoints.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
+                    if !a.monotonicity.isEmpty {
+                        line("单调性", a.monotonicity.prefix(5).map { "\($0.interval) \($0.direction)" }.joined(separator: "; "))
+                    }
                     if !a.verticalAsymptotes.isEmpty { line("垂直渐近线", a.verticalAsymptotes.prefix(4).joined(separator: ", ")) }
                     if !a.horizontalAsymptotes.isEmpty { line("水平渐近线", a.horizontalAsymptotes.prefix(2).joined(separator: ", ")) }
+                    if !a.obliqueAsymptotes.isEmpty { line("斜渐近线", a.obliqueAsymptotes.prefix(2).joined(separator: ", ")) }
+                    if !a.tooComplexFeatures.isEmpty {
+                        Text("因太复杂而无法计算：\(a.tooComplexFeatures.joined(separator: "、"))")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             } else {
                 Text("分析中…")
