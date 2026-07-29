@@ -74,6 +74,11 @@ struct GraphingView: View {
                 .padding(10)
             }
 
+            if !graph.parameterNames.isEmpty {
+                Divider()
+                sliderSection
+            }
+
             if showAnalysis {
                 Divider()
                 analysisSection
@@ -82,6 +87,27 @@ struct GraphingView: View {
             Divider()
             viewControls
         }
+    }
+
+    // MARK: - 变量滑块（表达式中的参数 a、b、k…）
+
+    private var sliderSection: some View {
+        VStack(spacing: 4) {
+            ForEach(graph.parameterNames, id: \.self) { name in
+                HStack(spacing: 6) {
+                    Text("\(name) = \(fmt(graph.parameters[name] ?? 1))")
+                        .font(.system(size: 10, design: .monospaced))
+                        .frame(width: 64, alignment: .leading)
+                    Slider(value: Binding(
+                        get: { graph.parameters[name] ?? 1 },
+                        set: { graph.parameters[name] = $0 }), in: -10...10)
+                        .controlSize(.mini)
+                        .accessibilityLabel("参数 \(name)")
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
     }
 
     // MARK: - 函数分析（数值：零点/y 截距/极值）
@@ -102,7 +128,7 @@ struct GraphingView: View {
     }
 
     private func analysisRow(eq: GraphingViewModel.Equation, expr: GraphExpression) -> some View {
-        let analysis = GraphAnalyzer.analyze(expr, xMin: graph.xMin, xMax: graph.xMax)
+        let analysis = GraphAnalyzer.analyze(expr, xMin: graph.xMin, xMax: graph.xMax, params: graph.parameters)
         return VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Circle().fill(eq.color).frame(width: 8, height: 8)
@@ -343,7 +369,7 @@ private struct GraphCanvas: View {
         for column in 0...columns {
             let sx = CGFloat(column)
             let mathX = graph.xMin + Double(sx) / Double(size.width) * graph.xSpan
-            guard let mathY = expr.evaluate(x: mathX) else {
+            guard let mathY = expr.evaluate(x: mathX, params: graph.parameters) else {
                 penDown = false
                 continue
             }
@@ -373,7 +399,7 @@ private struct GraphCanvas: View {
         let rows = max(8, Int(size.height / cellPx))
 
         let segments = MarchingSquares.trace(
-            f: { expr.evaluate(x: $0, y: $1) },
+            f: { expr.evaluate(x: $0, y: $1, params: graph.parameters) },
             xMin: graph.xMin, xMax: graph.xMax, yMin: graph.yMin, yMax: graph.yMax,
             cols: cols, rows: rows)
 

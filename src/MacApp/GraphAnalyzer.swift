@@ -29,13 +29,13 @@ enum GraphAnalyzer {
     private static let sampleCount = 2000
 
     /// 在 [xMin, xMax] 上分析表达式。
-    static func analyze(_ expr: GraphExpression, xMin: Double, xMax: Double) -> GraphAnalysis {
+    static func analyze(_ expr: GraphExpression, xMin: Double, xMax: Double, params: [String: Double] = [:]) -> GraphAnalysis {
         var result = GraphAnalysis()
         guard xMax > xMin else { return result }
 
         // y 截距：x=0 在区间内才有意义。
         if xMin <= 0, 0 <= xMax {
-            result.yIntercept = expr.evaluate(x: 0)
+            result.yIntercept = expr.evaluate(x: 0, params: params)
         }
 
         let step = (xMax - xMin) / Double(sampleCount)
@@ -46,7 +46,7 @@ enum GraphAnalyzer {
         for i in 0...sampleCount {
             let x = xMin + Double(i) * step
             xs[i] = x
-            ys[i] = expr.evaluate(x: x)
+            ys[i] = expr.evaluate(x: x, params: params)
         }
 
         // 零点：相邻采样点异号 → 二分细化。
@@ -55,7 +55,7 @@ enum GraphAnalyzer {
             guard let y0 = ys[i], let y1 = ys[i + 1] else { continue }
             if y0 == 0 { appendUnique(&zeros, xs[i]) }
             if y0 * y1 < 0 {
-                let root = bisectRoot(expr, xs[i], xs[i + 1])
+                let root = bisectRoot(expr, xs[i], xs[i + 1], params: params)
                 appendUnique(&zeros, root)
             }
         }
@@ -77,12 +77,12 @@ enum GraphAnalyzer {
     }
 
     /// 二分法在 [a, b]（已知异号）细化零点。
-    private static func bisectRoot(_ expr: GraphExpression, _ a: Double, _ b: Double) -> Double {
+    private static func bisectRoot(_ expr: GraphExpression, _ a: Double, _ b: Double, params: [String: Double]) -> Double {
         var lo = a, hi = b
-        guard var fLo = expr.evaluate(x: lo) else { return (a + b) / 2 }
+        guard var fLo = expr.evaluate(x: lo, params: params) else { return (a + b) / 2 }
         for _ in 0..<60 {
             let mid = (lo + hi) / 2
-            guard let fMid = expr.evaluate(x: mid) else { return mid }
+            guard let fMid = expr.evaluate(x: mid, params: params) else { return mid }
             if fMid == 0 || (hi - lo) < 1e-12 { return mid }
             if fLo * fMid < 0 {
                 hi = mid

@@ -37,6 +37,12 @@ final class GraphingViewModel: ObservableObject {
 
     @Published var equations: [Equation] = []
 
+    /// 变量滑块：所有方程引用的参数（a、b、k…）→ 当前取值。
+    @Published var parameters: [String: Double] = [:]
+
+    /// 滑块顺序稳定的参数名列表。
+    var parameterNames: [String] { parameters.keys.sorted() }
+
     /// 视窗范围（数学坐标）。
     @Published var xMin: Double = -10
     @Published var xMax: Double = 10
@@ -60,16 +66,38 @@ final class GraphingViewModel: ObservableObject {
         var eq = Equation(text: text, color: color)
         compile(&eq)
         equations.append(eq)
+        syncParameters()
     }
 
     func removeEquation(id: UUID) {
         equations.removeAll { $0.id == id }
+        syncParameters()
     }
 
     func updateEquation(id: UUID, text: String) {
         guard let index = equations.firstIndex(where: { $0.id == id }) else { return }
         equations[index].text = text
         compile(&equations[index])
+        syncParameters()
+    }
+
+    /// 汇总所有方程引用的参数：新参数默认 1，未再引用的移除。
+    private func syncParameters() {
+        var used = Set<String>()
+        for eq in equations {
+            switch eq.compiled {
+            case .explicitFn(let expr), .implicitEq(let expr):
+                used.formUnion(expr.parameters)
+            case nil:
+                break
+            }
+        }
+        for name in used where parameters[name] == nil {
+            parameters[name] = 1
+        }
+        for name in parameters.keys where !used.contains(name) {
+            parameters.removeValue(forKey: name)
+        }
     }
 
     func toggleVisibility(id: UUID) {

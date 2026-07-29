@@ -17,6 +17,9 @@ import Foundation
 struct GraphExpression {
     private let root: Node
 
+    /// 表达式引用的参数名（除 x/y 外的单字母，如 a、b、k），供变量滑块用。
+    let parameters: Set<String>
+
     /// 解析失败返回 nil。会剥离前缀 "y=" / "f(x)="。
     init?(_ source: String) {
         let cleaned = GraphExpression.stripPrefix(source)
@@ -24,17 +27,20 @@ struct GraphExpression {
         var parser = Parser(cleaned)
         guard let node = parser.parseExpression(), parser.isAtEnd else { return nil }
         root = node
+        var names = Set<String>()
+        node.collectParameters(into: &names)
+        parameters = names
     }
 
     /// 在给定 x 处求值；非有限（NaN/Inf，如定义域外）返回 nil。
-    func evaluate(x: Double) -> Double? {
-        let value = root.eval(x: x, y: 0)
+    func evaluate(x: Double, params: [String: Double] = [:]) -> Double? {
+        let value = root.eval(x: x, y: 0, params: params)
         return value.isFinite ? value : nil
     }
 
     /// 双变量求值（隐式方程 F(x,y) 用）；非有限返回 nil。
-    func evaluate(x: Double, y: Double) -> Double? {
-        let value = root.eval(x: x, y: y)
+    func evaluate(x: Double, y: Double, params: [String: Double] = [:]) -> Double? {
+        let value = root.eval(x: x, y: y, params: params)
         return value.isFinite ? value : nil
     }
 
@@ -45,6 +51,9 @@ struct GraphExpression {
         var parser = Parser(cleaned)
         guard let node = parser.parseExpression(), parser.isAtEnd else { return nil }
         root = node
+        var names = Set<String>()
+        node.collectParameters(into: &names)
+        parameters = names
     }
 
     private static func stripPrefix(_ s: String) -> String {
@@ -62,18 +71,20 @@ struct GraphExpression {
         case number(Double)
         case variable
         case variableY
+        case parameter(String)
         case negate(Node)
         case binary(Character, Node, Node)
         case call(String, Node)
 
-        func eval(x: Double, y: Double) -> Double {
+        func eval(x: Double, y: Double, params: [String: Double]) -> Double {
             switch self {
             case .number(let v): return v
             case .variable: return x
             case .variableY: return y
-            case .negate(let n): return -n.eval(x: x, y: y)
+            case .parameter(let name): return params[name] ?? .nan
+            case .negate(let n): return -n.eval(x: x, y: y, params: params)
             case .binary(let op, let l, let r):
-                let a = l.eval(x: x, y: y), b = r.eval(x: x, y: y)
+                let a = l.eval(x: x, y: y, params: params), b = r.eval(x: x, y: y, params: params)
                 switch op {
                 case "+": return a + b
                 case "-": return a - b
@@ -83,7 +94,7 @@ struct GraphExpression {
                 default: return .nan
                 }
             case .call(let name, let arg):
-                let v = arg.eval(x: x, y: y)
+                let v = arg.eval(x: x, y: y, params: params)
                 switch name {
                 case "sin": return sin(v)
                 case "cos": return cos(v)
@@ -103,6 +114,22 @@ struct GraphExpression {
                 default: return .nan
                 }
         }
+        }
+
+        func collectParameters(into names: inout Set<String>) {
+            switch self {
+            case .number, .variable, .variableY:
+                break
+            case .parameter(let name):
+                names.insert(name)
+            case .negate(let n):
+                n.collectParameters(into: &names)
+            case .binary(_, let l, let r):
+                l.collectParameters(into: &names)
+                r.collectParameters(into: &names)
+            case .call(_, let arg):
+                arg.collectParameters(into: &names)
+            }
         }
     }
 
@@ -220,20 +247,21 @@ struct GraphExpression {
         }
 
         private mutating func parseNumber() -> Node? {
+            skipToNonSpace()
             var s = ""
-            while let c = peek(), c.isNumber || c == "." {
+            while let c = peekRaw(), c.isNumber || c == "." {
                 s.append(c)
-                _ = advance()
+                pos += 1
             }
             // 科学计数 1e3 / 1e-3
-            if let c = peek(), c == "e",
+            if let c = peekRaw(), c == "e",
                s.range(of: "[0-9]", options: .regularExpression) != nil {
                 let save = pos
-                _ = advance()
+                pos += 1
                 var expPart = "e"
-                if let sign = peek(), sign == "+" || sign == "-" { expPart.append(sign); _ = advance() }
-                if let d = peek(), d.isNumber {
-                    while let dd = peek(), dd.isNumber { expPart.append(dd); _ = advance() }
+                if let sign = peekRaw(), sign == "+" || sign == "-" { expPart.append(sign); pos += 1 }
+                if let d = peekRaw(), d.isNumber {
+                    while let dd = peekRaw(), dd.isNumber { expPart.append(dd); pos += 1 }
                     s += expPart
                 } else {
                     pos = save // 不是指数，回退（e 作为常数处理）
@@ -243,11 +271,17 @@ struct GraphExpression {
             return .number(value)
         }
 
+        /// 不跳空格的原地窥视：token 内部不允许跨空格（"a x" 是隐式乘法而非标识符 "ax"）。
+        private func peekRaw() -> Character? {
+            pos < chars.count ? chars[pos] : nil
+        }
+
         private mutating func parseIdentifier() -> Node? {
+            skipToNonSpace()
             var name = ""
-            while let c = peek(), c.isLetter || c.isNumber {
+            while let c = peekRaw(), c.isLetter || c.isNumber {
                 name.append(c)
-                _ = advance()
+                pos += 1
             }
 
             switch name {
@@ -257,6 +291,12 @@ struct GraphExpression {
             case "e": return .number(M_E)
             default:
                 break
+            }
+
+            // 单字母未知标识符 → 可调参数（变量滑块），如 a、b、k。
+            // 已知函数名均 ≥2 字符，后随 "(" 时按隐式乘法处理（a(x+1)=a*(x+1)）。
+            if name.count == 1, let c = name.first, c.isLetter {
+                return .parameter(name)
             }
 
             // 函数调用：name(expr)
