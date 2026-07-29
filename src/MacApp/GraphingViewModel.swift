@@ -223,6 +223,69 @@ final class GraphingViewModel: ObservableObject {
         variables[name] = v
     }
 
+    // MARK: - 跟踪（ActiveTracing）
+
+    /// 跟踪开关（画布右上角命令面板的开关按钮）。
+    @Published var isTracing = false
+
+    /// 视图是否被手动调整过（graphViewButton 的 IsManualAdjustment）。
+    @Published var isManualAdjustment = false
+
+    struct TraceResult: Equatable {
+        var equationIndex: Int
+        var x: Double
+        var y: Double
+    }
+
+    /// 就近吸附：在所有可见显式曲线上取 x 处的点，按 y 距离（视窗归一）选最近。
+    func nearestCurvePoint(mathX: Double, mathY: Double) -> TraceResult? {
+        var best: TraceResult?
+        var bestDist = Double.infinity
+        for (index, eq) in equations.enumerated() where eq.isVisible {
+            guard let expr = eq.explicitExpression,
+                  let y = expr.evaluate(x: mathX, params: parameters, trig: trigMode) else { continue }
+            let dist = abs(y - mathY) / ySpan
+            if dist < bestDist {
+                bestDist = dist
+                best = TraceResult(equationIndex: index, x: mathX, y: y)
+            }
+        }
+        return best
+    }
+
+    /// 自动最佳视图（graphViewButton）：保持 x 范围，按可见显式曲线值域适配 y。
+    func autoFitView() {
+        var ys: [Double] = []
+        let samples = 512
+        for eq in equations where eq.isVisible {
+            guard let expr = eq.explicitExpression else { continue }
+            for i in 0...samples {
+                let x = xMin + Double(i) / Double(samples) * xSpan
+                if let y = expr.evaluate(x: x, params: parameters, trig: trigMode) {
+                    ys.append(y)
+                }
+            }
+        }
+        guard !ys.isEmpty else {
+            resetView()
+            isManualAdjustment = false
+            return
+        }
+        // 用 5%–95% 分位裁掉渐近线附近的爆炸值。
+        let sorted = ys.sorted()
+        let lo = sorted[Int(Double(sorted.count - 1) * 0.05)]
+        let hi = sorted[Int(Double(sorted.count - 1) * 0.95)]
+        var newMin = lo, newMax = hi
+        if newMax - newMin < 1e-9 {
+            newMin -= 1
+            newMax += 1
+        }
+        let margin = (newMax - newMin) * 0.1
+        yMin = newMin - margin
+        yMax = newMax + margin
+        isManualAdjustment = false
+    }
+
     // MARK: - 视窗操作
 
     var xSpan: Double { xMax - xMin }
@@ -232,6 +295,7 @@ final class GraphingViewModel: ObservableObject {
     func pan(dxMath: Double, dyMath: Double) {
         xMin -= dxMath; xMax -= dxMath
         yMin -= dyMath; yMax -= dyMath
+        isManualAdjustment = true
     }
 
     /// 以视窗中心为锚缩放（factor<1 放大，>1 缩小）。
@@ -240,6 +304,7 @@ final class GraphingViewModel: ObservableObject {
         let hx = xSpan / 2 * factor, hy = ySpan / 2 * factor
         xMin = cx - hx; xMax = cx + hx
         yMin = cy - hy; yMax = cy + hy
+        isManualAdjustment = true
     }
 
     /// 以指定数学坐标点为锚缩放（滚轮/捏合手势用）。
@@ -248,6 +313,7 @@ final class GraphingViewModel: ObservableObject {
         xMax = anchorX + (xMax - anchorX) * factor
         yMin = anchorY + (yMin - anchorY) * factor
         yMax = anchorY + (yMax - anchorY) * factor
+        isManualAdjustment = true
     }
 
     func resetView() {

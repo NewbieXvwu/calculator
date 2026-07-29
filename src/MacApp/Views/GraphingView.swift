@@ -9,6 +9,7 @@
 // 图形设置（GraphingSettings.xaml）：范围四框 / 三角单位 / 线宽 / 重置。
 // 方程样式（EquationStylePanelControl.xaml)：14 色 + 实线/虚线/点线。
 
+import AppKit
 import SwiftUI
 
 struct GraphingView: View {
@@ -18,7 +19,6 @@ struct GraphingView: View {
     var showsHistoryButton: Bool = false
     @State private var historyPopoverShown = false
     @State private var showAnalysis = false
-    @State private var settingsShown = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -85,9 +85,6 @@ struct GraphingView: View {
                 Divider()
                 analysisSection
             }
-
-            Divider()
-            viewControls
         }
     }
 
@@ -118,26 +115,6 @@ struct GraphingView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxHeight: 180)
-    }
-
-    private var viewControls: some View {
-        HStack(spacing: 8) {
-            Button { graph.zoom(factor: 0.8) } label: { Image(systemName: "plus.magnifyingglass") }
-                .help("放大").accessibilityLabel("放大")
-            Button { graph.zoom(factor: 1.25) } label: { Image(systemName: "minus.magnifyingglass") }
-                .help("缩小").accessibilityLabel("缩小")
-            Button { graph.resetView() } label: { Image(systemName: "scope") }
-                .help("重置视图").accessibilityLabel("重置视图")
-            Spacer()
-            Button { settingsShown.toggle() } label: { Image(systemName: "gearshape") }
-                .help("图形选项").accessibilityLabel("图形选项")
-                .popover(isPresented: $settingsShown, arrowEdge: .bottom) {
-                    GraphingSettingsPanel(graph: graph)
-                }
-        }
-        .buttonStyle(.borderless)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 }
 
@@ -598,7 +575,8 @@ private struct GiacAnalysisRow: View {
     }
 }
 
-/// 自研图形渲染器：网格 + 坐标轴 + 逐像素列自适应采样曲线 + 间断检测。
+/// 自研图形渲染器：网格 + 坐标轴 + 逐像素列自适应采样曲线 + 间断检测 +
+/// 跟踪光标（ActiveTracing）与右上角命令面板（对照 GraphControlCommandPanel）。
 private struct GraphCanvas: View {
     @ObservedObject var graph: GraphingViewModel
     @Environment(\.colorScheme) private var colorScheme
@@ -606,32 +584,246 @@ private struct GraphCanvas: View {
     @State private var dragAccum: CGSize = .zero
     @GestureState private var magnify: CGFloat = 1
 
+    /// 跟踪光标（屏幕坐标）；nil = 尚未定位。
+    @State private var traceCursor: CGPoint?
+    @FocusState private var canvasFocused: Bool
+    @State private var settingsShown = false
+
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            Canvas { context, canvasSize in
-                drawGrid(context: context, size: canvasSize)
-                drawAxes(context: context, size: canvasSize)
-                for eq in graph.equations where eq.isVisible {
-                    let color = GraphingViewModel.equationColor(index: eq.colorIndex, darkMode: colorScheme == .dark)
-                    let stroke = StrokeStyle(
-                        lineWidth: graph.lineWidth,
-                        dash: eq.lineStyle.dashPattern(lineWidth: graph.lineWidth))
-                    switch eq.compiled {
-                    case .explicitFn(let expr):
-                        drawCurve(expr, color: color, stroke: stroke, context: context, size: canvasSize)
-                    case .implicitEq(let expr):
-                        drawImplicit(expr, color: color, stroke: stroke, context: context, size: canvasSize)
-                    case nil:
-                        break
+            ZStack(alignment: .topTrailing) {
+                Canvas { context, canvasSize in
+                    drawGrid(context: context, size: canvasSize)
+                    drawAxes(context: context, size: canvasSize)
+                    for eq in graph.equations where eq.isVisible {
+                        let color = GraphingViewModel.equationColor(index: eq.colorIndex, darkMode: colorScheme == .dark)
+                        let stroke = StrokeStyle(
+                            lineWidth: graph.lineWidth,
+                            dash: eq.lineStyle.dashPattern(lineWidth: graph.lineWidth))
+                        switch eq.compiled {
+                        case .explicitFn(let expr):
+                            drawCurve(expr, color: color, stroke: stroke, context: context, size: canvasSize)
+                        case .implicitEq(let expr):
+                            drawImplicit(expr, color: color, stroke: stroke, context: context, size: canvasSize)
+                        case nil:
+                            break
+                        }
+                    }
+                    if graph.isTracing, let cursor = traceCursor {
+                        drawTrace(cursor: cursor, context: context, size: canvasSize)
                     }
                 }
+                .background(Color(nsColor: .textBackgroundColor))
+                .contentShape(Rectangle())
+                .gesture(dragGesture(size: size))
+                .gesture(magnifyGesture)
+                .onContinuousHover { phase in
+                    guard graph.isTracing else { return }
+                    if case .active(let location) = phase {
+                        traceCursor = location
+                    }
+                }
+                .focusable(graph.isTracing)
+                .focused($canvasFocused)
+                .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow], phases: [.down, .repeat]) { press in
+                    moveTraceCursor(press, size: size)
+                }
+                .contextMenu {
+                    Button("复制图形") { copyGraphImage(size: size) }
+                }
+
+                commandPanel(size: size)
             }
-            .background(Color(nsColor: .textBackgroundColor))
-            .contentShape(Rectangle())
-            .gesture(dragGesture(size: size))
-            .gesture(magnifyGesture)
         }
+    }
+
+    // MARK: - 命令面板（跟踪/放大/缩小/图形视图）
+
+    private func commandPanel(size: CGSize) -> some View {
+        HStack(spacing: 2) {
+            Button {
+                graph.isTracing.toggle()
+                if graph.isTracing {
+                    // 原版：跟踪光标初始在画布中心偏移 (＋40, −40)。
+                    traceCursor = CGPoint(x: size.width / 2 + 40, y: size.height / 2 - 40)
+                    canvasFocused = true
+                } else {
+                    traceCursor = nil
+                }
+            } label: {
+                Image(systemName: "scope")
+                    .foregroundStyle(graph.isTracing ? Color.accentColor : Color.primary)
+            }
+            .help(graph.isTracing ? "停止跟踪" : "开始跟踪")
+            .accessibilityLabel(graph.isTracing ? "停止跟踪" : "开始跟踪")
+
+            Button {
+                share(size: size)
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .help("分享")
+            .accessibilityLabel("分享")
+
+            Button { settingsShown.toggle() } label: { Image(systemName: "gearshape") }
+                .help("图形选项")
+                .accessibilityLabel("图形选项")
+                .popover(isPresented: $settingsShown, arrowEdge: .bottom) {
+                    GraphingSettingsPanel(graph: graph)
+                }
+
+            Button { graph.zoom(factor: 0.8) } label: { Image(systemName: "plus.magnifyingglass") }
+                .help("放大 (⌃+)").accessibilityLabel("放大")
+                .keyboardShortcut("=", modifiers: .control)
+            Button { graph.zoom(factor: 1.25) } label: { Image(systemName: "minus.magnifyingglass") }
+                .help("缩小 (⌃-)").accessibilityLabel("缩小")
+                .keyboardShortcut("-", modifiers: .control)
+
+            Button {
+                graph.autoFitView()
+            } label: {
+                Image(systemName: graph.isManualAdjustment ? "arrow.up.left.and.arrow.down.right" : "sparkle.magnifyingglass")
+            }
+            .help("自动刷新视图 (⌃0)")
+            .accessibilityLabel("图形视图")
+            .keyboardShortcut("0", modifiers: .control)
+            .background(
+                // 原版 Ctrl+Home 和弦同样触发 graphViewButton。
+                Button("") { graph.autoFitView() }
+                    .keyboardShortcut(.home, modifiers: .control)
+                    .opacity(0)
+                    .frame(width: 0, height: 0)
+            )
+        }
+        .buttonStyle(.borderless)
+        .padding(6)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .padding(8)
+    }
+
+    /// 方向键移动跟踪光标：5pt / 按住 ⇧ 1pt（原版 delta 5 / accelerator 1）。
+    private func moveTraceCursor(_ press: KeyPress, size: CGSize) -> KeyPress.Result {
+        guard graph.isTracing, var cursor = traceCursor else { return .ignored }
+        let delta: CGFloat = press.modifiers.contains(.shift) ? 1 : 5
+        switch press.key {
+        case .leftArrow: cursor.x = max(0, cursor.x - delta)
+        case .rightArrow: cursor.x = min(size.width, cursor.x + delta)
+        case .upArrow: cursor.y = max(0, cursor.y - delta)
+        case .downArrow: cursor.y = min(size.height, cursor.y + delta)
+        default: return .ignored
+        }
+        traceCursor = cursor
+        return .handled
+    }
+
+    // MARK: - 分享/导出（原版 Share contract：图 + 方程列表）
+
+    /// 把当前画布渲染为位图（2x 缩放）。
+    @MainActor
+    private func renderImage(size: CGSize) -> NSImage? {
+        guard size.width > 1, size.height > 1 else { return nil }
+        let content = Canvas { context, canvasSize in
+            drawGrid(context: context, size: canvasSize)
+            drawAxes(context: context, size: canvasSize)
+            for eq in graph.equations where eq.isVisible {
+                let color = GraphingViewModel.equationColor(index: eq.colorIndex, darkMode: colorScheme == .dark)
+                let stroke = StrokeStyle(
+                    lineWidth: graph.lineWidth,
+                    dash: eq.lineStyle.dashPattern(lineWidth: graph.lineWidth))
+                switch eq.compiled {
+                case .explicitFn(let expr):
+                    drawCurve(expr, color: color, stroke: stroke, context: context, size: canvasSize)
+                case .implicitEq(let expr):
+                    drawImplicit(expr, color: color, stroke: stroke, context: context, size: canvasSize)
+                case nil:
+                    break
+                }
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .background(Color(nsColor: .textBackgroundColor))
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 2
+        return renderer.nsImage
+    }
+
+    /// 方程列表文本（分享附带，对应原版 Share 的方程清单）。
+    private var equationListText: String {
+        graph.equations
+            .filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
+            .map { $0.text.contains("=") ? $0.text : "y=\($0.text)" }
+            .joined(separator: "\n")
+    }
+
+    @MainActor
+    private func share(size: CGSize) {
+        var items: [Any] = []
+        if let image = renderImage(size: size) {
+            items.append(image)
+        }
+        if !equationListText.isEmpty {
+            items.append(equationListText)
+        }
+        guard !items.isEmpty, let view = NSApp.keyWindow?.contentView else { return }
+        let picker = NSSharingServicePicker(items: items)
+        let anchor = NSRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+        picker.show(relativeTo: anchor, of: view, preferredEdge: .minY)
+    }
+
+    /// 右键菜单：复制图形位图到剪贴板（原版 ContextFlyout）。
+    @MainActor
+    private func copyGraphImage(size: CGSize) {
+        guard let image = renderImage(size: size) else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects([image])
+    }
+
+    // MARK: - 跟踪绘制（光标十字 + 吸附点 + 坐标浮层）
+
+    private func drawTrace(cursor: CGPoint, context: GraphicsContext, size: CGSize) {
+        // 十字光标。
+        var cross = Path()
+        cross.move(to: CGPoint(x: cursor.x - 7, y: cursor.y))
+        cross.addLine(to: CGPoint(x: cursor.x + 7, y: cursor.y))
+        cross.move(to: CGPoint(x: cursor.x, y: cursor.y - 7))
+        cross.addLine(to: CGPoint(x: cursor.x, y: cursor.y + 7))
+        context.stroke(cross, with: .color(.secondary), lineWidth: 1)
+
+        // 吸附最近曲线点。
+        let mathX = graph.xMin + Double(cursor.x) / Double(size.width) * graph.xSpan
+        let mathY = graph.yMin + Double(size.height - cursor.y) / Double(size.height) * graph.ySpan
+        guard let snap = graph.nearestCurvePoint(mathX: mathX, mathY: mathY) else { return }
+
+        let sx = toScreenX(snap.x, size)
+        let sy = toScreenY(snap.y, size)
+        guard sy >= -20, sy <= size.height + 20 else { return }
+
+        let color = GraphingViewModel.equationColor(
+            index: graph.equations[snap.equationIndex].colorIndex, darkMode: colorScheme == .dark)
+        context.fill(
+            Path(ellipseIn: CGRect(x: sx - 4, y: sy - 4, width: 8, height: 8)),
+            with: .color(color))
+
+        // 坐标浮层（TraceValuePopup：右侧越界则翻到左侧）。
+        let label = Text("(\(traceFmt(snap.x)), \(traceFmt(snap.y)))")
+            .font(.system(size: 11, design: .monospaced))
+        let resolved = context.resolve(label)
+        let textSize = resolved.measure(in: CGSize(width: 300, height: 40))
+        var px = sx + 15
+        if px + textSize.width + 8 > size.width { px = sx - 15 - textSize.width - 8 }
+        var py = sy - 30
+        if py < 0 { py = sy + 10 }
+        let rect = CGRect(x: px, y: py, width: textSize.width + 8, height: textSize.height + 4)
+        context.fill(Path(roundedRect: rect, cornerRadius: 4), with: .color(Color(nsColor: .windowBackgroundColor).opacity(0.92)))
+        context.stroke(Path(roundedRect: rect, cornerRadius: 4), with: .color(.secondary.opacity(0.4)), lineWidth: 0.5)
+        context.draw(resolved, at: CGPoint(x: rect.midX, y: rect.midY))
+    }
+
+    private func traceFmt(_ v: Double) -> String {
+        if abs(v) < 5e-10 { return "0" }
+        return String(format: "%.6g", v)
     }
 
     // MARK: - 手势
