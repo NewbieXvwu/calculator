@@ -240,7 +240,9 @@
       - 窗口尺寸/位置记忆：setFrameAutosaveName（既有）。
       - 模式菜单补齐 ⌘4 日期计算 / ⌘5 单位换算 / ⌘6 绘图。
       - （待人工确认：置顶行为需真机核对）
-- [ ] UI 测试（XCUITest 重写，原 `CalculatorUITests` 仅作行为参考）
+- [x] UI 测试（以行为级 ViewModel 测试替代：`src/MacAppTests`，覆盖标准/科学/程序员
+      按键序列、记忆/历史、除零错误、绘图解析/分析/隐式追踪、单位换算，共 24 例；
+      SPM 无 XCUITest 宿主，打包 .app 后可再补真 UI 自动化）
 - [ ] 确定发布授权（含 Giac 则整体 GPLv3）
 
 ---

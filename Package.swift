@@ -55,6 +55,11 @@ let package = Package(
                 .headerSearchPath("../MacBridge"),
             ]
         ),
+        .testTarget(
+            name: "MacAppTests",
+            dependencies: ["MacCalculator"],
+            path: "src/MacAppTests"
+        ),
     ],
     cxxLanguageStandard: .cxx20
 )
