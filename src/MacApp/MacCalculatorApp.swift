@@ -7,6 +7,7 @@ import SwiftUI
 struct MacCalculatorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = StandardCalculatorViewModel()
+    @State private var alwaysOnTop = UserDefaults.standard.bool(forKey: "AlwaysOnTop")
 
     var body: some Scene {
         WindowGroup("计算器") {
@@ -24,12 +25,31 @@ struct MacCalculatorApp: App {
                     .keyboardShortcut("2", modifiers: .command)
                 Button("程序员") { model.setCalculatorType(.programmer) }
                     .keyboardShortcut("3", modifiers: .command)
+                Button("日期计算") { model.setCalculatorType(.date) }
+                    .keyboardShortcut("4", modifiers: .command)
+                Button("单位换算") { model.setCalculatorType(.converter) }
+                    .keyboardShortcut("5", modifiers: .command)
+                Button("绘图") { model.setCalculatorType(.graphing) }
+                    .keyboardShortcut("6", modifiers: .command)
             }
             CommandGroup(replacing: .pasteboard) {
                 Button("拷贝") { model.copyDisplay() }
                     .keyboardShortcut("c", modifiers: .command)
                 Button("粘贴") { model.pasteFromPasteboard() }
                     .keyboardShortcut("v", modifiers: .command)
+            }
+            // 窗口置顶（对应原版 Always-on-Top，Windows 快捷键 Alt+Up 映射为 ⌥⌘↑）。
+            CommandGroup(after: .windowArrangement) {
+                Toggle("窗口置顶", isOn: Binding(
+                    get: { alwaysOnTop },
+                    set: { newValue in
+                        alwaysOnTop = newValue
+                        UserDefaults.standard.set(newValue, forKey: "AlwaysOnTop")
+                        for window in NSApp.windows {
+                            window.level = newValue ? .floating : .normal
+                        }
+                    }))
+                    .keyboardShortcut(.upArrow, modifiers: [.option, .command])
             }
         }
     }

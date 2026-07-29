@@ -37,6 +37,10 @@ struct WindowConfigurator: NSViewRepresentable {
             window.setFrameAutosaveName("MainCalculatorWindow")
             // 小工具窗全屏无意义，绿色按钮退回 zoom 语义。
             window.collectionBehavior.insert(.fullScreenNone)
+            // 恢复「窗口置顶」偏好（菜单 窗口 > 窗口置顶 / ⌥⌘↑）。
+            if UserDefaults.standard.bool(forKey: "AlwaysOnTop") {
+                window.level = .floating
+            }
         }
         return view
     }

@@ -229,7 +229,12 @@
 
 ### Phase 5：收尾
 - [ ] 本地化资源批量转换（.resw → .xcstrings 脚本）
-- [ ] 置顶小窗、窗口尺寸记忆等窗口行为
+- [x] 置顶小窗、窗口尺寸记忆等窗口行为
+      - 窗口置顶：菜单 窗口 > 窗口置顶（⌥⌘↑，对应原版 Always-on-Top Alt+Up），
+        UserDefaults 持久化并在启动时恢复 window.level=.floating。
+      - 窗口尺寸/位置记忆：setFrameAutosaveName（既有）。
+      - 模式菜单补齐 ⌘4 日期计算 / ⌘5 单位换算 / ⌘6 绘图。
+      - （待人工确认：置顶行为需真机核对）
 - [ ] UI 测试（XCUITest 重写，原 `CalculatorUITests` 仅作行为参考）
 - [ ] 确定发布授权（含 Giac 则整体 GPLv3）
 
