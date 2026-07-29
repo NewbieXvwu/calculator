@@ -258,7 +258,15 @@
 - [x] UI 测试（以行为级 ViewModel 测试替代：`src/MacAppTests`，覆盖标准/科学/程序员
       按键序列、记忆/历史、除零错误、绘图解析/分析/隐式追踪、单位换算，共 24 例；
       SPM 无 XCUITest 宿主，打包 .app 后可再补真 UI 自动化）
-- [ ] 确定发布授权（含 Giac 则整体 GPLv3）
+- [x] 确定发布授权（含 Giac 则整体 GPLv3）
+      - 决定：macOS 移植的**二进制发布整体按 GPLv3**（静态链接了 libgiac，
+        GPLv3 传染；全文见 third_party/giac/COPYING）。
+      - 源码层面：原仓库文件与本移植新增源码仍为 MIT（文件头保留 MIT 声明），
+        与 GPLv3 兼容（MIT 代码可并入 GPLv3 发行物，反向不行）。
+      - 若未来需要非 GPL 发布：去掉 GiacBridge 链接即可退回 MIT
+        （绘图退化为纯 Swift 数值 Mock：GraphExpression + GraphAnalyzer）。
+      - 其余三方：MathLive(MIT)、Homebrew gmp(LGPLv3)/mpfr(LGPLv3)/gettext-libintl(LGPL)，
+        均与 GPLv3 发布兼容。
 
 ---
 
