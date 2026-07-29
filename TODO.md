@@ -213,12 +213,20 @@
         Package.swift 静态链接 giac/mpfr/gmp/gmpxx/intl + Accelerate。
       - 冒烟/测试：factor、diff、integrate、solve、limit、evalf 全通过（GiacEngineTests）。
       - ⚠️ 链接 libgiac 后整体发布受 GPLv3 约束（见 third_party/giac/COPYING）。
-- [ ] 实现 `IMathSolver` 适配（解析/求值/格式化，对齐计算器输入语法）
-- [~] 实现 `IGraphAnalyzer` 适配（零点/极值/拐点/渐近线/单调区间）
-      - 先落地纯数值 Mock 分析器 GraphAnalyzer：在当前视窗上采样 →
-        零点(异号+二分细化)、y 截距、局部极大/极小(一阶差分符号翻转)。
-      - 数值校验：x^2-4 零点±2、极小(0,-4)、y 截距-4；sin(x) 极值 (±π/2,±1) 均正确。
-      - （拐点/渐近线/单调区间与符号精确解留待接入 Giac 后补齐）
+- [x] 实现 `IMathSolver` 适配（解析/求值/格式化，对齐计算器输入语法）
+      - GraphExpression.giacForm()：计算器输入语法 AST → Giac/Xcas 语法
+        （全括号防优先级差异；log→log10、log2→ln/ln2；滑块参数按当前值代入）。
+      - GiacMathSolver.ask/list/prettify：求值封装（错误→nil）、"list[...]"
+        顶层拆分、展示格式化（exp(1)→e、pi→π、*→·）。
+- [x] 实现 `IGraphAnalyzer` 适配（零点/极值/拐点/渐近线/单调区间）
+      - GiacMathSolver.analyze → GiacFunctionAnalysis（对应 IGraphFunctionAnalysisData）：
+        定义域 domain()、奇偶性 subst(x=-x) 归零判定、零点 solve、y 截距 subst、
+        极值（驻点+二阶导符号）、拐点（二阶导零点+三阶导非零）、
+        垂直渐近线 solve(denom)、水平渐近线 limit(±inf)。
+      - 分析面板改用符号结果（GiacAnalysisRow 后台 Task 求解，随方程/滑块联动）；
+        数值 GraphAnalyzer 保留作纯 Swift 兜底。
+      - 测试：抛物线/三次曲线/有理函数/带参函数/定义域 5 例全过（GiacMathSolverTests）。
+      - （单调区间未单列展示：极值+拐点已隐含分段；留待 UI 需求明确后补）
 - [x] 隐式方程：marching squares
       - GraphExpression 扩展双变量：变量 y、evaluate(x:y:)、rawTwoVariable 构造器。
       - 输入分类：y=/f(x)= 或无 = 的单变量式 → 显式；含 =（如 x^2+y^2=25、x=5）→

@@ -110,14 +110,14 @@ struct GraphingView: View {
         .padding(.vertical, 6)
     }
 
-    // MARK: - 函数分析（数值：零点/y 截距/极值）
+    // MARK: - 函数分析（Giac 符号：零点/极值/拐点/渐近线/奇偶性/定义域）
 
     private var analysisSection: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(graph.equations) { eq in
                     if eq.isVisible, let expr = eq.explicitExpression {
-                        analysisRow(eq: eq, expr: expr)
+                        GiacAnalysisRow(eq: eq, expr: expr, params: graph.parameters)
                     }
                 }
             }
@@ -125,48 +125,6 @@ struct GraphingView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxHeight: 180)
-    }
-
-    private func analysisRow(eq: GraphingViewModel.Equation, expr: GraphExpression) -> some View {
-        let analysis = GraphAnalyzer.analyze(expr, xMin: graph.xMin, xMax: graph.xMax, params: graph.parameters)
-        return VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
-                Circle().fill(eq.color).frame(width: 8, height: 8)
-                Text(eq.text)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .lineLimit(1)
-            }
-            if analysis.isEmpty {
-                Text("当前视窗无可报告特征")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-            } else {
-                if let y0 = analysis.yIntercept {
-                    analysisLine("y 截距", "(0, \(fmt(y0)))")
-                }
-                if !analysis.zeros.isEmpty {
-                    analysisLine("零点", analysis.zeros.prefix(6).map { "\(fmt($0))" }.joined(separator: ", "))
-                }
-                if !analysis.maxima.isEmpty {
-                    analysisLine("极大值", analysis.maxima.prefix(4).map { "(\(fmt($0.x)), \(fmt($0.y)))" }.joined(separator: " "))
-                }
-                if !analysis.minima.isEmpty {
-                    analysisLine("极小值", analysis.minima.prefix(4).map { "(\(fmt($0.x)), \(fmt($0.y)))" }.joined(separator: " "))
-                }
-            }
-        }
-    }
-
-    private func analysisLine(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .top, spacing: 4) {
-            Text(label)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 42, alignment: .leading)
-            Text(value)
-                .font(.system(size: 10, design: .monospaced))
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
     }
 
     private func fmt(_ v: Double) -> String {
@@ -230,6 +188,71 @@ struct GraphingView: View {
         .buttonStyle(.borderless)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+}
+
+/// 单条方程的 Giac 符号分析行：后台求解，方程或滑块参数变化时自动刷新。
+private struct GiacAnalysisRow: View {
+    let eq: GraphingViewModel.Equation
+    let expr: GraphExpression
+    let params: [String: Double]
+
+    @State private var analysis: GiacFunctionAnalysis?
+
+    private var taskKey: String {
+        eq.text + "|" + params.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Circle().fill(eq.color).frame(width: 8, height: 8)
+                Text(eq.text)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .lineLimit(1)
+            }
+            if let a = analysis {
+                if a.isEmpty {
+                    Text("无可报告特征")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                } else {
+                    if let d = a.domain { line("定义域", d) }
+                    if a.parity == .even { line("奇偶性", "偶函数") }
+                    if a.parity == .odd { line("奇偶性", "奇函数") }
+                    if let y0 = a.yIntercept { line("y 截距", "(0, \(y0))") }
+                    if !a.zeros.isEmpty { line("零点", a.zeros.prefix(6).joined(separator: ", ")) }
+                    if !a.maxima.isEmpty { line("极大值", a.maxima.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
+                    if !a.minima.isEmpty { line("极小值", a.minima.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
+                    if !a.inflectionPoints.isEmpty { line("拐点", a.inflectionPoints.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
+                    if !a.verticalAsymptotes.isEmpty { line("垂直渐近线", a.verticalAsymptotes.prefix(4).joined(separator: ", ")) }
+                    if !a.horizontalAsymptotes.isEmpty { line("水平渐近线", a.horizontalAsymptotes.prefix(2).joined(separator: ", ")) }
+                }
+            } else {
+                Text("分析中…")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .task(id: taskKey) {
+            let expr = expr
+            let params = params
+            analysis = await Task.detached(priority: .utility) {
+                GiacMathSolver.analyze(expr, params: params)
+            }.value
+        }
+    }
+
+    private func line(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .top, spacing: 4) {
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 60, alignment: .leading)
+            Text(value)
+                .font(.system(size: 10, design: .monospaced))
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 

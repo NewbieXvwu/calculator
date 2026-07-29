@@ -131,6 +131,39 @@ struct GraphExpression {
                 arg.collectParameters(into: &names)
             }
         }
+
+        /// 序列化为 Giac/Xcas 输入语法（全部显式加括号，规避优先级差异）。
+        func giacString(params: [String: Double]) -> String {
+            switch self {
+            case .number(let v):
+                if v == .pi { return "pi" }
+                if v == M_E { return "exp(1)" }
+                return v == v.rounded() && abs(v) < 1e15
+                    ? String(Int64(v)) : String(v)
+            case .variable: return "x"
+            case .variableY: return "y"
+            case .parameter(let name):
+                // 参数按滑块当前值代入，让 Giac 得到纯 x 表达式。
+                let v = params[name] ?? 1
+                return "(\(v == v.rounded() ? String(Int64(v)) : String(v)))"
+            case .negate(let n):
+                return "(-(\(n.giacString(params: params))))"
+            case .binary(let op, let l, let r):
+                return "((\(l.giacString(params: params)))\(op)(\(r.giacString(params: params))))"
+            case .call(let name, let arg):
+                let a = arg.giacString(params: params)
+                switch name {
+                case "log": return "log10(\(a))"
+                case "log2": return "(ln(\(a))/ln(2))"
+                default: return "\(name)(\(a))"
+                }
+            }
+        }
+    }
+
+    /// 以 Giac/Xcas 语法输出该表达式（参数用给定滑块值代入）。
+    func giacForm(params: [String: Double] = [:]) -> String {
+        root.giacString(params: params)
     }
 
     // MARK: - 递归下降解析器

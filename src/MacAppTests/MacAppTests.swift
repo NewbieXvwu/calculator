@@ -248,6 +248,55 @@ final class GiacEngineTests: XCTestCase {
     }
 }
 
+// MARK: - Giac 符号函数分析（IMathSolver/IGraphAnalyzer 适配）
+
+final class GiacMathSolverTests: XCTestCase {
+    func testParabolaAnalysis() throws {
+        let expr = try XCTUnwrap(GraphExpression("x^2-4"))
+        let a = GiacMathSolver.analyze(expr)
+        XCTAssertEqual(a.zeros, ["-2", "2"])
+        XCTAssertEqual(a.yIntercept, "-4")
+        XCTAssertEqual(a.parity, .even)
+        XCTAssertEqual(a.minima.count, 1)
+        XCTAssertEqual(a.minima[0].x, "0")
+        XCTAssertEqual(a.minima[0].y, "-4")
+        XCTAssertTrue(a.maxima.isEmpty)
+    }
+
+    func testCubicInflection() throws {
+        let expr = try XCTUnwrap(GraphExpression("x^3-3x"))
+        let a = GiacMathSolver.analyze(expr)
+        XCTAssertEqual(a.parity, .odd)
+        XCTAssertEqual(a.maxima.first?.x, "-1")
+        XCTAssertEqual(a.maxima.first?.y, "2")
+        XCTAssertEqual(a.minima.first?.x, "1")
+        XCTAssertEqual(a.inflectionPoints.first?.x, "0")
+    }
+
+    func testRationalAsymptotes() throws {
+        let expr = try XCTUnwrap(GraphExpression("(2x+1)/(x-3)"))
+        let a = GiacMathSolver.analyze(expr)
+        XCTAssertEqual(a.verticalAsymptotes, ["x = 3"])
+        XCTAssertEqual(a.horizontalAsymptotes, ["y = 2"])
+    }
+
+    func testDomainAndParameters() throws {
+        let sqrtExpr = try XCTUnwrap(GraphExpression("sqrt(x-1)"))
+        XCTAssertEqual(GiacMathSolver.analyze(sqrtExpr).domain, "x>=1")
+
+        let paramExpr = try XCTUnwrap(GraphExpression("a*x^2"))
+        let a = GiacMathSolver.analyze(paramExpr, params: ["a": -1])
+        XCTAssertEqual(a.maxima.first?.x, "0") // a<0 时顶点为极大值
+    }
+
+    func testGiacFormSerialization() throws {
+        let expr = try XCTUnwrap(GraphExpression("log(x) + log2(x)"))
+        let out = GiacMathSolver.ask("evalf(subst(\(expr.giacForm()),x=100))")
+        XCTAssertNotNil(out)
+        XCTAssertEqual(Double(out!)!, 2 + log2(100.0), accuracy: 1e-9)
+    }
+}
+
 // MARK: - 单位换算
 
 final class UnitConverterDataTests: XCTestCase {
