@@ -176,13 +176,15 @@ enum GiacMathSolver {
             } else {
                 mid = (points[i - 1].value + points[i].value) / 2
             }
-            guard let s = ask("sign(subst(diff(\(f),x),x=\(mid)))") else { continue }
+            // 浮点中点会让 sign 返回 "1.0"/"-1.0"，按数值判别。
+            guard let s = ask("sign(subst(diff(\(f),x),x=\(mid)))"), let v = Double(s) else { continue }
             let direction: String
-            switch s {
-            case "1": direction = "递增"
-            case "-1": direction = "递减"
-            case "0": direction = "恒定"
-            default: continue
+            if v > 0 {
+                direction = "递增"
+            } else if v < 0 {
+                direction = "递减"
+            } else {
+                direction = "恒定"
             }
             result.append(("(\(loExact), \(hiExact))", direction))
         }

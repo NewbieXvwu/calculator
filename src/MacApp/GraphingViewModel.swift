@@ -23,14 +23,36 @@ enum EquationLineStyle: String, CaseIterable {
     }
 }
 
+/// 不等式关系（对应原版图形引擎的 <、≤、>、≥ 区域绘制）。
+enum InequalityRelation: String {
+    case lessThan, lessOrEqual, greaterThan, greaterOrEqual
+
+    /// 严格不等式边界画虚线，非严格画实线（原版行为）。
+    var isStrict: Bool {
+        self == .lessThan || self == .greaterThan
+    }
+
+    /// F(x,y) 与 0 的关系是否成立（F = LHS - RHS）。
+    func satisfied(_ f: Double) -> Bool {
+        switch self {
+        case .lessThan: return f < 0
+        case .lessOrEqual: return f <= 0
+        case .greaterThan: return f > 0
+        case .greaterOrEqual: return f >= 0
+        }
+    }
+}
+
 @MainActor
 final class GraphingViewModel: ObservableObject {
     /// 单条方程。
     struct Equation: Identifiable {
-        /// 编译结果：显式 y=f(x) 走逐列采样；隐式 F(x,y)=0 走 marching squares。
+        /// 编译结果：显式 y=f(x) 走逐列采样；隐式 F(x,y)=0 走 marching squares；
+        /// 不等式 F(x,y) rel 0 走区域着色 + 等值线边界。
         enum Compiled {
             case explicitFn(GraphExpression)
             case implicitEq(GraphExpression)
+            case inequality(GraphExpression, InequalityRelation)
         }
 
         let id = UUID()
@@ -161,7 +183,7 @@ final class GraphingViewModel: ObservableObject {
         var used = Set<String>()
         for eq in equations {
             switch eq.compiled {
-            case .explicitFn(let expr), .implicitEq(let expr):
+            case .explicitFn(let expr), .implicitEq(let expr), .inequality(let expr, _):
                 used.formUnion(expr.parameters)
             case nil:
                 break
@@ -332,10 +354,14 @@ final class GraphingViewModel: ObservableObject {
 
     /// 解析输入：
     ///   - "y=…"/"f(x)=…" 或不含 "=" 的单变量表达式 → 显式 y=f(x)
+    ///   - 含 <、≤、>、≥ 的 → 不等式 F(x,y)=LHS-RHS rel 0（区域着色）
     ///   - 其余含 "=" 的（如 x^2+y^2=25、x=5）→ 隐式 F(x,y)=LHS-RHS=0
     ///   - 不含 "=" 但引用 y 的（如 x^2+y^2-25）→ 隐式 F(x,y)=0
     private func compile(_ eq: inout Equation) {
-        let trimmed = eq.text.trimmingCharacters(in: .whitespaces)
+        let trimmed = eq.text
+            .replacingOccurrences(of: "≤", with: "<=")
+            .replacingOccurrences(of: "≥", with: ">=")
+            .trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty {
             eq.compiled = nil
             eq.hasError = false
@@ -345,7 +371,19 @@ final class GraphingViewModel: ObservableObject {
         let lower = trimmed.lowercased()
         var result: Equation.Compiled?
 
-        if lower.hasPrefix("y=") || lower.hasPrefix("f(x)=") {
+        if let (op, relation) = Self.firstInequalityOperator(in: trimmed) {
+            let parts = trimmed.components(separatedBy: op)
+            let lhs = parts[0].trimmingCharacters(in: .whitespaces)
+            let rhs = parts.dropFirst().joined(separator: op).trimmingCharacters(in: .whitespaces)
+            if lhs.isEmpty || rhs.isEmpty
+                || rhs.contains("<") || rhs.contains(">") || rhs.contains("=")
+                || lhs.contains("=") {
+                result = nil
+            } else {
+                result = GraphExpression(rawTwoVariable: "(\(lhs))-(\(rhs))")
+                    .map { .inequality($0, relation) }
+            }
+        } else if lower.hasPrefix("y=") || lower.hasPrefix("f(x)=") {
             let rest = String(trimmed.dropFirst(lower.hasPrefix("y=") ? 2 : 5))
             if rest.contains("=") {
                 result = nil // 多个等号
@@ -373,6 +411,24 @@ final class GraphingViewModel: ObservableObject {
 
         eq.compiled = result
         eq.hasError = result == nil
+    }
+
+    /// 找出首个不等号（先匹配双字符 <=、>=，再匹配 <、>）。
+    private static func firstInequalityOperator(in s: String) -> (op: String, relation: InequalityRelation)? {
+        var best: (op: String, relation: InequalityRelation, index: String.Index)?
+        let candidates: [(String, InequalityRelation)] = [
+            ("<=", .lessOrEqual), (">=", .greaterOrEqual), ("<", .lessThan), (">", .greaterThan),
+        ]
+        for (op, relation) in candidates {
+            guard let r = s.range(of: op) else { continue }
+            if let b = best {
+                // 位置更靠前者优先；同位置时双字符（先遍历）优先。
+                if r.lowerBound < b.index { best = (op, relation, r.lowerBound) }
+            } else {
+                best = (op, relation, r.lowerBound)
+            }
+        }
+        return best.map { ($0.op, $0.relation) }
     }
 }
 

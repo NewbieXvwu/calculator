@@ -462,6 +462,105 @@ final class GiacMathSolverTests: XCTestCase {
         XCTAssertNotNil(out)
         XCTAssertEqual(Double(out!)!, 2 + log2(100.0), accuracy: 1e-9)
     }
+
+    func testKeyGraphFeaturesFullFields() throws {
+        let expr = try XCTUnwrap(GraphExpression("x^2-4"))
+        let a = GiacMathSolver.analyze(expr)
+        XCTAssertEqual(a.range, "[-4, +∞)")
+        XCTAssertEqual(a.periodicity, "非周期")
+        XCTAssertEqual(a.monotonicity.count, 2)
+        XCTAssertEqual(a.monotonicity[0].interval, "(-∞, 0)")
+        XCTAssertEqual(a.monotonicity[0].direction, "递减")
+        XCTAssertEqual(a.monotonicity[1].interval, "(0, +∞)")
+        XCTAssertEqual(a.monotonicity[1].direction, "递增")
+        XCTAssertTrue(a.obliqueAsymptotes.isEmpty)
+    }
+
+    func testPeriodicGeneralZeros() throws {
+        let expr = try XCTUnwrap(GraphExpression("sin(x)"))
+        let a = GiacMathSolver.analyze(expr)
+        // all_trig_solutions 通解：n_0*pi → 展示为 n·π。
+        XCTAssertTrue(a.zeros.contains { $0.contains("n·π") }, "zeros: \(a.zeros)")
+        XCTAssertEqual(a.periodicity, "2·π")
+    }
+
+    func testObliqueAsymptote() throws {
+        let expr = try XCTUnwrap(GraphExpression("(x^2+1)/x"))
+        let a = GiacMathSolver.analyze(expr)
+        XCTAssertEqual(a.obliqueAsymptotes, ["y = x"])
+        XCTAssertEqual(a.verticalAsymptotes, ["x = 0"])
+    }
+}
+
+// MARK: - 绘图 ViewModel（不等式/跟踪吸附/三角单位/线型）
+
+@MainActor
+final class GraphingViewModelTests: XCTestCase {
+    func testInequalityCompile() throws {
+        let vm = GraphingViewModel()
+        vm.addEquation(text: "y<x^2")
+        guard case .inequality(let f, let rel)? = vm.equations.last?.compiled else {
+            return XCTFail("y<x^2 应编译为不等式")
+        }
+        XCTAssertEqual(rel, .lessThan)
+        XCTAssertTrue(rel.isStrict)
+        // F = y - x^2：(0, -1) 在区域内，(0, 1) 不在。
+        XCTAssertTrue(rel.satisfied(try XCTUnwrap(f.evaluate(x: 0, y: -1))))
+        XCTAssertFalse(rel.satisfied(try XCTUnwrap(f.evaluate(x: 0, y: 1))))
+
+        vm.addEquation(text: "x^2+y^2<=25")
+        guard case .inequality(let g, let rel2)? = vm.equations.last?.compiled else {
+            return XCTFail("圆不等式应编译为不等式")
+        }
+        XCTAssertEqual(rel2, .lessOrEqual)
+        XCTAssertFalse(rel2.isStrict)
+        XCTAssertTrue(rel2.satisfied(try XCTUnwrap(g.evaluate(x: 0, y: 0))))
+        XCTAssertTrue(rel2.satisfied(try XCTUnwrap(g.evaluate(x: 5, y: 0)))) // 边界含于 ≤
+        XCTAssertFalse(rel2.satisfied(try XCTUnwrap(g.evaluate(x: 6, y: 0))))
+
+        // Unicode ≥ 归一化。
+        vm.addEquation(text: "y≥x")
+        guard case .inequality(_, let rel3)? = vm.equations.last?.compiled else {
+            return XCTFail("y≥x 应编译为不等式")
+        }
+        XCTAssertEqual(rel3, .greaterOrEqual)
+    }
+
+    func testInequalityErrors() {
+        let vm = GraphingViewModel()
+        vm.addEquation(text: "y<")
+        XCTAssertTrue(vm.equations.last?.hasError ?? false)
+        vm.addEquation(text: "1<x<2")
+        XCTAssertTrue(vm.equations.last?.hasError ?? false)
+    }
+
+    func testNearestCurvePointSnapping() {
+        let vm = GraphingViewModel() // 默认含 y=x^2 与 y=sin(x)
+        let hit = vm.nearestCurvePoint(mathX: 2, mathY: 4.2)
+        XCTAssertEqual(hit?.equationIndex, 0)
+        XCTAssertEqual(hit?.y ?? .nan, 4, accuracy: 1e-12)
+
+        let hit2 = vm.nearestCurvePoint(mathX: 2, mathY: 0.8)
+        XCTAssertEqual(hit2?.equationIndex, 1)
+        XCTAssertEqual(hit2?.y ?? .nan, sin(2), accuracy: 1e-12)
+    }
+
+    func testTrigModeEvaluation() throws {
+        let sinExpr = try XCTUnwrap(GraphExpression("sin(x)"))
+        XCTAssertEqual(try XCTUnwrap(sinExpr.evaluate(x: 90, trig: .degrees)), 1, accuracy: 1e-12)
+        XCTAssertEqual(try XCTUnwrap(sinExpr.evaluate(x: 100, trig: .gradians)), 1, accuracy: 1e-12)
+        let asinExpr = try XCTUnwrap(GraphExpression("asin(x)"))
+        XCTAssertEqual(try XCTUnwrap(asinExpr.evaluate(x: 1, trig: .degrees)), 90, accuracy: 1e-12)
+        // 双曲函数不受角度单位影响。
+        let sinhExpr = try XCTUnwrap(GraphExpression("sinh(x)"))
+        XCTAssertEqual(try XCTUnwrap(sinhExpr.evaluate(x: 1, trig: .degrees)), sinh(1), accuracy: 1e-12)
+    }
+
+    func testLineStyleDashPatterns() {
+        XCTAssertEqual(EquationLineStyle.solid.dashPattern(lineWidth: 2), [])
+        XCTAssertEqual(EquationLineStyle.dash.dashPattern(lineWidth: 2), [4, 2])
+        XCTAssertEqual(EquationLineStyle.dot.dashPattern(lineWidth: 2), [2, 2])
+    }
 }
 
 // MARK: - MathLive 公式编辑器

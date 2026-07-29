@@ -617,6 +617,8 @@ private struct GraphCanvas: View {
                             drawCurve(expr, color: color, stroke: stroke, context: context, size: canvasSize)
                         case .implicitEq(let expr):
                             drawImplicit(expr, color: color, stroke: stroke, context: context, size: canvasSize)
+                        case .inequality(let expr, let relation):
+                            drawInequality(expr, relation: relation, color: color, stroke: stroke, context: context, size: canvasSize)
                         case nil:
                             break
                         }
@@ -747,6 +749,8 @@ private struct GraphCanvas: View {
                     drawCurve(expr, color: color, stroke: stroke, context: context, size: canvasSize)
                 case .implicitEq(let expr):
                     drawImplicit(expr, color: color, stroke: stroke, context: context, size: canvasSize)
+                case .inequality(let expr, let relation):
+                    drawInequality(expr, relation: relation, color: color, stroke: stroke, context: context, size: canvasSize)
                 case nil:
                     break
                 }
@@ -763,7 +767,9 @@ private struct GraphCanvas: View {
     private var equationListText: String {
         graph.equations
             .filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
-            .map { $0.text.contains("=") ? $0.text : "y=\($0.text)" }
+            .map { eq in
+                eq.text.contains(where: { "=<>≤≥".contains($0) }) ? eq.text : "y=\(eq.text)"
+            }
             .joined(separator: "\n")
     }
 
@@ -982,5 +988,49 @@ private struct GraphCanvas: View {
             path.addLine(to: CGPoint(x: toScreenX(seg.x2, size), y: toScreenY(seg.y2, size)))
         }
         context.stroke(path, with: .color(color), style: stroke)
+    }
+
+    /// 不等式 F(x,y) rel 0：满足区域半透明着色 + F=0 边界线
+    /// （严格不等式虚线、非严格实线，对应原版图形引擎行为）。
+    private func drawInequality(_ expr: GraphExpression, relation: InequalityRelation, color: Color, stroke: StrokeStyle, context: GraphicsContext, size: CGSize) {
+        guard size.width > 1, size.height > 1 else { return }
+        let cellPx = 4.0
+        let cols = max(8, Int(size.width / cellPx))
+        let rows = max(8, Int(size.height / cellPx))
+        let cellW = size.width / CGFloat(cols)
+        let cellH = size.height / CGFloat(rows)
+
+        var fill = Path()
+        for row in 0..<rows {
+            let sy = (CGFloat(row) + 0.5) * cellH
+            let mathY = graph.yMax - Double(sy) / Double(size.height) * graph.ySpan
+            var runStart: Int?
+            for col in 0...cols {
+                var inside = false
+                if col < cols {
+                    let sx = (CGFloat(col) + 0.5) * cellW
+                    let mathX = graph.xMin + Double(sx) / Double(size.width) * graph.xSpan
+                    if let f = expr.evaluate(x: mathX, y: mathY, params: graph.parameters, trig: graph.trigMode) {
+                        inside = relation.satisfied(f)
+                    }
+                }
+                if inside {
+                    if runStart == nil { runStart = col }
+                } else if let start = runStart {
+                    // 合并同行连续单元为一个矩形，减少路径元素。
+                    fill.addRect(CGRect(
+                        x: CGFloat(start) * cellW, y: CGFloat(row) * cellH,
+                        width: CGFloat(col - start) * cellW, height: cellH))
+                    runStart = nil
+                }
+            }
+        }
+        context.fill(fill, with: .color(color.opacity(0.2)))
+
+        // 边界 F=0：严格不等式强制虚线。
+        let boundaryStroke = relation.isStrict
+            ? StrokeStyle(lineWidth: stroke.lineWidth, dash: [2 * stroke.lineWidth, stroke.lineWidth])
+            : stroke
+        drawImplicit(expr, color: color, stroke: boundaryStroke, context: context, size: size)
     }
 }
