@@ -79,7 +79,11 @@
       （已完成：全库无 `sizeof(wchar_t)` 假设、无代理对处理、无 UINT16 强转；
       仅有 ASCII 范围的 `wchar_t` 运算（`CalcInput.cpp:63`），4 字节下安全。
       结论：引擎宽度无关，字符串转换统一在 Swift 桥接层处理）
-- [ ] Swift/C++ interop 或 ObjC++ 桥接层，跑通"引擎算出 1+1"
+- [x] Swift/C++ interop 或 ObjC++ 桥接层，跑通"引擎算出 1+1"
+      （已完成：根目录 `Package.swift`（SPM）；`src/MacBridge/CalcSession.{h,cpp}` 纯 C++ pimpl 门面
+      隔离引擎头文件，`CalcManagerBridge.mm`（ObjC++）供 Swift 调用；`src/MacSmoke` 冒烟通过。
+      暗坑备忘：Ratpack 的全局 `extern PRAT pi` 与 Apple CarbonCore `fp.h` 的 `pi` 符号冲突，
+      因此 ObjC++ 文件严禁直接 include 引擎头，必须经 CalcSession 门面）
 - [ ] 迁移 `CalculatorUnitTests` 中引擎相关单测（转 XCTest 或保留 googletest）
 
 ### Phase 1：标准 + 科学模式（3–5 周）
