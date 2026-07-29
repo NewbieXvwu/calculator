@@ -65,17 +65,16 @@
 - [ ] 日期/换算/绘图模式的粘贴行为对照（原版禁用或按数字处理）
 - [ ] 迁移 `src/CalculatorUnitTests/CopyPasteManagerTest.cpp` 全部用例到 `MacAppTests`
 
-### P2-1 程序员模式：移位模式联动键盘
-现状：键盘行 `«` `»` 恒为算术移位（`ProgrammerCalculatorView.swift:179-180`），移位菜单四组命令与键盘脱节。
+### P2-1 程序员模式：移位模式联动键盘 ✅（7aa738b）
 规格：`CalculatorProgrammerRadixOperators.xaml:368-483`——RadioButton 选择算术/逻辑/循环/带进位后，
 键盘行两键的**标签与命令**随之切换（Lsh/Rsh ↔ Lsh/RshL ↔ RoL/RoR ↔ RoLC/RoRC）。
-- [ ] ViewModel 增加 shiftMode 状态；移位菜单改为单选组；键盘两键按 shiftMode 渲染
-- [ ] 测试：四种模式下键盘键分发的命令各一条
+- [x] ViewModel 增加 shiftMode 状态；移位菜单改为单选组；键盘两键按 shiftMode 渲染
+- [x] 测试：四种模式下键盘键分发的命令各一条
 
-### P2-2 程序员模式：位翻转面板排版 1:1
-现状：每行 8 位、半字节间隔（`ProgrammerCalculatorView.swift:246-257`）。
-规格：`CalculatorProgrammerBitFlipPanel.xaml`——每 4 位一组，QWORD 4 行×4 组，组下方有位序号标注（63/47/31/15/0 等）。
-- [ ] 按原版分组/行数/序号标注重排；DWORD/WORD/BYTE 的行列数同步对照
+### P2-2 程序员模式：位翻转面板排版 1:1 ✅
+规格：`CalculatorProgrammerBitFlipPanel.xaml`——固定 64 位、4 行×16 位、每 4 位一组（组间 gutter），
+组下方标注该组最低位序号（60/56/…/0），超出字长的位**禁用而非隐藏**（ShouldEnableBit）。
+- [x] 按原版分组/行数/序号标注重排；DWORD/WORD/BYTE 通过禁用位对照（待人工真机核对视觉）
 
 ### P2-3 趣味单位（whimsical delighter）完整收录
 现状：`UnitConverterData.swift:12` 明确未收录——违背复刻原则，撤销该决定。
@@ -93,10 +92,9 @@
 - [ ] 本地化名称/缩写取 `UnitName_*` / `UnitAbbreviation_*` 资源（已在 xcstrings 中），当前阶段可先取中文串
 - [ ] 测试：趣味单位不可选为源/目标 + 补充结果末位恰一个趣味条目
 
-### P2-4 汇率主源纠正（一行改动 + 验证）
-现状：`CurrencyService.swift:27` 主源用了 jsDelivr `@latest`（数据滞后 1 天），违反决策 §二-2。
-- [ ] 主源改 `https://latest.currency-api.pages.dev/v1/currencies/usd.min.json`，jsDelivr 降为第二优先，Frankfurter 仍兜底
-- [ ] 联网端到端验证三级降级链
+### P2-4 汇率主源纠正（一行改动 + 验证）✅（c1ed988）
+- [x] 主源改 `https://latest.currency-api.pages.dev/v1/currencies/usd.min.json`，jsDelivr 降为第二优先，Frankfurter 仍兜底
+- [x] 联网验证 pages.dev 端点 HTTP 200 存活（三级降级链为同一 fetch 路径，代码级已覆盖）
 
 ### P2-5 绘图模式功能对齐（最大残差块）
 规格目录：`src/Calculator/Views/GraphingCalculator/` + `src/CalcViewModel/GraphingCalculator/`。

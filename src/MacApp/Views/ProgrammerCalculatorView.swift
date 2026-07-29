@@ -243,19 +243,34 @@ struct ProgrammerCalculatorView: View {
 
     // MARK: - 位翻转面板
 
+    // 对应 CalculatorProgrammerBitFlipPanel.xaml：固定 64 位，4 行 × 16 位，
+    // 每 4 位一个半字节组（组间 gutter），组下方标注该组最低位序号（60/56/…/0）；
+    // 超出当前字长的位禁用而非隐藏（ShouldEnableBit）。
     private var bitFlipPanel: some View {
-        let bitCount = model.wordSize.bitCount
-        // 每行 8 位，MSB 在最上；每 4 位一组间隔以区分半字节。
-        let rows = stride(from: bitCount - 1, through: 0, by: -8).map { high in
-            Array(stride(from: high, through: max(high - 7, 0), by: -1))
-        }
+        let enabledCount = model.wordSize.bitCount
         return VStack(spacing: 4) {
-            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                HStack(spacing: 4) {
-                    ForEach(row, id: \.self) { position in
-                        bitToggle(position)
-                        if position % 4 == 0 && position != row.last {
-                            Spacer(minLength: 4)
+            ForEach(0..<4, id: \.self) { rowIndex in
+                let rowHigh = 63 - rowIndex * 16
+                VStack(spacing: 0) {
+                    HStack(spacing: 8) {
+                        ForEach(0..<4, id: \.self) { group in
+                            HStack(spacing: 2) {
+                                ForEach(0..<4, id: \.self) { i in
+                                    bitToggle(rowHigh - group * 4 - i, enabled: rowHigh - group * 4 - i < enabledCount)
+                                }
+                            }
+                        }
+                    }
+                    HStack(spacing: 8) {
+                        ForEach(0..<4, id: \.self) { group in
+                            HStack(spacing: 2) {
+                                ForEach(0..<4, id: \.self) { i in
+                                    Text(i == 3 ? "\(rowHigh - group * 4 - 3)" : "")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                        .frame(maxWidth: .infinity)
+                                }
+                            }
                         }
                     }
                 }
@@ -264,28 +279,24 @@ struct ProgrammerCalculatorView: View {
         .padding(.vertical, 4)
     }
 
-    private func bitToggle(_ position: Int) -> some View {
-        let on = position < model.binaryBits.count && model.binaryBits[position]
+    private func bitToggle(_ position: Int, enabled: Bool) -> some View {
+        let on = enabled && position < model.binaryBits.count && model.binaryBits[position]
         return Button {
             model.flipBit(position)
         } label: {
-            VStack(spacing: 1) {
-                Text(on ? "1" : "0")
-                    .font(.system(size: 16, weight: .medium, design: .monospaced))
-                    .foregroundStyle(on ? Color.orange : .primary)
-                Text("\(position)")
-                    .font(.system(size: 8))
-                    .foregroundStyle(.tertiary)
-            }
-            .frame(maxWidth: .infinity, minHeight: 34)
-            .contentShape(Rectangle())
+            Text(on ? "1" : "0")
+                .font(.system(size: 18, weight: .semibold, design: .monospaced))
+                .foregroundStyle(!enabled ? AnyShapeStyle(.tertiary)
+                                 : on ? AnyShapeStyle(Color.orange) : AnyShapeStyle(.primary))
+                .frame(maxWidth: .infinity, minHeight: 30)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .background(
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(on ? Color.orange.opacity(0.15) : Color.primary.opacity(0.04))
         )
-        .disabled(model.isInError)
+        .disabled(model.isInError || !enabled)
         .accessibilityLabel("第 \(position) 位")
         .accessibilityValue(on ? "1" : "0")
     }
