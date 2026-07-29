@@ -8,6 +8,7 @@
 
 #include "CalculatorManager.h"
 #include "CalculatorResource.h"
+#include "EngineStringsData.g.h"
 
 namespace MacCalc
 {
@@ -35,7 +36,9 @@ namespace MacCalc
                 {
                     return m_locale.grouping;
                 }
-                return {};
+                const auto& table = EngineStringsEnUS();
+                auto it = table.find(id);
+                return it != table.end() ? std::wstring(it->second) : std::wstring{};
             }
 
         private:
@@ -45,46 +48,86 @@ namespace MacCalc
         class SessionDisplay final : public ICalcDisplay
         {
         public:
-            CalcSession::DisplayCallback callback;
+            SessionCallbacks callbacks;
 
             void SetPrimaryDisplay(const std::wstring& text, bool isError) override
             {
-                if (callback)
+                if (callbacks.onPrimaryDisplay)
                 {
-                    callback(text, isError);
+                    callbacks.onPrimaryDisplay(text, isError);
                 }
             }
-            void SetIsInError(bool) override
+            void SetIsInError(bool isInError) override
             {
+                if (callbacks.onIsInError)
+                {
+                    callbacks.onIsInError(isInError);
+                }
             }
             void SetExpressionDisplay(
-                std::shared_ptr<std::vector<std::pair<std::wstring, int>>> const&,
+                std::shared_ptr<std::vector<std::pair<std::wstring, int>>> const& tokens,
                 std::shared_ptr<std::vector<std::shared_ptr<IExpressionCommand>>> const&) override
             {
+                if (callbacks.onExpressionTokens && tokens)
+                {
+                    callbacks.onExpressionTokens(*tokens);
+                }
             }
-            void SetParenthesisNumber(unsigned int) override
+            void SetParenthesisNumber(unsigned int count) override
             {
+                if (callbacks.onParenthesisCount)
+                {
+                    callbacks.onParenthesisCount(count);
+                }
             }
             void OnNoRightParenAdded() override
             {
+                if (callbacks.onNoRightParenAdded)
+                {
+                    callbacks.onNoRightParenAdded();
+                }
             }
             void MaxDigitsReached() override
             {
+                if (callbacks.onMaxDigitsReached)
+                {
+                    callbacks.onMaxDigitsReached();
+                }
             }
             void BinaryOperatorReceived() override
             {
+                if (callbacks.onBinaryOperatorReceived)
+                {
+                    callbacks.onBinaryOperatorReceived();
+                }
             }
-            void OnHistoryItemAdded(unsigned int) override
+            void OnHistoryItemAdded(unsigned int index) override
             {
+                if (callbacks.onHistoryItemAdded)
+                {
+                    callbacks.onHistoryItemAdded(index);
+                }
             }
-            void SetMemorizedNumbers(const std::vector<std::wstring>&) override
+            void SetMemorizedNumbers(const std::vector<std::wstring>& values) override
             {
+                if (callbacks.onMemorizedNumbers)
+                {
+                    callbacks.onMemorizedNumbers(values);
+                }
             }
-            void MemoryItemChanged(unsigned int) override
+            void MemoryItemChanged(unsigned int index) override
             {
+                if (callbacks.onMemoryItemChanged)
+                {
+                    callbacks.onMemoryItemChanged(index);
+                }
             }
             void InputChanged() override
             {
+                if (callbacks.onInputChanged)
+                {
+                    callbacks.onInputChanged();
+                }
             }
         };
     }
@@ -111,9 +154,9 @@ namespace MacCalc
 
     CalcSession::~CalcSession() = default;
 
-    void CalcSession::SetDisplayCallback(DisplayCallback callback)
+    void CalcSession::SetCallbacks(SessionCallbacks callbacks)
     {
-        m_impl->m_display.callback = std::move(callback);
+        m_impl->m_display.callbacks = std::move(callbacks);
     }
 
     void CalcSession::SendCommand(int command)
@@ -121,9 +164,9 @@ namespace MacCalc
         m_impl->m_manager.SendCommand(static_cast<CalculationManager::Command>(command));
     }
 
-    void CalcSession::Reset()
+    void CalcSession::Reset(bool clearMemory)
     {
-        m_impl->m_manager.Reset();
+        m_impl->m_manager.Reset(clearMemory);
     }
 
     void CalcSession::SetStandardMode()
@@ -134,5 +177,75 @@ namespace MacCalc
     void CalcSession::SetScientificMode()
     {
         m_impl->m_manager.SetScientificMode();
+    }
+
+    void CalcSession::SetProgrammerMode()
+    {
+        m_impl->m_manager.SetProgrammerMode();
+    }
+
+    bool CalcSession::IsEngineRecording()
+    {
+        return m_impl->m_manager.IsEngineRecording();
+    }
+
+    bool CalcSession::IsInputEmpty()
+    {
+        return m_impl->m_manager.IsInputEmpty();
+    }
+
+    wchar_t CalcSession::DecimalSeparator()
+    {
+        return m_impl->m_manager.DecimalSeparator();
+    }
+
+    void CalcSession::MemorizeNumber()
+    {
+        m_impl->m_manager.MemorizeNumber();
+    }
+
+    void CalcSession::MemorizedNumberLoad(unsigned int index)
+    {
+        m_impl->m_manager.MemorizedNumberLoad(index);
+    }
+
+    void CalcSession::MemorizedNumberAdd(unsigned int index)
+    {
+        m_impl->m_manager.MemorizedNumberAdd(index);
+    }
+
+    void CalcSession::MemorizedNumberSubtract(unsigned int index)
+    {
+        m_impl->m_manager.MemorizedNumberSubtract(index);
+    }
+
+    void CalcSession::MemorizedNumberClear(unsigned int index)
+    {
+        m_impl->m_manager.MemorizedNumberClear(index);
+    }
+
+    void CalcSession::MemorizedNumberClearAll()
+    {
+        m_impl->m_manager.MemorizedNumberClearAll();
+    }
+
+    std::vector<HistoryEntry> CalcSession::GetHistoryEntries() const
+    {
+        std::vector<HistoryEntry> entries;
+        for (const auto& item : m_impl->m_manager.GetHistoryItems())
+        {
+            entries.push_back({ item->historyItemVector.expression, item->historyItemVector.result });
+        }
+        return entries;
+    }
+
+    bool CalcSession::RemoveHistoryItem(unsigned int index)
+    {
+        return m_impl->m_manager.RemoveHistoryItem(index);
+    }
+
+    void CalcSession::ClearHistory()
+    {
+        m_impl->m_manager.ClearHistory();
     }
 }

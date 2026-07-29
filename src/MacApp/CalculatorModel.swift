@@ -26,7 +26,7 @@ final class CalculatorModel: ObservableObject {
         bridge.sendDigit(digit)
     }
 
-    func send(_ command: CalcBridgeCommand) {
+    func send(_ command: EngineCommand) {
         bridge.sendCommand(command.rawValue)
     }
 }

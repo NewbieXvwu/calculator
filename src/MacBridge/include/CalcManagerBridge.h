@@ -7,33 +7,61 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// Raw command IDs mirroring CalculationManager::Command (Command.h).
-/// Digits 0-9 are 130-139; see Command.h for the full table.
-typedef NS_ENUM(NSInteger, CalcBridgeCommand) {
-    CalcBridgeCommandClear = 81,
-    CalcBridgeCommandPoint = 84,
-    CalcBridgeCommandDivide = 91,
-    CalcBridgeCommandMultiply = 92,
-    CalcBridgeCommandAdd = 93,
-    CalcBridgeCommandSubtract = 94,
-    CalcBridgeCommandEquals = 121,
-    CalcBridgeCommandDigit0 = 130,
-};
+/// One expression-display token. commandIndex >= 0 means the token is editable
+/// (it maps into the engine command list); -1 means static text.
+@interface CalcBridgeToken : NSObject
+@property (nonatomic, readonly, copy) NSString *text;
+@property (nonatomic, readonly) NSInteger commandIndex;
+- (instancetype)initWithText:(NSString *)text commandIndex:(NSInteger)commandIndex;
+@end
 
+@interface CalcBridgeHistoryEntry : NSObject
+@property (nonatomic, readonly, copy) NSString *expression;
+@property (nonatomic, readonly, copy) NSString *result;
+- (instancetype)initWithExpression:(NSString *)expression result:(NSString *)result;
+@end
+
+/// Thin ObjC wrapper over the C++ CalcSession facade. Command IDs mirror
+/// CalculationManager::Command (Command.h); Swift keeps its own typed enum.
 @interface CalcManagerBridge : NSObject
 
-/// Latest primary display text pushed by the engine.
 @property (nonatomic, readonly, copy) NSString *primaryDisplay;
 @property (nonatomic, readonly) BOOL isInError;
 
-/// Called on every primary display update.
 @property (nonatomic, copy, nullable) void (^onDisplayChanged)(NSString *text, BOOL isError);
+@property (nonatomic, copy, nullable) void (^onIsInErrorChanged)(BOOL isInError);
+@property (nonatomic, copy, nullable) void (^onExpressionChanged)(NSArray<CalcBridgeToken *> *tokens);
+@property (nonatomic, copy, nullable) void (^onParenthesisCountChanged)(NSUInteger count);
+@property (nonatomic, copy, nullable) void (^onNoRightParenAdded)(void);
+@property (nonatomic, copy, nullable) void (^onMaxDigitsReached)(void);
+@property (nonatomic, copy, nullable) void (^onBinaryOperatorReceived)(void);
+@property (nonatomic, copy, nullable) void (^onHistoryItemAdded)(NSUInteger index);
+@property (nonatomic, copy, nullable) void (^onMemoryChanged)(NSArray<NSString *> *values);
+@property (nonatomic, copy, nullable) void (^onMemoryItemChanged)(NSUInteger index);
+@property (nonatomic, copy, nullable) void (^onInputChanged)(void);
 
 - (void)sendCommand:(NSInteger)command;
 - (void)sendDigit:(NSInteger)digit;
 - (void)reset;
+- (void)resetWithClearMemory:(BOOL)clearMemory;
 - (void)setStandardMode;
 - (void)setScientificMode;
+- (void)setProgrammerMode;
+
+- (BOOL)isEngineRecording;
+- (BOOL)isInputEmpty;
+- (NSString *)decimalSeparator;
+
+- (void)memorizeNumber;
+- (void)memoryLoad:(NSUInteger)index;
+- (void)memoryAdd:(NSUInteger)index;
+- (void)memorySubtract:(NSUInteger)index;
+- (void)memoryClear:(NSUInteger)index;
+- (void)memoryClearAll;
+
+- (NSArray<CalcBridgeHistoryEntry *> *)historyEntries;
+- (BOOL)removeHistoryItem:(NSUInteger)index;
+- (void)clearHistory;
 
 @end
 
