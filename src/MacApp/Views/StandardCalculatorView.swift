@@ -1,63 +1,115 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-// 1:1 SwiftUI translation of Views/CalculatorStandardOperators.xaml +
-// the display/memory chrome from Views/Calculator.xaml.
+// 排版 1:1 对照 Views/CalculatorStandardOperators.xaml + Views/Calculator.xaml：
+//   顶栏（模式标题 + 历史按钮）
+//   表达式行 + 主显示
+//   记忆栏 MC MR M+ M− MS
+//   6 行 × 4 列键盘：
+//     %   CE  C   ⌫
+//     ¹⁄ₓ  x²  ²√x ÷
+//     7   8   9   ×
+//     4   5   6   −
+//     1   2   3   +
+//     ±   0   .   =
+// 视觉使用 macOS 原生语言（SF Symbols、系统色、悬停态）。
 
 import SwiftUI
 
 struct StandardCalculatorView: View {
     @ObservedObject var model: StandardCalculatorViewModel
 
+    /// 窗口过窄放不下停靠面板时，顶栏显示历史弹出按钮（对应原版 HistoryButton）。
+    var showsHistoryButton: Bool = false
+
+    @State private var historyPopoverShown = false
+
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 0) {
+            header
             DisplayArea(model: model)
             MemoryBar(model: model)
+                .padding(.horizontal, 6)
+                .padding(.bottom, 2)
             keypad
+                .padding(.horizontal, 4)
+                .padding(.bottom, 4)
         }
-        .padding(8)
     }
 
-    // Grid mirrors the XAML: rows 0-5, columns %/CE/C/⌫ … ±/0/./=
+    // 原版顶栏：☰ + 模式名；右侧历史按钮。macOS 下汉堡菜单由工具栏/侧栏替代，
+    // 这里保留模式标题与历史按钮的位置关系。
+    private var header: some View {
+        HStack {
+            Text("标准")
+                .font(.system(size: 15, weight: .semibold))
+            Spacer()
+            if showsHistoryButton {
+                Button {
+                    historyPopoverShown.toggle()
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 13))
+                }
+                .buttonStyle(.borderless)
+                .help("历史记录")
+                .popover(isPresented: $historyPopoverShown, arrowEdge: .bottom) {
+                    HistoryListView(model: model)
+                        .frame(width: 280, height: 320)
+                }
+            }
+        }
+        .padding(.leading, 76) // 隐藏标题栏后为左上角红绿灯按钮留位
+        .padding(.trailing, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 2)
+    }
+
     private var keypad: some View {
-        Grid(horizontalSpacing: 2, verticalSpacing: 2) {
+        GlassEffectContainer(spacing: 4) {
+            Grid(horizontalSpacing: 4, verticalSpacing: 4) {
             GridRow {
-                CalcKey("%", style: .function, disabled: model.isInError) { model.buttonPressed(.percent) }
-                CalcKey("CE", style: .function) { model.buttonPressed(.clearEntry) }
-                CalcKey("C", style: .function) { model.buttonPressed(.clear) }
-                CalcKey("⌫", style: .function) { model.buttonPressed(.backspace) }
+                CalcKey(symbol: "percent", style: .function, disabled: model.isInError) { model.buttonPressed(.percent) }
+                CalcKey("CE", style: .function, fontSize: 14) { model.buttonPressed(.clearEntry) }
+                CalcKey("C", style: .function, fontSize: 14) { model.buttonPressed(.clear) }
+                CalcKey(symbol: "delete.left", style: .function) { model.buttonPressed(.backspace) }
             }
             GridRow {
                 CalcKey("¹⁄ₓ", style: .function, disabled: model.isInError) { model.buttonPressed(.reciprocal) }
                 CalcKey("x²", style: .function, disabled: model.isInError) { model.buttonPressed(.sqr) }
                 CalcKey("²√x", style: .function, disabled: model.isInError) { model.buttonPressed(.sqrt) }
-                CalcKey("÷", style: .function, disabled: model.isInError) { model.buttonPressed(.divide) }
+                CalcKey(symbol: "divide", style: .function, disabled: model.isInError) { model.buttonPressed(.divide) }
             }
             GridRow {
-                CalcKey("7", style: .digit) { model.digitPressed(7) }
-                CalcKey("8", style: .digit) { model.digitPressed(8) }
-                CalcKey("9", style: .digit) { model.digitPressed(9) }
-                CalcKey("×", style: .function, disabled: model.isInError) { model.buttonPressed(.multiply) }
+                digitKey(7)
+                digitKey(8)
+                digitKey(9)
+                CalcKey(symbol: "multiply", style: .function, disabled: model.isInError) { model.buttonPressed(.multiply) }
             }
             GridRow {
-                CalcKey("4", style: .digit) { model.digitPressed(4) }
-                CalcKey("5", style: .digit) { model.digitPressed(5) }
-                CalcKey("6", style: .digit) { model.digitPressed(6) }
-                CalcKey("−", style: .function, disabled: model.isInError) { model.buttonPressed(.subtract) }
+                digitKey(4)
+                digitKey(5)
+                digitKey(6)
+                CalcKey(symbol: "minus", style: .function, disabled: model.isInError) { model.buttonPressed(.subtract) }
             }
             GridRow {
-                CalcKey("1", style: .digit) { model.digitPressed(1) }
-                CalcKey("2", style: .digit) { model.digitPressed(2) }
-                CalcKey("3", style: .digit) { model.digitPressed(3) }
-                CalcKey("+", style: .function, disabled: model.isInError) { model.buttonPressed(.add) }
+                digitKey(1)
+                digitKey(2)
+                digitKey(3)
+                CalcKey(symbol: "plus", style: .function, disabled: model.isInError) { model.buttonPressed(.add) }
             }
             GridRow {
-                CalcKey("±", style: .digit, disabled: model.isInError) { model.buttonPressed(.sign) }
-                CalcKey("0", style: .digit) { model.digitPressed(0) }
-                CalcKey(model.decimalSeparator, style: .digit) { model.buttonPressed(.point) }
-                CalcKey("=", style: .accent) { model.buttonPressed(.equals) }
+                CalcKey(symbol: "plus.forwardslash.minus", style: .digit, disabled: model.isInError) { model.buttonPressed(.sign) }
+                digitKey(0)
+                CalcKey(model.decimalSeparator, style: .digit, fontSize: 18) { model.buttonPressed(.point) }
+                CalcKey(symbol: "equal", style: .accent) { model.buttonPressed(.equals) }
+            }
             }
         }
+    }
+
+    private func digitKey(_ digit: Int) -> some View {
+        CalcKey("\(digit)", style: .digit, fontSize: 18) { model.digitPressed(digit) }
     }
 }
 
@@ -67,27 +119,28 @@ struct DisplayArea: View {
     var body: some View {
         VStack(spacing: 0) {
             Text(model.expressionTokens.map(\.text).joined())
-                .font(.system(size: 14))
+                .font(.system(size: 13))
                 .lineLimit(1)
                 .truncationMode(.head)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .foregroundStyle(.secondary)
-                .frame(height: 20)
+                .frame(height: 18)
                 .accessibilityIdentifier("expressionDisplay")
 
             Text(model.displayValue)
-                .font(.system(size: 46, weight: .semibold))
+                .font(.system(size: 44, weight: .semibold, design: .rounded))
                 .lineLimit(1)
                 .minimumScaleFactor(0.3)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .accessibilityIdentifier("primaryDisplay")
+                .textSelection(.enabled)
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 4)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 4)
     }
 }
 
-/// Memory bar under the display: MC MR M+ M− MS (Views/Calculator.xaml MemoryPanel).
+/// 显示区下方的记忆栏：MC MR M+ M− MS（对应 Views/Calculator.xaml MemoryPanel）。
 struct MemoryBar: View {
     @ObservedObject var model: StandardCalculatorViewModel
 
@@ -99,79 +152,17 @@ struct MemoryBar: View {
             memoryKey("M−", disabled: model.isInError) { model.memorySubtract(0) }
             memoryKey("MS", disabled: model.isInError) { model.memorizeNumber() }
         }
-        .frame(height: 28)
+        .frame(height: 26)
     }
 
     private func memoryKey(_ label: String, disabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 12))
+                .font(.system(size: 11, weight: .medium))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .buttonStyle(.borderless)
+        .foregroundStyle(disabled ? Color.primary.opacity(0.25) : Color.primary.opacity(0.75))
         .disabled(disabled)
-    }
-}
-
-enum CalcKeyStyle {
-    case digit
-    case function
-    case accent
-}
-
-struct CalcKey: View {
-    let label: String
-    let style: CalcKeyStyle
-    let disabled: Bool
-    let action: () -> Void
-
-    init(_ label: String, style: CalcKeyStyle, disabled: Bool = false, action: @escaping () -> Void) {
-        self.label = label
-        self.style = style
-        self.disabled = disabled
-        self.action = action
-    }
-
-    var body: some View {
-        Button(action: action) {
-            Text(label)
-                .font(.system(size: style == .digit ? 20 : 16, weight: style == .digit ? .semibold : .regular))
-                .frame(maxWidth: .infinity, minHeight: 44, maxHeight: .infinity)
-        }
-        .buttonStyle(CalcKeyButtonStyle(style: style))
-        .disabled(disabled)
-    }
-}
-
-private struct CalcKeyButtonStyle: ButtonStyle {
-    let style: CalcKeyStyle
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(background(configuration))
-            .foregroundStyle(foreground)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .contentShape(RoundedRectangle(cornerRadius: 4))
-    }
-
-    private var foreground: Color {
-        if !isEnabled {
-            return Color.primary.opacity(0.3)
-        }
-        return style == .accent ? Color.white : Color.primary
-    }
-
-    private func background(_ configuration: Configuration) -> some ShapeStyle {
-        let pressed = configuration.isPressed
-        switch style {
-        case .digit:
-            return AnyShapeStyle(Color.primary.opacity(pressed ? 0.16 : 0.08))
-        case .function:
-            return AnyShapeStyle(Color.primary.opacity(pressed ? 0.12 : 0.04))
-        case .accent:
-            return AnyShapeStyle(Color.accentColor.opacity(isEnabled ? (pressed ? 0.75 : 1.0) : 0.4))
-        }
     }
 }

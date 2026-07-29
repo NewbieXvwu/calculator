@@ -8,10 +8,11 @@ struct MacCalculatorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        WindowGroup("Calculator") {
+        WindowGroup("计算器") {
             ContentView()
         }
-        .defaultSize(width: 320, height: 500)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 322, height: 500)
     }
 }
 
