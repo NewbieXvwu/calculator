@@ -98,27 +98,34 @@
 - [x] 主源改 `https://latest.currency-api.pages.dev/v1/currencies/usd.min.json`，jsDelivr 降为第二优先，Frankfurter 仍兜底
 - [x] 联网验证 pages.dev 端点 HTTP 200 存活（三级降级链为同一 fetch 路径，代码级已覆盖）
 
-### P2-5 绘图模式功能对齐（最大残差块）
+### P2-5 绘图模式功能对齐（最大残差块）✅
 规格目录：`src/Calculator/Views/GraphingCalculator/` + `src/CalcViewModel/GraphingCalculator/`。
-- [ ] **ActiveTracing 跟踪**（`GraphingCalculator.xaml:612` + `ActiveTracing` 逻辑）：
-      开关后光标/拖动沿曲线吸附，浮层显示 (x, y)；键盘方向键微移；多方程时就近吸附
-- [ ] **图形设置**（`GraphingSettings.xaml`）：x/y 范围（Min/Max 四框手动输入，联动画布）、
-      三角单位弧度/角度/梯度（影响 sin(x) 周期渲染与分析）、宽高比锁定
-- [ ] **方程样式面板**（`EquationStylePanelControl.xaml`）：14 色色板 + 线型（实线/虚线/点线）逐方程可改；
-      当前固定 8 色轮换不可改，需替换
-- [ ] **变量滑块编辑**（`EquationInputArea.xaml` 变量区）：每个变量可设 Min/Max/Step（当前硬编码 −10…10，
-      `GraphingView.swift:103`），加减步进按钮
-- [ ] **KeyGraphFeatures 全字段**（`EquationViewModel.cpp` KeyGraphFeaturesInfo）：现有定义域/奇偶/零点/
-      y 截距/极值/拐点/垂直渐近线/水平渐近线，**缺**：值域(Range)、周期性(Periodicity)、单调区间(Monotonicity)、
-      斜渐近线(ObliqueAsymptotes)、以及"太复杂无法计算"(TooComplexFeatures) 的降级提示文案。
-      Giac 对应物：值域 `range`/极值推导、周期 `period(f,x)`、单调性由驻点分段 + 一阶导符号、斜渐近线 `limit(f/x)`+`limit(f-kx)`
-- [ ] **周期函数零点**：当前 solve 只给主解（如 sin 只报 x=0），对照原版给通解形式（`x = k·π` 类），
-      Giac 侧开 `solve` 的周期解模式或后处理
-- [ ] **不等式绘制**：`y < f(x)`/`≤`/`>`/`≥` 区域阴影 + 虚线/实线边界（原版由引擎支持，我们在 Canvas 层实现）
-- [ ] **分享/导出**：原版 Share contract（图 + 方程列表）→ macOS `NSSharingServicePicker` + 导出 PNG 到剪贴板/文件
-- [ ] **图表深浅色主题**（GraphingTheme：轴/网格/背景色跟随系统外观，当前部分硬编码需核查）
-- [ ] 豁免记录：`GraphingNumPad.xaml`（触屏虚拟键盘）——macOS 有实体键盘 + MathLive 虚拟键盘，**豁免**
-- [ ] 测试：跟踪吸附取值、周期通解、不等式区域采样、样式持久化
+- [x] **ActiveTracing 跟踪**：命令面板 scope 开关，光标初始画布中心 +(40,−40)（原版语义）；
+      hover/方向键（5pt，⇧=1pt）移动十字光标，多方程按 y 距离（视窗归一）就近吸附，
+      彩色圆点 + "(x, y)" 浮层（右缘自动翻转到左侧）
+- [x] **图形设置**（`GraphingSettings.xaml`）：x/y Min/Max 四框（min<max 校验 + 错误文案）、
+      三角单位弧度/角度/梯度（`GraphTrigMode` 影响渲染求值与 Giac 分析：sin 入参 ×π/180 等，
+      asin 出参 ÷scale，双曲不受影响）、线宽 1–4 档（默认 2）+ 重置视图。
+      原版无宽高比锁定（初稿笔误），不做
+- [x] **方程样式面板**：14 色色板（浅/深色各一套，对照 App.xaml EquationBrush1–14 精确色值）+
+      线型实线/虚线/点线（dash 模式 {2,1}/{1}×线宽，对照 GraphControl）
+- [x] **变量滑块编辑**：Min/Max/Step 可编辑（默认 −5/5/0.1），min≥max 时另一端顺延
+      DefaultMinMaxRange=10（原版 VariableViewModel 语义），± 步进按钮夹取
+- [x] **KeyGraphFeatures 全字段**：新增值域（极值+无穷极限+VA 单侧极限启发式）、周期性
+      （`period(f,x)`，`+infinity`→非周期）、单调区间（驻点+VA 切分实轴，采样 f′ 符号）、
+      斜渐近线（`limit(f/x)`+`limit(f−kx)`）、"因太复杂而无法计算"降级文案；
+      Giac 全局态（all_trig_solutions）以 NSLock 串行化防并发污染
+- [x] **周期函数零点**：`all_trig_solutions:=1` 取通解，`n_0*pi` 展示为 `n·π`
+- [x] **不等式绘制**：`<`/`≤`/`>`/`≥`（含 Unicode ≤≥）编译为 F(x,y) rel 0；~4px 网格采样
+      区域 20% 透明着色（同行连续单元合并矩形），边界 marching squares——严格虚线/非严格实线
+- [x] **分享/导出**：`NSSharingServicePicker`（2x PNG + 方程列表文本）、右键"复制图形"进剪贴板
+- [x] **图表深浅色主题**：画布底色 `.textBackgroundColor`、网格/轴 `.secondary`、曲线色板随
+      colorScheme 切换（14 色深浅两套），无硬编码残留
+- [x] **plotButton/Enter 提交**（P1-1 顺延项）：MathLive `change` 事件回传 submit，末行非空时
+      Enter 追加新输入行；`Ctrl+Home` 和弦与 ⌃0 均触发 graphView 自动适配（隐藏按钮实现）
+- [x] 豁免记录：`GraphingNumPad.xaml`（触屏虚拟键盘）——macOS 有实体键盘 + MathLive 虚拟键盘，**豁免**
+- [x] 测试：跟踪吸附取值、周期通解（n·π）、不等式编译/区域采样/错误输入、三角单位求值、
+      线型 dash 模式、KGF 全字段（值域/单调性/斜渐近线）——`MacAppTests` 79 例全绿
 
 ### P3-1 设置/关于页（当前完全缺失）
 规格：`src/Calculator/Views/Settings.xaml`。
