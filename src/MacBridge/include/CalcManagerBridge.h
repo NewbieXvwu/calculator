@@ -51,6 +51,11 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)isEngineRecording;
 - (BOOL)isInputEmpty;
 - (NSString *)decimalSeparator;
+- (void)setPrecision:(NSInteger)precision;
+- (void)updateMaxIntDigits;
+/// radixType: 0=Hex 1=Decimal 2=Octal 3=Binary
+- (void)setRadix:(NSInteger)radixType;
+- (NSString *)resultForRadix:(NSInteger)radix precision:(NSInteger)precision groupDigits:(BOOL)groupDigits;
 
 - (void)memorizeNumber;
 - (void)memoryLoad:(NSUInteger)index;

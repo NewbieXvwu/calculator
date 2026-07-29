@@ -98,7 +98,12 @@
       HistoryTests/UnitConverterTest 依赖 ViewModel，推迟到 Phase 1/3 随重写迁移）
 
 ### Phase 1：标准 + 科学模式（3–5 周）
-- [ ] Swift 重写 `StandardCalculatorViewModel` 核心逻辑
+- [x] Swift 重写 `StandardCalculatorViewModel` 核心逻辑
+      （已完成：`src/MacApp/StandardCalculatorViewModel.swift`——按钮分发（错误恢复/FE 重置/角度模式）、
+      模式切换（精度 16/32/64 + SetRadix + UpdateMaxIntDigits）、内存增删改查、历史列表、
+      表达式 tokens、IsInputEmpty；桥接层补齐 SetPrecision/SetRadix/GetResultForRadix。
+      暂缺随后续条目补：表达式 token 点击编辑（SaveEditedCommand/HandleUpdatedOperandData，
+      随科学模式 UI 补）、粘贴解析（独立条目）、Narrator 播报（无障碍条目））
 - [ ] 标准模式 UI（含历史/内存面板）
 - [ ] 科学模式 UI（含 F-E 切换、角度模式等）
 - [ ] 键盘映射 + 菜单栏快捷键

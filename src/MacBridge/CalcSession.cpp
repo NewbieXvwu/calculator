@@ -199,6 +199,26 @@ namespace MacCalc
         return m_impl->m_manager.DecimalSeparator();
     }
 
+    void CalcSession::SetPrecision(int precision)
+    {
+        m_impl->m_manager.SetPrecision(precision);
+    }
+
+    void CalcSession::UpdateMaxIntDigits()
+    {
+        m_impl->m_manager.UpdateMaxIntDigits();
+    }
+
+    void CalcSession::SetRadix(int radixType)
+    {
+        m_impl->m_manager.SetRadix(static_cast<RadixType>(radixType));
+    }
+
+    std::wstring CalcSession::GetResultForRadix(unsigned int radix, int precision, bool groupDigitsPerRadix)
+    {
+        return m_impl->m_manager.GetResultForRadix(radix, precision, groupDigitsPerRadix);
+    }
+
     void CalcSession::MemorizeNumber()
     {
         m_impl->m_manager.MemorizeNumber();

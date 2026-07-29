@@ -64,6 +64,11 @@ namespace MacCalc
         bool IsEngineRecording();
         bool IsInputEmpty();
         wchar_t DecimalSeparator();
+        void SetPrecision(int precision);
+        void UpdateMaxIntDigits();
+        // radixType: 0=Hex 1=Decimal 2=Octal 3=Binary (RadixType.h)
+        void SetRadix(int radixType);
+        std::wstring GetResultForRadix(unsigned int radix, int precision, bool groupDigitsPerRadix);
 
         // Memory
         void MemorizeNumber();

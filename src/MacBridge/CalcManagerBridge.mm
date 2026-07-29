@@ -245,6 +245,26 @@ namespace
     return ToNSString(separator);
 }
 
+- (void)setPrecision:(NSInteger)precision
+{
+    _session->SetPrecision(static_cast<int>(precision));
+}
+
+- (void)updateMaxIntDigits
+{
+    _session->UpdateMaxIntDigits();
+}
+
+- (void)setRadix:(NSInteger)radixType
+{
+    _session->SetRadix(static_cast<int>(radixType));
+}
+
+- (NSString*)resultForRadix:(NSInteger)radix precision:(NSInteger)precision groupDigits:(BOOL)groupDigits
+{
+    return ToNSString(_session->GetResultForRadix(static_cast<unsigned int>(radix), static_cast<int>(precision), groupDigits == YES));
+}
+
 - (void)memorizeNumber
 {
     _session->MemorizeNumber();
