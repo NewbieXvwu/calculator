@@ -37,7 +37,7 @@ let package = Package(
             path: "src/MacGiacBridge",
             publicHeadersPath: "include",
             linkerSettings: [
-                // libgiac.a 由 tools/build_giac.sh 产出到 third_party/giac/lib，
+                // libgiac.a 由 Tools/build_giac.sh 产出到 third_party/giac/lib，
                 // 依赖 Homebrew 的 gmp/mpfr/gettext；-L 相对路径要求在仓库根执行 swift build。
                 .unsafeFlags(["-Lthird_party/giac/lib", "-L/opt/homebrew/lib"]),
                 .linkedLibrary("giac"),
