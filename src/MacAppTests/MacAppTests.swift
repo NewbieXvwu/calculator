@@ -96,6 +96,27 @@ final class CalculatorViewModelTests: XCTestCase {
         XCTAssertEqual(model.binDisplay.replacingOccurrences(of: " ", with: ""), "11111111")
     }
 
+    func testBitShiftModeKeypadKeys() {
+        XCTAssertEqual(BitShiftMode.arithmetic.leftKey.command, .lshf)
+        XCTAssertEqual(BitShiftMode.arithmetic.rightKey.command, .rshf)
+        XCTAssertEqual(BitShiftMode.logical.leftKey.command, .lshf)
+        XCTAssertEqual(BitShiftMode.logical.rightKey.command, .rshfl)
+        XCTAssertEqual(BitShiftMode.rotate.leftKey.command, .rol)
+        XCTAssertEqual(BitShiftMode.rotate.rightKey.command, .ror)
+        XCTAssertEqual(BitShiftMode.rotateCarry.leftKey.command, .rolc)
+        XCTAssertEqual(BitShiftMode.rotateCarry.rightKey.command, .rorc)
+    }
+
+    func testProgrammerArithmeticShift() async {
+        model.setCalculatorType(.programmer)
+        model.digitPressed(1)
+        model.buttonPressed(.lshf)
+        model.digitPressed(4)
+        model.buttonPressed(.equals)
+        await drain()
+        XCTAssertEqual(model.displayValue.replacingOccurrences(of: " ", with: ""), "16")
+    }
+
     func testModeSwitchKeepsNonEngineModesOffEngine() {
         model.setCalculatorType(.date)
         XCTAssertFalse(model.mode.usesEngine)

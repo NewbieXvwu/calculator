@@ -122,6 +122,45 @@ enum WordSize: CaseIterable {
     }
 }
 
+/// 程序员模式移位类型（对应原版 BitShiftFlyout 的单选组，
+/// CalculatorProgrammerRadixOperators.xaml:368-483：选中项决定键盘行两枚移位键的标签与命令）。
+enum BitShiftMode: CaseIterable, Identifiable {
+    case arithmetic
+    case logical
+    case rotate
+    case rotateCarry
+
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .arithmetic: return "算术移位"
+        case .logical: return "逻辑移位"
+        case .rotate: return "循环移位"
+        case .rotateCarry: return "带进位循环移位"
+        }
+    }
+
+    /// 键盘行左移键：(显示文字, 引擎命令)。
+    var leftKey: (label: String, command: EngineCommand) {
+        switch self {
+        case .arithmetic, .logical: return ("«", .lshf)
+        case .rotate: return ("RoL", .rol)
+        case .rotateCarry: return ("RoLC", .rolc)
+        }
+    }
+
+    /// 键盘行右移键：(显示文字, 引擎命令)。
+    var rightKey: (label: String, command: EngineCommand) {
+        switch self {
+        case .arithmetic: return ("»", .rshf)
+        case .logical: return ("»", .rshfl)
+        case .rotate: return ("RoR", .ror)
+        case .rotateCarry: return ("RoRC", .rorc)
+        }
+    }
+}
+
 struct ExpressionToken: Identifiable, Equatable {
     let id: Int
     let text: String
@@ -162,6 +201,9 @@ final class StandardCalculatorViewModel: ObservableObject {
     @Published private(set) var wordSize: WordSize = .qword
     /// 是否处于位翻转（Bit Flip）键盘（对应原版 IsBitFlipChecked）。
     @Published var isBitFlipChecked = false
+
+    /// 当前移位类型（对应原版 BitShiftFlyout 单选，决定键盘行移位键）。
+    @Published var shiftMode: BitShiftMode = .arithmetic
     /// 四个进制的转换显示（对应原版 Hex/Dec/Oct/BinaryDisplayValue）。
     @Published private(set) var hexDisplay = "0"
     @Published private(set) var decDisplay = "0"

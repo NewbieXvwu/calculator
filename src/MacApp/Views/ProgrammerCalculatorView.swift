@@ -141,10 +141,13 @@ struct ProgrammerCalculatorView: View {
             .disabled(model.isInError)
 
             Menu {
-                Menu("算术移位") { opItem("Lsh «", .lshf); opItem("Rsh »", .rshf) }
-                Menu("逻辑移位") { opItem("Lsh «", .lshf); opItem("Rsh »", .rshfl) }
-                Menu("循环移位") { opItem("RoL", .rol); opItem("RoR", .ror) }
-                Menu("带进位循环") { opItem("RoLC", .rolc); opItem("RoRC", .rorc) }
+                Picker("移位类型", selection: $model.shiftMode) {
+                    ForEach(BitShiftMode.allCases) { mode in
+                        Text(mode.label).tag(mode)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
             } label: {
                 Label("移位", systemImage: "arrow.left.arrow.right")
             }
@@ -176,8 +179,8 @@ struct ProgrammerCalculatorView: View {
             Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                 GridRow {
                     hexKey("A", .digitA)
-                    CalcKey("«", style: .function, disabled: model.isInError, a11yLabel: "左移") { model.buttonPressed(.lshf) }
-                    CalcKey("»", style: .function, disabled: model.isInError, a11yLabel: "右移") { model.buttonPressed(.rshf) }
+                    CalcKey(model.shiftMode.leftKey.label, style: .function, fontSize: model.shiftMode.leftKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: "左移（\(model.shiftMode.label)）") { model.buttonPressed(model.shiftMode.leftKey.command) }
+                    CalcKey(model.shiftMode.rightKey.label, style: .function, fontSize: model.shiftMode.rightKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: "右移（\(model.shiftMode.label)）") { model.buttonPressed(model.shiftMode.rightKey.command) }
                     clearKey
                     CalcKey(symbol: "delete.left", style: .function, a11yLabel: "退格") { model.buttonPressed(.backspace) }
                 }
