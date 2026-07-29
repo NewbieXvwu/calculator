@@ -7,6 +7,7 @@
 
 import XCTest
 @testable import MacCalculator
+import GiacBridge
 
 // MARK: - 标准/科学/程序员计算（对应 CalculatorUITests 基础用例）
 
@@ -227,6 +228,23 @@ final class MarchingSquaresTests: XCTestCase {
             XCTAssertEqual(s.x1 * s.y1, 4, accuracy: 0.2)
             XCTAssertEqual(s.x2 * s.y2, 4, accuracy: 0.2)
         }
+    }
+}
+
+// MARK: - Giac CAS 符号运算桥接
+
+final class GiacEngineTests: XCTestCase {
+    func testSymbolicOperations() {
+        XCTAssertEqual(GiacEngine.evaluate("factor(x^2-4)"), "(x-2)*(x+2)")
+        XCTAssertEqual(GiacEngine.evaluate("diff(sin(x),x)"), "cos(x)")
+        XCTAssertEqual(GiacEngine.evaluate("solve(x^2=25,x)"), "list[-5,5]")
+        XCTAssertEqual(GiacEngine.evaluate("limit((1+1/n)^n,n,inf)"), "exp(1)")
+        XCTAssertTrue(GiacEngine.evaluate("integrate(2*x,x)").contains("x^2"))
+    }
+
+    func testNumericEvaluation() {
+        XCTAssertEqual(GiacEngine.evaluate("1+2*3"), "7")
+        XCTAssertEqual(GiacEngine.evaluate("evalf(pi,10)"), "3.141592654")
     }
 }
 

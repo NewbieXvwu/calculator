@@ -32,9 +32,25 @@ let package = Package(
                 .headerSearchPath("../CalcManager"),
             ]
         ),
+        .target(
+            name: "GiacBridge",
+            path: "src/MacGiacBridge",
+            publicHeadersPath: "include",
+            linkerSettings: [
+                // libgiac.a 由 tools/build_giac.sh 产出到 third_party/giac/lib，
+                // 依赖 Homebrew 的 gmp/mpfr/gettext；-L 相对路径要求在仓库根执行 swift build。
+                .unsafeFlags(["-Lthird_party/giac/lib", "-L/opt/homebrew/lib"]),
+                .linkedLibrary("giac"),
+                .linkedLibrary("mpfr"),
+                .linkedLibrary("gmp"),
+                .linkedLibrary("gmpxx"),
+                .linkedLibrary("intl"),
+                .linkedFramework("Accelerate"),
+            ]
+        ),
         .executableTarget(
             name: "MacCalculator",
-            dependencies: ["CalcManagerBridge"],
+            dependencies: ["CalcManagerBridge", "GiacBridge"],
             path: "src/MacApp",
             resources: [.process("Resources")]
         ),

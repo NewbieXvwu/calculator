@@ -298,3 +298,5 @@ src/CalcViewModel/DataLoaders/DataLoaderConstants.h
 !src/out
 # SwiftPM
 .build/
+.build-giac/
+third_party/giac/lib/

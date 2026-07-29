@@ -205,7 +205,14 @@
       - SwiftUI Canvas(CoreGraphics)：逐像素列自适应采样 + 间断点断线检测，
         niceStep 网格 + 坐标轴，DragGesture 平移 + MagnificationGesture/按钮缩放。
       - （Metal 加速与更高级抗锯齿留待后续；当前 CG 足够跑通交互）
-- [ ] 编译 Giac 为 macOS 静态库，桥接
+- [x] 编译 Giac 为 macOS 静态库，桥接
+      - tools/build_giac.sh：giac 2.1.0 官方源码 → arm64 libgiac.a（31MB），
+        最小化配置（仅 GMP/MPFR + Accelerate 提供 BLAS/LAPACK；关 FLTK/PARI/NTL/
+        GSL/micropython/quickjs 等），产物进 third_party/giac/lib（gitignore）。
+      - GiacBridge（src/MacGiacBridge）：ObjC++ 包装 caseval C API，NSLock 串行化；
+        Package.swift 静态链接 giac/mpfr/gmp/gmpxx/intl + Accelerate。
+      - 冒烟/测试：factor、diff、integrate、solve、limit、evalf 全通过（GiacEngineTests）。
+      - ⚠️ 链接 libgiac 后整体发布受 GPLv3 约束（见 third_party/giac/COPYING）。
 - [ ] 实现 `IMathSolver` 适配（解析/求值/格式化，对齐计算器输入语法）
 - [~] 实现 `IGraphAnalyzer` 适配（零点/极值/拐点/渐近线/单调区间）
       - 先落地纯数值 Mock 分析器 GraphAnalyzer：在当前视窗上采样 →
