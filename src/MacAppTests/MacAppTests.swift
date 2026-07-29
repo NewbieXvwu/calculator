@@ -371,4 +371,39 @@ final class UnitConverterDataTests: XCTestCase {
     func testData() {
         XCTAssertEqual(convert(1, from: "吉字节", to: "兆字节", category: "数据")!, 1000, accuracy: 1e-9)
     }
+
+    func testWhimsicalFactors() {
+        // 原版 UnitConverterDataLoader.cpp 因子表抽查。
+        XCTAssertEqual(convert(1, from: "大象", to: "千克", category: "重量和质量")!, 4000, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: "足球场", to: "平方米", category: "面积")!, 10869.66, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: "DVD", to: "兆字节", category: "数据")!, 4700, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: "香蕉", to: "焦耳", category: "能量")!, 439614, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: "大型喷气式客机", to: "米", category: "长度")!, 76, accuracy: 1e-9)
+    }
+
+    func testWhimsicalNotSelectable() {
+        for cat in UnitConverterData.categories {
+            XCTAssertFalse(cat.selectableUnits.contains { $0.isWhimsical },
+                           "\(cat.name) 下拉框不应包含趣味单位")
+        }
+        let weight = UnitConverterData.categories.first { $0.name == "重量和质量" }!
+        XCTAssertTrue(weight.units.contains { $0.isWhimsical })
+    }
+
+    @MainActor
+    func testSupplementaryResultsAppendSingleWhimsical() {
+        let vm = UnitConverterViewModel()
+        let weight = UnitConverterData.categories.first { $0.name == "重量和质量" }!
+        vm.selectCategory(weight)
+        vm.selectFromUnit(weight.units.first { $0.name == "千克" }!)
+        vm.inputDigit(4)
+        for _ in 0..<3 { vm.inputDigit(0) } // 4000 kg = 1 大象
+        let whimsicalIDs = Set(weight.units.filter { $0.isWhimsical }.map { $0.id })
+        let whimsicalResults = vm.supplementaryResults.filter { whimsicalIDs.contains($0.id) }
+        XCTAssertEqual(whimsicalResults.count, 1, "补充结果应恰好含一个趣味条目")
+        XCTAssertTrue(whimsicalIDs.contains(vm.supplementaryResults.last!.id), "趣味条目应在末位")
+        // 4000 kg 恰为 1 大象（量级 |log10(1)|=0 最小，应被选为最佳趣味结果）。
+        XCTAssertEqual(vm.supplementaryResults.last!.abbreviation, "大象")
+        XCTAssertEqual(vm.supplementaryResults.last!.value, "1")
+    }
 }

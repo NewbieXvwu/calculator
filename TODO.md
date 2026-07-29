@@ -76,21 +76,22 @@
 组下方标注该组最低位序号（60/56/…/0），超出字长的位**禁用而非隐藏**（ShouldEnableBit）。
 - [x] 按原版分组/行数/序号标注重排；DWORD/WORD/BYTE 通过禁用位对照（待人工真机核对视觉）
 
-### P2-3 趣味单位（whimsical delighter）完整收录
-现状：`UnitConverterData.swift:12` 明确未收录——违背复刻原则，撤销该决定。
-规格：`UnitConverterDataLoader.cpp` `GetUnits`（159-780 行，`isWhimsical=true` 条目）+ 换算因子表（786 行起）：
-- [ ] 面积：Hand、Paper、SoccerField、Castle（220-233）
-- [ ] 数据：CD、DVD（338-341）
-- [ ] 能量：Battery、Banana、SliceOfCake（379-395）
-- [ ] 长度：Paperclip、Hand、JumboJet（439-451）
-- [ ] 功率：LightBulb、Horse、TrainEngine（483-495）
-- [ ] 速度：Horse、Jet（583-586）
-- [ ] 体积：CoffeeCup、Bathtub、SwimmingPool（651-668）
-- [ ] 重量：Snowflake、SoccerBall、Elephant、Whale（711 起）
-- [ ] 行为对齐：`isConversionSource/Target=false` → **不进单位下拉框**，只出现在补充结果；
-      补充结果构建时非趣味结果在前、**只追加第一个趣味结果**（`UnitConverterViewModel.cpp:793-811`）
-- [ ] 本地化名称/缩写取 `UnitName_*` / `UnitAbbreviation_*` 资源（已在 xcstrings 中），当前阶段可先取中文串
-- [ ] 测试：趣味单位不可选为源/目标 + 补充结果末位恰一个趣味条目
+### P2-3 趣味单位（whimsical delighter）完整收录 ✅
+规格：`UnitConverterDataLoader.cpp` `GetUnits`（`isWhimsical=true` 条目）+ 换算因子表（786 行起）。
+实际共 **26 个**（TODO 初稿漏了 Data_FloppyDisk 与 Speed_Turtle，已一并收录）：
+- [x] 面积：Hand、Paper、SoccerField、Castle
+- [x] 数据：FloppyDisk、CD、DVD
+- [x] 能量：Battery、Banana、SliceOfCake
+- [x] 长度：Paperclip、Hand、JumboJet
+- [x] 功率：LightBulb、Horse、TrainEngine
+- [x] 速度：Turtle、Horse、Jet
+- [x] 体积：CoffeeCup、Bathtub、SwimmingPool
+- [x] 重量：Snowflake、SoccerBall、Elephant、Whale
+- [x] 行为对齐：`isWhimsical` → 不进单位下拉框（`selectableUnits`），补充结果按原版
+      `CalculateSuggested` 重写（|log10| 量级排序、<100/2位 <1000/1位 其余取整、剔 0、
+      非趣味在前、末位只追加第一个趣味结果）
+- [x] 名称/缩写取自 zh-CN `UnitName_*`/`UnitAbbreviation_*`（接 String Catalog 归 P3-4）
+- [x] 测试：因子抽查 5 例 + 不可选断言 + 补充结果末位恰一个趣味条目（4000kg→1 大象）
 
 ### P2-4 汇率主源纠正（一行改动 + 验证）✅（c1ed988）
 - [x] 主源改 `https://latest.currency-api.pages.dev/v1/currencies/usd.min.json`，jsDelivr 降为第二优先，Frankfurter 仍兜底

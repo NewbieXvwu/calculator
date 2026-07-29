@@ -39,7 +39,7 @@ struct UnitConverterView: View {
                 display: converter.fromDisplay,
                 unit: converter.fromUnit,
                 isActive: converter.isFromActive,
-                units: converter.currentCategory.units,
+                units: converter.currentCategory.selectableUnits,
                 onSelectUnit: converter.selectFromUnit,
                 onActivate: { converter.setActive(fromActive: true) })
 
@@ -49,7 +49,7 @@ struct UnitConverterView: View {
                 display: converter.toDisplay,
                 unit: converter.toUnit,
                 isActive: !converter.isFromActive,
-                units: converter.currentCategory.units,
+                units: converter.currentCategory.selectableUnits,
                 onSelectUnit: converter.selectToUnit,
                 onActivate: { converter.setActive(fromActive: false) })
 

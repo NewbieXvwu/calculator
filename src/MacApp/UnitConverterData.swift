@@ -9,7 +9,9 @@
 //     value(from) → value(to) == value * (fromFactor / toFactor)。
 //   - 温度：非线性（含偏移），用 Celsius 作为中转做特判（对应原版 ExplicitConversionData）。
 //
-// 趣味单位（isWhimsical，如足球场/大象等）暂不纳入，只移植标准计量单位。
+// 趣味单位（isWhimsical，如足球场/大象等）按原版行为收录：
+// 不可选为源/目标单位（isConversionSource/Target=false），仅出现在补充结果，
+// 且补充结果末尾只追加第一个趣味条目（对应 UnitConverter::CalculateSuggested）。
 
 import Foundation
 
@@ -20,6 +22,8 @@ struct ConverterUnit: Identifiable, Hashable {
     let abbreviation: String
     /// 相对类别基准单位的换算因子（温度类别此值无意义，走特判）。
     let factor: Double
+    /// 趣味单位：不可选为源/目标，仅出现在补充结果（对应原版 isWhimsical）。
+    var isWhimsical: Bool = false
 }
 
 /// 换算类别。
@@ -31,6 +35,9 @@ struct ConverterCategory: Identifiable, Hashable {
     /// 温度类别走非线性特判而非 factor 比值。
     let isTemperature: Bool
     let units: [ConverterUnit]
+
+    /// 可在下拉框中选择的单位（排除趣味单位，对应 isConversionSource/Target=false）。
+    var selectableUnits: [ConverterUnit] { units.filter { !$0.isWhimsical } }
 
     static func == (lhs: ConverterCategory, rhs: ConverterCategory) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
@@ -73,6 +80,9 @@ enum UnitConverterData {
             ConverterUnit(id: 40, name: "码", abbreviation: "yd", factor: 0.9144),
             ConverterUnit(id: 36, name: "英里", abbreviation: "mi", factor: 1609.344),
             ConverterUnit(id: 39, name: "海里", abbreviation: "nmi", factor: 1852),
+            ConverterUnit(id: 105, name: "曲别针", abbreviation: "曲别针", factor: 0.035052, isWhimsical: true),
+            ConverterUnit(id: 131, name: "手", abbreviation: "手", factor: 0.18669, isWhimsical: true),
+            ConverterUnit(id: 107, name: "大型喷气式客机", abbreviation: "大型喷气式客机", factor: 76, isWhimsical: true),
         ])
 
     // MARK: - 重量/质量（基准：千克）
@@ -93,6 +103,10 @@ enum UnitConverterData {
             ConverterUnit(id: 94, name: "英石", abbreviation: "st", factor: 6.35029318),
             ConverterUnit(id: 93, name: "短吨", abbreviation: "ton", factor: 907.18474),
             ConverterUnit(id: 89, name: "长吨", abbreviation: "long ton", factor: 1016.0469088),
+            ConverterUnit(id: 113, name: "雪花", abbreviation: "雪花", factor: 0.000002, isWhimsical: true),
+            ConverterUnit(id: 133, name: "足球", abbreviation: "足球", factor: 0.4325, isWhimsical: true),
+            ConverterUnit(id: 114, name: "大象", abbreviation: "大象", factor: 4000, isWhimsical: true),
+            ConverterUnit(id: 123, name: "鲸鱼", abbreviation: "鲸鱼", factor: 90000, isWhimsical: true),
         ])
 
     // MARK: - 体积（基准：毫升/立方厘米）
@@ -117,6 +131,9 @@ enum UnitConverterData {
             ConverterUnit(id: 65, name: "立方英尺", abbreviation: "ft³", factor: 28316.846592),
             ConverterUnit(id: 68, name: "立方码", abbreviation: "yd³", factor: 764554.857984),
             ConverterUnit(id: 67, name: "立方米", abbreviation: "m³", factor: 1000000),
+            ConverterUnit(id: 124, name: "咖啡杯", abbreviation: "咖啡杯", factor: 236.5882, isWhimsical: true),
+            ConverterUnit(id: 111, name: "浴缸", abbreviation: "浴缸", factor: 378541.2, isWhimsical: true),
+            ConverterUnit(id: 125, name: "游泳池", abbreviation: "游泳池", factor: 3750000000, isWhimsical: true),
         ])
 
     // MARK: - 温度（特判，基准中转：摄氏度）
@@ -143,6 +160,10 @@ enum UnitConverterData {
             ConverterUnit(id: 1, name: "英亩", abbreviation: "ac", factor: 4046.8564224),
             ConverterUnit(id: 8, name: "平方英里", abbreviation: "mi²", factor: 2589988.110336),
             ConverterUnit(id: 165, name: "坪", abbreviation: "坪", factor: 400.0 / 121.0),
+            ConverterUnit(id: 118, name: "手", abbreviation: "手", factor: 0.012516104, isWhimsical: true),
+            ConverterUnit(id: 127, name: "纸张", abbreviation: "纸张", factor: 0.06032246, isWhimsical: true),
+            ConverterUnit(id: 99, name: "足球场", abbreviation: "足球场", factor: 10869.66, isWhimsical: true),
+            ConverterUnit(id: 128, name: "城堡", abbreviation: "城堡", factor: 100000, isWhimsical: true),
         ])
 
     // MARK: - 速度（基准：厘米/秒）
@@ -156,6 +177,9 @@ enum UnitConverterData {
             ConverterUnit(id: 63, name: "英里/时", abbreviation: "mph", factor: 44.7),
             ConverterUnit(id: 60, name: "节", abbreviation: "kn", factor: 51.44),
             ConverterUnit(id: 61, name: "马赫", abbreviation: "M", factor: 34030),
+            ConverterUnit(id: 121, name: "海龟", abbreviation: "海龟", factor: 8.94, isWhimsical: true),
+            ConverterUnit(id: 126, name: "马", abbreviation: "马", factor: 2011.5, isWhimsical: true),
+            ConverterUnit(id: 122, name: "喷气式飞机", abbreviation: "喷气式飞机", factor: 24585, isWhimsical: true),
         ])
 
     // MARK: - 时间（基准：秒）
@@ -181,6 +205,9 @@ enum UnitConverterData {
             ConverterUnit(id: 41, name: "英热单位/分", abbreviation: "BTU/min", factor: 17.58426666666667),
             ConverterUnit(id: 44, name: "千瓦", abbreviation: "kW", factor: 1000),
             ConverterUnit(id: 43, name: "马力", abbreviation: "hp", factor: 745.6998715822702),
+            ConverterUnit(id: 108, name: "灯炮", abbreviation: "灯炮", factor: 60, isWhimsical: true),
+            ConverterUnit(id: 109, name: "马", abbreviation: "马", factor: 745.7, isWhimsical: true),
+            ConverterUnit(id: 132, name: "火车引擎", abbreviation: "火车引擎", factor: 2982799.486329081, isWhimsical: true),
         ])
 
     // MARK: - 数据（基准：兆字节 MB）
@@ -208,6 +235,9 @@ enum UnitConverterData {
             ConverterUnit(id: 148, name: "gibibyte", abbreviation: "GiB", factor: 1073.741824),
             ConverterUnit(id: 155, name: "tebibit", abbreviation: "Tib", factor: 137438.953472),
             ConverterUnit(id: 156, name: "tebibyte", abbreviation: "TiB", factor: 1099511.627776),
+            ConverterUnit(id: 100, name: "软盘", abbreviation: "软盘", factor: 1.474560, isWhimsical: true),
+            ConverterUnit(id: 101, name: "CD", abbreviation: "CD", factor: 700, isWhimsical: true),
+            ConverterUnit(id: 102, name: "DVD", abbreviation: "DVD", factor: 4700, isWhimsical: true),
         ])
 
     // MARK: - 压强（基准：标准大气压）
@@ -243,6 +273,9 @@ enum UnitConverterData {
             ConverterUnit(id: 28, name: "千卡", abbreviation: "kcal", factor: 4184),
             ConverterUnit(id: 23, name: "英热单位", abbreviation: "BTU", factor: 1055.056),
             ConverterUnit(id: 166, name: "千瓦时", abbreviation: "kWh", factor: 3600000),
+            ConverterUnit(id: 103, name: "电池", abbreviation: "电池", factor: 9000, isWhimsical: true),
+            ConverterUnit(id: 129, name: "香蕉", abbreviation: "香蕉", factor: 439614, isWhimsical: true),
+            ConverterUnit(id: 130, name: "蛋糕片", abbreviation: "切块蛋糕", factor: 1046700, isWhimsical: true),
         ])
 
     // MARK: - 换算

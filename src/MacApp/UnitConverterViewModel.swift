@@ -53,8 +53,9 @@ final class UnitConverterViewModel: ObservableObject {
     init() {
         let category = UnitConverterData.categories[0]
         currentCategory = category
-        fromUnit = category.units[0]
-        toUnit = category.units.count > 1 ? category.units[1] : category.units[0]
+        let selectable = category.selectableUnits
+        fromUnit = selectable[0]
+        toUnit = selectable.count > 1 ? selectable[1] : selectable[0]
         recalculate()
         Task { await loadCurrencies() }
     }
@@ -137,8 +138,9 @@ final class UnitConverterViewModel: ObservableObject {
     func selectCategory(_ category: ConverterCategory) {
         guard category.id != currentCategory.id else { return }
         currentCategory = category
-        fromUnit = category.units[0]
-        toUnit = category.units.count > 1 ? category.units[1] : category.units[0]
+        let selectable = category.selectableUnits
+        fromUnit = selectable[0]
+        toUnit = selectable.count > 1 ? selectable[1] : selectable[0]
         isFromActive = true
         inputBuffer = "0"
         recalculate()
@@ -246,13 +248,57 @@ final class UnitConverterViewModel: ObservableObject {
         supplementaryResults = buildSupplementaryResults(inputValue: inputValue, activeUnit: activeUnit)
     }
 
+    // 对应 UnitConverter::CalculateSuggested：普通与趣味单位分开，
+    // 各按 |log10(值)| 升序排序（同量级取正），四舍五入后剔除 0 值，
+    // 普通结果在前，末尾只追加第一个趣味结果。
     private func buildSupplementaryResults(inputValue: Double, activeUnit: ConverterUnit) -> [SupplementaryResult] {
-        var results: [SupplementaryResult] = []
+        var normal: [(magnitude: Double, value: Double, unit: ConverterUnit)] = []
+        var whimsical: [(magnitude: Double, value: Double, unit: ConverterUnit)] = []
         for unit in currentCategory.units where unit.id != fromUnit.id && unit.id != toUnit.id {
             let value = UnitConverterData.convert(inputValue, from: activeUnit, to: unit, category: currentCategory)
-            results.append(SupplementaryResult(id: unit.id, value: Self.format(value), abbreviation: unit.abbreviation))
+            let entry = (magnitude: log10(value), value: value, unit: unit)
+            if unit.isWhimsical { whimsical.append(entry) } else { normal.append(entry) }
+        }
+
+        let byMagnitude: ((Double, Double, ConverterUnit), (Double, Double, ConverterUnit)) -> Bool = {
+            abs($0.0) == abs($1.0) ? $0.0 > $1.0 : abs($0.0) < abs($1.0)
+        }
+        normal.sort(by: byMagnitude)
+        whimsical.sort(by: byMagnitude)
+
+        var results: [SupplementaryResult] = []
+        for entry in normal {
+            let rounded = Self.roundSuggested(entry.value)
+            if Double(rounded) != 0 || currentCategory.supportsNegative {
+                results.append(SupplementaryResult(id: entry.unit.id, value: rounded, abbreviation: entry.unit.abbreviation))
+            }
+        }
+        for entry in whimsical {
+            let rounded = Self.roundSuggested(entry.value)
+            if Double(rounded) != 0 {
+                results.append(SupplementaryResult(id: entry.unit.id, value: rounded, abbreviation: entry.unit.abbreviation))
+                break
+            }
         }
         return results
+    }
+
+    /// 对应 RoundSignificantDigits + TrimTrailingZeros：<100 两位小数、<1000 一位、其余取整。
+    private static func roundSuggested(_ value: Double) -> String {
+        guard value.isFinite else { return "0" }
+        var s: String
+        if abs(value) < 100 {
+            s = String(format: "%.2f", value)
+        } else if abs(value) < 1000 {
+            s = String(format: "%.1f", value)
+        } else {
+            s = String(format: "%.0f", value)
+        }
+        if s.contains(".") {
+            while s.hasSuffix("0") { s.removeLast() }
+            if s.hasSuffix(".") { s.removeLast() }
+        }
+        return s
     }
 
     /// 把结果显示串标准化为可继续输入的缓冲（去掉分组符等）。
