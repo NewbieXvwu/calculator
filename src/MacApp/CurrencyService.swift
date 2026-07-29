@@ -3,8 +3,11 @@
 
 // 汇率数据源。原版 CurrencyHttpClient 依赖微软内部 API（开源版被 Mock），
 // 这里按项目决策改用开源免费数据源：
-//   - 主源：fawazahmed0 currency-api（jsDelivr CDN，无需 key）
-//     https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json
+//   - 主源：fawazahmed0 currency-api（无需 key）
+//     1) Cloudflare Pages 端点（当天数据）：
+//        https://latest.currency-api.pages.dev/v1/currencies/usd.min.json
+//     2) jsDelivr @latest 端点（CDN 缓存滞后约 1 天，仅作该源内部备用）：
+//        https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json
 //     格式：{ "date": "YYYY-MM-DD", "usd": { "eur": 0.87, "jpy": 163.7, ... } }
 //   - 兜底：Frankfurter（欧洲央行数据）
 //     https://api.frankfurter.dev/v1/latest?base=USD
@@ -24,7 +27,8 @@ struct CurrencyRates: Codable {
 }
 
 enum CurrencyService {
-    private static let fawazURL = URL(string: "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json")!
+    private static let fawazPagesURL = URL(string: "https://latest.currency-api.pages.dev/v1/currencies/usd.min.json")!
+    private static let fawazJsDelivrURL = URL(string: "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json")!
     private static let frankfurterURL = URL(string: "https://api.frankfurter.dev/v1/latest?base=USD")!
 
     /// 获取最新汇率：优先网络（主源→兜底），失败回退本地缓存。
@@ -48,13 +52,14 @@ enum CurrencyService {
     // MARK: - 网络
 
     private static func fetchFromNetwork() async -> CurrencyRates? {
-        if let r = await fetchFawaz() { return r }
+        if let r = await fetchFawaz(fawazPagesURL) { return r }
+        if let r = await fetchFawaz(fawazJsDelivrURL) { return r }
         if let r = await fetchFrankfurter() { return r }
         return nil
     }
 
-    private static func fetchFawaz() async -> CurrencyRates? {
-        guard let data = try? await fetch(fawazURL) else { return nil }
+    private static func fetchFawaz(_ url: URL) async -> CurrencyRates? {
+        guard let data = try? await fetch(url) else { return nil }
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         let date = json["date"] as? String ?? ""
         guard let usd = json["usd"] as? [String: Any] else { return nil }
