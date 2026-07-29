@@ -6,13 +6,32 @@ import SwiftUI
 @main
 struct MacCalculatorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var model = StandardCalculatorViewModel()
 
     var body: some Scene {
         WindowGroup("计算器") {
-            ContentView()
+            ContentView(model: model)
         }
         .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
         .defaultSize(width: 322, height: 500)
+        .commands {
+            // 模式切换（对齐 Apple 计算器 ⌘1/2/3）。
+            CommandMenu("模式") {
+                Button("标准") { model.setCalculatorType(.standard) }
+                    .keyboardShortcut("1", modifiers: .command)
+                Button("科学") { model.setCalculatorType(.scientific) }
+                    .keyboardShortcut("2", modifiers: .command)
+                Button("程序员") { model.setCalculatorType(.programmer) }
+                    .keyboardShortcut("3", modifiers: .command)
+            }
+            CommandGroup(replacing: .pasteboard) {
+                Button("拷贝") { model.copyDisplay() }
+                    .keyboardShortcut("c", modifiers: .command)
+                Button("粘贴") { model.pasteFromPasteboard() }
+                    .keyboardShortcut("v", modifiers: .command)
+            }
+        }
     }
 }
 

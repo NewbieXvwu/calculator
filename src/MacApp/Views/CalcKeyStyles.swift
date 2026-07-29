@@ -5,10 +5,11 @@
 // 遵循 Apple 官方指导：
 //   - 玻璃只用于控件层（按键），内容层（显示区/列表）不加玻璃；
 //   - 多个玻璃元素包进 GlassEffectContainer 共享采样区域；
-//   - 自定义控件用 glassEffect(.regular … .interactive())，按压/悬停由系统处理；
-//   - 强调色 tint 只用于主操作（等号键）。
+//   - 自定义控件用 glassEffect(.regular … .interactive())，按压弹性交给系统；
+//   - tint 只承载语义：运算符列 = 系统橙（主操作），其余为校准灰阶。
 // 排版职责在各 View 中严格对照原版 XAML；本文件只负责视觉皮肤。
 
+import AppKit
 import SwiftUI
 
 /// NSVisualEffectView 包装：标准 macOS 窗口底材（非 Liquid Glass，
@@ -25,7 +26,7 @@ struct VisualEffectBackground: NSViewRepresentable {
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
-/// 设置 NSWindow 属性：允许拖拽背景移动窗口（隐藏标题栏后必需）。
+/// 设置 NSWindow 属性：隐藏标题栏后允许拖拽背景移动、记忆窗口位置、禁用全屏。
 struct WindowConfigurator: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
@@ -33,6 +34,9 @@ struct WindowConfigurator: NSViewRepresentable {
             guard let window = view.window else { return }
             window.isMovableByWindowBackground = true
             window.titlebarAppearsTransparent = true
+            window.setFrameAutosaveName("MainCalculatorWindow")
+            // 小工具窗全屏无意义，绿色按钮退回 zoom 语义。
+            window.collectionBehavior.insert(.fullScreenNone)
         }
         return view
     }
@@ -41,10 +45,10 @@ struct WindowConfigurator: NSViewRepresentable {
 }
 
 enum CalcKeyStyle {
-    case digit    // 数字键：亮一层的玻璃（对应原版 NumericButtonStyle）
-    case function // 运算/功能键：素玻璃（对应原版 OperatorButtonStyle）
-    case accent   // 等号键：强调色玻璃（对应原版 AccentEmphasizedCalcButtonStyle）
-    case emphasized // INV 第二功能键（对应原版 EmphasizedCalcButtonStyle）
+    case digit       // 数字键：最亮一层灰阶（对应原版 NumericButtonStyle）
+    case function    // 运算/函数键：深一层灰阶（对应原版 OperatorButtonStyle）
+    case operatorKey // 右侧运算符列 ÷×−+= ：系统橙（Apple 计算器语义）
+    case emphasized  // 科学模式 INV/2nd 态（对应原版 EmphasizedCalcButtonStyle）
 }
 
 enum CalcKeyLabel {
@@ -52,7 +56,25 @@ enum CalcKeyLabel {
     case symbol(String)
 }
 
-private let keyShape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+// Apple 计算器按键约 40pt 高，属 large 控件范畴——新设计收敛为胶囊形。
+private let keyShape = Capsule(style: .continuous)
+
+/// 语义灰阶色：走 NSColor 动态通道，深浅色各一份（等价于资产目录双通道，
+/// 避免把单一 hex 硬编码进 Swift）。玻璃 tint 会再经系统 vibrancy 处理。
+extension Color {
+    static let calcDigitKey = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.isDark ? NSColor(white: 1.0, alpha: 0.14) : NSColor(white: 1.0, alpha: 0.85)
+    })
+    static let calcFunctionKey = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.isDark ? NSColor(white: 1.0, alpha: 0.06) : NSColor(white: 0.0, alpha: 0.05)
+    })
+}
+
+private extension NSAppearance {
+    var isDark: Bool {
+        bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    }
+}
 
 /// Liquid Glass 计算器按键。布局尺寸交由外层 Grid 决定，与原版 XAML 网格一致。
 struct CalcKey: View {
@@ -60,21 +82,27 @@ struct CalcKey: View {
     let style: CalcKeyStyle
     let fontSize: CGFloat
     let disabled: Bool
+    let flashing: Bool
+    let a11yLabel: String?
     let action: () -> Void
 
-    init(_ text: String, style: CalcKeyStyle, fontSize: CGFloat = 16, disabled: Bool = false, action: @escaping () -> Void) {
+    init(_ text: String, style: CalcKeyStyle, fontSize: CGFloat = 16, disabled: Bool = false, flashing: Bool = false, a11yLabel: String? = nil, action: @escaping () -> Void) {
         self.label = .text(text)
         self.style = style
         self.fontSize = fontSize
         self.disabled = disabled
+        self.flashing = flashing
+        self.a11yLabel = a11yLabel
         self.action = action
     }
 
-    init(symbol: String, style: CalcKeyStyle, fontSize: CGFloat = 15, disabled: Bool = false, action: @escaping () -> Void) {
+    init(symbol: String, style: CalcKeyStyle, fontSize: CGFloat = 15, disabled: Bool = false, flashing: Bool = false, a11yLabel: String, action: @escaping () -> Void) {
         self.label = .symbol(symbol)
         self.style = style
         self.fontSize = fontSize
         self.disabled = disabled
+        self.flashing = flashing
+        self.a11yLabel = a11yLabel
         self.action = action
     }
 
@@ -87,7 +115,16 @@ struct CalcKey: View {
         .buttonStyle(.plain)
         .foregroundStyle(foreground)
         .glassEffect(glass, in: keyShape)
+        // 物理键盘命中时的瞬时闪动高亮。
+        .overlay {
+            if flashing {
+                keyShape.fill(Color.white.opacity(0.35))
+            }
+        }
         .disabled(disabled)
+        .accessibilityLabel(accessibilityText)
+        // 键盘事件走全局 monitor，按键本身不参与 Tab 焦点环。
+        .focusable(false)
     }
 
     @ViewBuilder
@@ -102,17 +139,23 @@ struct CalcKey: View {
         }
     }
 
+    private var accessibilityText: String {
+        if let a11yLabel { return a11yLabel }
+        if case .text(let text) = label { return text }
+        return ""
+    }
+
     private var glass: Glass {
         var glass: Glass
         switch style {
         case .digit:
-            glass = .regular.tint(Color.primary.opacity(0.08))
+            glass = .regular.tint(.calcDigitKey)
         case .function:
-            glass = .regular
-        case .accent:
-            glass = .regular.tint(disabled ? Color.accentColor.opacity(0.4) : Color.accentColor)
+            glass = .regular.tint(.calcFunctionKey)
+        case .operatorKey:
+            glass = .regular.tint(disabled ? Color.orange.opacity(0.4) : Color.orange)
         case .emphasized:
-            glass = .regular.tint(Color.accentColor.opacity(0.18))
+            glass = .regular.tint(Color.orange.opacity(0.25))
         }
         if !disabled {
             glass = glass.interactive()
@@ -124,6 +167,6 @@ struct CalcKey: View {
         if disabled {
             return Color.primary.opacity(0.25)
         }
-        return style == .accent ? .white : .primary
+        return style == .operatorKey ? .white : .primary
     }
 }

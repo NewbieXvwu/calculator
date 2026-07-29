@@ -9,7 +9,7 @@ import CalcManagerBridge
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var model = StandardCalculatorViewModel()
+    @ObservedObject var model: StandardCalculatorViewModel
 
     private let dockVisibleThreshold: CGFloat = 560
 
@@ -34,5 +34,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(model: StandardCalculatorViewModel())
 }

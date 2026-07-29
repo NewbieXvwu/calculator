@@ -4,6 +4,7 @@
 // Swift port of src/CalcViewModel/StandardCalculatorViewModel.cpp (core logic).
 // Programmer-mode specifics arrive in Phase 2.
 
+import AppKit
 import CalcManagerBridge
 import Foundation
 
@@ -60,6 +61,8 @@ final class StandardCalculatorViewModel: ObservableObject {
     @Published private(set) var currentAngleType: EngineCommand = .deg
     @Published var isFToEChecked = false
     @Published private(set) var isFToEEnabled = true
+    /// 物理键盘命中的按键，用于瞬时闪动高亮；短暂置位后自动清空。
+    @Published private(set) var flashedCommand: EngineCommand?
 
     private let bridge = CalcManagerBridge()
 
@@ -254,6 +257,90 @@ final class StandardCalculatorViewModel: ObservableObject {
 
     private func refreshInputEmpty() {
         isInputEmpty = bridge.isInputEmpty()
+    }
+
+    // MARK: - Physical keyboard (mirrors Windows keyboard accelerators)
+
+    /// 把物理按键映射到引擎命令，命中即闪动对应屏幕键。返回是否已消费该事件。
+    func handleKey(chars: String, keyCode: UInt16, hasCommand: Bool) -> Bool {
+        // ⌘ 组合交给菜单栏快捷键，这里不拦截。
+        if hasCommand { return false }
+
+        // 先处理特殊物理键（keyCode 与字符无关）。
+        switch keyCode {
+        case 53: dispatchFromKeyboard(.clear); return true       // Escape
+        case 51, 117: dispatchFromKeyboard(.backspace); return true // Delete / Forward-Delete
+        case 36, 76: dispatchFromKeyboard(.equals); return true  // Return / Enter
+        default: break
+        }
+
+        guard let ch = chars.first else { return false }
+        switch ch {
+        case "0"..."9":
+            dispatchFromKeyboard(.digit(Int(String(ch))!))
+        case "+": dispatchFromKeyboard(.add)
+        case "-": dispatchFromKeyboard(.subtract)
+        case "*": dispatchFromKeyboard(.multiply)
+        case "/": dispatchFromKeyboard(.divide)
+        case "=": dispatchFromKeyboard(.equals)
+        case "%": dispatchFromKeyboard(.percent)
+        case ".", ",": dispatchFromKeyboard(.point)
+        default:
+            // 小数点分隔符可能是本地化字符（如 ','）。
+            if String(ch) == decimalSeparator {
+                dispatchFromKeyboard(.point)
+            } else {
+                return false
+            }
+        }
+        return true
+    }
+
+    private func dispatchFromKeyboard(_ command: EngineCommand) {
+        buttonPressed(command)
+        flash(command)
+    }
+
+    private func flash(_ command: EngineCommand) {
+        flashedCommand = command
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            if self.flashedCommand == command {
+                self.flashedCommand = nil
+            }
+        }
+    }
+
+    // MARK: - Copy / paste
+
+    func copyDisplay() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(displayValue, forType: .string)
+    }
+
+    /// 基础粘贴：把剪贴板里的合法数字逐字符送入引擎。
+    /// 完整的 CopyPasteManager 解析规则（表达式/进制/科学计数）在后续单独条目补全。
+    func pasteFromPasteboard() {
+        guard let raw = NSPasteboard.general.string(forType: .string) else { return }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        buttonPressed(.clear)
+        var isFirst = true
+        for ch in trimmed {
+            switch ch {
+            case "0"..."9":
+                digitPressed(Int(String(ch))!)
+            case ".":
+                buttonPressed(.point)
+            case "-" where isFirst:
+                buttonPressed(.sign)
+            default:
+                break // 忽略无法识别的字符
+            }
+            isFirst = false
+        }
     }
 
     // MARK: - Command classification (mirrors Is*Op helpers)

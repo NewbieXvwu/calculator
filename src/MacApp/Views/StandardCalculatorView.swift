@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 // 排版 1:1 对照 Views/CalculatorStandardOperators.xaml + Views/Calculator.xaml：
-//   顶栏（模式标题 + 历史按钮）
+//   顶栏（历史圆钮 + 模式菜单，取代原版汉堡导航，macOS 惯例 chrome）
 //   表达式行 + 主显示
 //   记忆栏 MC MR M+ M− MS
 //   6 行 × 4 列键盘：
@@ -12,8 +12,9 @@
 //     4   5   6   −
 //     1   2   3   +
 //     ±   0   .   =
-// 视觉使用 macOS 原生语言（SF Symbols、系统色、悬停态）。
+// 视觉使用 macOS 原生 Liquid Glass；右侧运算符列用系统橙（Apple 计算器语义）。
 
+import AppKit
 import SwiftUI
 
 struct StandardCalculatorView: View {
@@ -23,41 +24,60 @@ struct StandardCalculatorView: View {
     var showsHistoryButton: Bool = false
 
     @State private var historyPopoverShown = false
+    @State private var keyMonitor: Any?
 
     var body: some View {
         VStack(spacing: 0) {
             header
             DisplayArea(model: model)
             MemoryBar(model: model)
-                .padding(.horizontal, 6)
+                .padding(.horizontal, 8)
                 .padding(.bottom, 2)
             keypad
-                .padding(.horizontal, 4)
-                .padding(.bottom, 4)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
         }
+        .onAppear { installKeyMonitor() }
+        .onDisappear { removeKeyMonitor() }
     }
 
-    // 原版顶栏：☰ + 模式名；右侧历史按钮。macOS 下汉堡菜单由工具栏/侧栏替代，
-    // 这里保留模式标题与历史按钮的位置关系。
+    // 顶栏：左历史圆钮、右模式菜单，均为系统玻璃按钮。
     private var header: some View {
-        HStack {
-            Text("标准")
-                .font(.system(size: 15, weight: .semibold))
-            Spacer()
+        HStack(spacing: 8) {
             if showsHistoryButton {
                 Button {
                     historyPopoverShown.toggle()
                 } label: {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 13))
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.glass)
+                .controlSize(.large)
                 .help("历史记录")
+                .accessibilityLabel("历史记录")
                 .popover(isPresented: $historyPopoverShown, arrowEdge: .bottom) {
                     HistoryListView(model: model)
                         .frame(width: 280, height: 320)
                 }
             }
+
+            Spacer()
+
+            Menu {
+                Picker("模式", selection: modeBinding) {
+                    Label("标准", systemImage: "plusminus").tag(CalculatorMode.standard)
+                    Label("科学", systemImage: "function").tag(CalculatorMode.scientific)
+                    Label("程序员", systemImage: "chevron.left.forwardslash.chevron.right").tag(CalculatorMode.programmer)
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Image(systemName: "function")
+            }
+            .menuStyle(.button)
+            .buttonStyle(.glass)
+            .controlSize(.large)
+            .fixedSize()
+            .help("计算器模式")
+            .accessibilityLabel("计算器模式")
         }
         .padding(.leading, 76) // 隐藏标题栏后为左上角红绿灯按钮留位
         .padding(.trailing, 12)
@@ -65,51 +85,83 @@ struct StandardCalculatorView: View {
         .padding(.bottom, 2)
     }
 
+    private var modeBinding: Binding<CalculatorMode> {
+        Binding(get: { model.mode }, set: { model.setCalculatorType($0) })
+    }
+
     private var keypad: some View {
-        GlassEffectContainer(spacing: 4) {
-            Grid(horizontalSpacing: 4, verticalSpacing: 4) {
-            GridRow {
-                CalcKey(symbol: "percent", style: .function, disabled: model.isInError) { model.buttonPressed(.percent) }
-                CalcKey("CE", style: .function, fontSize: 14) { model.buttonPressed(.clearEntry) }
-                CalcKey("C", style: .function, fontSize: 14) { model.buttonPressed(.clear) }
-                CalcKey(symbol: "delete.left", style: .function) { model.buttonPressed(.backspace) }
-            }
-            GridRow {
-                CalcKey("¹⁄ₓ", style: .function, disabled: model.isInError) { model.buttonPressed(.reciprocal) }
-                CalcKey("x²", style: .function, disabled: model.isInError) { model.buttonPressed(.sqr) }
-                CalcKey("²√x", style: .function, disabled: model.isInError) { model.buttonPressed(.sqrt) }
-                CalcKey(symbol: "divide", style: .function, disabled: model.isInError) { model.buttonPressed(.divide) }
-            }
-            GridRow {
-                digitKey(7)
-                digitKey(8)
-                digitKey(9)
-                CalcKey(symbol: "multiply", style: .function, disabled: model.isInError) { model.buttonPressed(.multiply) }
-            }
-            GridRow {
-                digitKey(4)
-                digitKey(5)
-                digitKey(6)
-                CalcKey(symbol: "minus", style: .function, disabled: model.isInError) { model.buttonPressed(.subtract) }
-            }
-            GridRow {
-                digitKey(1)
-                digitKey(2)
-                digitKey(3)
-                CalcKey(symbol: "plus", style: .function, disabled: model.isInError) { model.buttonPressed(.add) }
-            }
-            GridRow {
-                CalcKey(symbol: "plus.forwardslash.minus", style: .digit, disabled: model.isInError) { model.buttonPressed(.sign) }
-                digitKey(0)
-                CalcKey(model.decimalSeparator, style: .digit, fontSize: 18) { model.buttonPressed(.point) }
-                CalcKey(symbol: "equal", style: .accent) { model.buttonPressed(.equals) }
-            }
+        GlassEffectContainer(spacing: 6) {
+            Grid(horizontalSpacing: 6, verticalSpacing: 6) {
+                GridRow {
+                    CalcKey(symbol: "percent", style: .function, disabled: model.isInError, flashing: flashing(.percent), a11yLabel: "百分比") { model.buttonPressed(.percent) }
+                    CalcKey("CE", style: .function, fontSize: 14, flashing: flashing(.clearEntry), a11yLabel: "清除输入") { model.buttonPressed(.clearEntry) }
+                    CalcKey("C", style: .function, fontSize: 14, flashing: flashing(.clear), a11yLabel: "清除") { model.buttonPressed(.clear) }
+                    CalcKey(symbol: "delete.left", style: .function, flashing: flashing(.backspace), a11yLabel: "退格") { model.buttonPressed(.backspace) }
+                }
+                GridRow {
+                    CalcKey("¹⁄ₓ", style: .function, disabled: model.isInError, flashing: flashing(.reciprocal), a11yLabel: "倒数") { model.buttonPressed(.reciprocal) }
+                    CalcKey("x²", style: .function, disabled: model.isInError, flashing: flashing(.sqr), a11yLabel: "平方") { model.buttonPressed(.sqr) }
+                    CalcKey("²√x", style: .function, disabled: model.isInError, flashing: flashing(.sqrt), a11yLabel: "平方根") { model.buttonPressed(.sqrt) }
+                    CalcKey(symbol: "divide", style: .operatorKey, disabled: model.isInError, flashing: flashing(.divide), a11yLabel: "除") { model.buttonPressed(.divide) }
+                }
+                GridRow {
+                    digitKey(7)
+                    digitKey(8)
+                    digitKey(9)
+                    CalcKey(symbol: "multiply", style: .operatorKey, disabled: model.isInError, flashing: flashing(.multiply), a11yLabel: "乘") { model.buttonPressed(.multiply) }
+                }
+                GridRow {
+                    digitKey(4)
+                    digitKey(5)
+                    digitKey(6)
+                    CalcKey(symbol: "minus", style: .operatorKey, disabled: model.isInError, flashing: flashing(.subtract), a11yLabel: "减") { model.buttonPressed(.subtract) }
+                }
+                GridRow {
+                    digitKey(1)
+                    digitKey(2)
+                    digitKey(3)
+                    CalcKey(symbol: "plus", style: .operatorKey, disabled: model.isInError, flashing: flashing(.add), a11yLabel: "加") { model.buttonPressed(.add) }
+                }
+                GridRow {
+                    CalcKey(symbol: "plus.forwardslash.minus", style: .digit, disabled: model.isInError, flashing: flashing(.sign), a11yLabel: "正负号") { model.buttonPressed(.sign) }
+                    digitKey(0)
+                    CalcKey(model.decimalSeparator, style: .digit, fontSize: 18, flashing: flashing(.point), a11yLabel: "小数点") { model.buttonPressed(.point) }
+                    CalcKey(symbol: "equal", style: .operatorKey, flashing: flashing(.equals), a11yLabel: "等于") { model.buttonPressed(.equals) }
+                }
             }
         }
     }
 
     private func digitKey(_ digit: Int) -> some View {
-        CalcKey("\(digit)", style: .digit, fontSize: 18) { model.digitPressed(digit) }
+        CalcKey("\(digit)", style: .digit, fontSize: 18, flashing: flashing(.digit(digit)), a11yLabel: "\(digit)") {
+            model.digitPressed(digit)
+        }
+    }
+
+    private func flashing(_ command: EngineCommand) -> Bool {
+        model.flashedCommand == command
+    }
+
+    // MARK: - Physical keyboard
+
+    private func installKeyMonitor() {
+        guard keyMonitor == nil else { return }
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let hasCommand = event.modifierFlags.contains(.command)
+            let consumed = model.handleKey(
+                chars: event.charactersIgnoringModifiers ?? "",
+                keyCode: event.keyCode,
+                hasCommand: hasCommand
+            )
+            return consumed ? nil : event
+        }
+    }
+
+    private func removeKeyMonitor() {
+        if let keyMonitor {
+            NSEvent.removeMonitor(keyMonitor)
+            self.keyMonitor = nil
+        }
     }
 }
 
@@ -120,6 +172,7 @@ struct DisplayArea: View {
         VStack(spacing: 0) {
             Text(model.expressionTokens.map(\.text).joined())
                 .font(.system(size: 13))
+                .monospacedDigit()
                 .lineLimit(1)
                 .truncationMode(.head)
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -128,15 +181,19 @@ struct DisplayArea: View {
                 .accessibilityIdentifier("expressionDisplay")
 
             Text(model.displayValue)
-                .font(.system(size: 44, weight: .semibold, design: .rounded))
+                .font(.system(size: 48, weight: .light))
                 .lineLimit(1)
                 .minimumScaleFactor(0.3)
                 .frame(maxWidth: .infinity, alignment: .trailing)
+                .contentTransition(.numericText())
+                .animation(.snappy(duration: 0.18), value: model.displayValue)
                 .accessibilityIdentifier("primaryDisplay")
+                .accessibilityLabel("显示")
+                .accessibilityValue(model.displayValue)
                 .textSelection(.enabled)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
     }
 }
 
@@ -146,16 +203,16 @@ struct MemoryBar: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            memoryKey("MC", disabled: model.isMemoryEmpty) { model.clearMemory() }
-            memoryKey("MR", disabled: model.isMemoryEmpty) { model.memoryItemPressed(0) }
-            memoryKey("M+", disabled: model.isInError) { model.memoryAdd(0) }
-            memoryKey("M−", disabled: model.isInError) { model.memorySubtract(0) }
-            memoryKey("MS", disabled: model.isInError) { model.memorizeNumber() }
+            memoryKey("MC", disabled: model.isMemoryEmpty, a11y: "清除内存") { model.clearMemory() }
+            memoryKey("MR", disabled: model.isMemoryEmpty, a11y: "读取内存") { model.memoryItemPressed(0) }
+            memoryKey("M+", disabled: model.isInError, a11y: "内存加") { model.memoryAdd(0) }
+            memoryKey("M−", disabled: model.isInError, a11y: "内存减") { model.memorySubtract(0) }
+            memoryKey("MS", disabled: model.isInError, a11y: "存入内存") { model.memorizeNumber() }
         }
         .frame(height: 26)
     }
 
-    private func memoryKey(_ label: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+    private func memoryKey(_ label: String, disabled: Bool, a11y: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
                 .font(.system(size: 11, weight: .medium))
@@ -164,5 +221,6 @@ struct MemoryBar: View {
         .buttonStyle(.borderless)
         .foregroundStyle(disabled ? Color.primary.opacity(0.25) : Color.primary.opacity(0.75))
         .disabled(disabled)
+        .accessibilityLabel(a11y)
     }
 }
