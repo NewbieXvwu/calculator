@@ -37,6 +37,18 @@ let package = Package(
             dependencies: ["CalcManagerBridge"],
             path: "src/MacSmoke"
         ),
+        .executableTarget(
+            name: "engine-tests",
+            dependencies: ["CalcManagerCore"],
+            path: "src/MacEngineTests",
+            cxxSettings: [
+                .headerSearchPath("shim"),
+                .headerSearchPath("."),
+                .headerSearchPath(".."),
+                .headerSearchPath("../CalcManager"),
+                .headerSearchPath("../MacBridge"),
+            ]
+        ),
     ],
     cxxLanguageStandard: .cxx20
 )

@@ -84,7 +84,13 @@
       隔离引擎头文件，`CalcManagerBridge.mm`（ObjC++）供 Swift 调用；`src/MacSmoke` 冒烟通过。
       暗坑备忘：Ratpack 的全局 `extern PRAT pi` 与 Apple CarbonCore `fp.h` 的 `pi` 符号冲突，
       因此 ObjC++ 文件严禁直接 include 引擎头，必须经 CalcSession 门面）
-- [ ] 迁移 `CalculatorUnitTests` 中引擎相关单测（转 XCTest 或保留 googletest）
+- [x] 迁移 `CalculatorUnitTests` 中引擎相关单测（转 XCTest 或保留 googletest）
+      （已完成：`src/MacEngineTests/`，自研 CppUnitTest.h 兼容垫片让上游测试源码近乎零修改编译
+      （仅每文件末尾追加一行 REGISTER_TEST_CLASS）；覆盖 CalcInput/Rational/CalcEngine/
+      CalculatorManager 四个套件，`swift run engine-tests` 70 项全过。
+      引擎字符串来自 `Tools/generate_engine_strings.py` 从 CEngineStrings.resw 生成的
+      `src/MacBridge/EngineStringsData.g.h`（该表未来给 App 复用）。
+      HistoryTests/UnitConverterTest 依赖 ViewModel，推迟到 Phase 1/3 随重写迁移）
 
 ### Phase 1：标准 + 科学模式（3–5 周）
 - [ ] Swift 重写 `StandardCalculatorViewModel` 核心逻辑
