@@ -6,7 +6,8 @@
 //   顶栏与其它模式共用 CalculatorHeader。
 // 渲染器为自研：SwiftUI Canvas(CoreGraphics) 逐像素列自适应采样 +
 // 间断点检测 + 网格/坐标轴；平移用拖拽、缩放用捏合与按钮。
-// 数学求值当前走 GraphExpression（Mock），后续替换为 Giac。
+// 图形设置（GraphingSettings.xaml）：范围四框 / 三角单位 / 线宽 / 重置。
+// 方程样式（EquationStylePanelControl.xaml)：14 色 + 实线/虚线/点线。
 
 import SwiftUI
 
@@ -17,6 +18,7 @@ struct GraphingView: View {
     var showsHistoryButton: Bool = false
     @State private var historyPopoverShown = false
     @State private var showAnalysis = false
+    @State private var settingsShown = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -68,7 +70,7 @@ struct GraphingView: View {
             ScrollView {
                 VStack(spacing: 6) {
                     ForEach($graph.equations) { $eq in
-                        equationRow($eq)
+                        EquationRow(graph: graph, eq: $eq)
                     }
                 }
                 .padding(10)
@@ -89,21 +91,12 @@ struct GraphingView: View {
         }
     }
 
-    // MARK: - 变量滑块（表达式中的参数 a、b、k…）
+    // MARK: - 变量滑块（表达式中的参数 a、b、k…，可编辑 Min/Max/Step）
 
     private var sliderSection: some View {
         VStack(spacing: 4) {
             ForEach(graph.parameterNames, id: \.self) { name in
-                HStack(spacing: 6) {
-                    Text("\(name) = \(fmt(graph.parameters[name] ?? 1))")
-                        .font(.system(size: 10, design: .monospaced))
-                        .frame(width: 64, alignment: .leading)
-                    Slider(value: Binding(
-                        get: { graph.parameters[name] ?? 1 },
-                        set: { graph.parameters[name] = $0 }), in: -10...10)
-                        .controlSize(.mini)
-                        .accessibilityLabel("参数 \(name)")
-                }
+                VariableSliderRow(graph: graph, name: name)
             }
         }
         .padding(.horizontal, 10)
@@ -117,7 +110,7 @@ struct GraphingView: View {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(graph.equations) { eq in
                     if eq.isVisible, let expr = eq.explicitExpression {
-                        GiacAnalysisRow(eq: eq, expr: expr, params: graph.parameters)
+                        GiacAnalysisRow(eq: eq, expr: expr, params: graph.parameters, trig: graph.trigMode)
                     }
                 }
             }
@@ -127,34 +120,67 @@ struct GraphingView: View {
         .frame(maxHeight: 180)
     }
 
-    private func fmt(_ v: Double) -> String {
-        if abs(v) < 5e-7 { return "0" }
-        return String(format: "%.4g", v)
+    private var viewControls: some View {
+        HStack(spacing: 8) {
+            Button { graph.zoom(factor: 0.8) } label: { Image(systemName: "plus.magnifyingglass") }
+                .help("放大").accessibilityLabel("放大")
+            Button { graph.zoom(factor: 1.25) } label: { Image(systemName: "minus.magnifyingglass") }
+                .help("缩小").accessibilityLabel("缩小")
+            Button { graph.resetView() } label: { Image(systemName: "scope") }
+                .help("重置视图").accessibilityLabel("重置视图")
+            Spacer()
+            Button { settingsShown.toggle() } label: { Image(systemName: "gearshape") }
+                .help("图形选项").accessibilityLabel("图形选项")
+                .popover(isPresented: $settingsShown, arrowEdge: .bottom) {
+                    GraphingSettingsPanel(graph: graph)
+                }
+        }
+        .buttonStyle(.borderless)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+}
+
+// MARK: - 方程行（可见性圆点=样式入口 + MathLive 输入 + 删除）
+
+private struct EquationRow: View {
+    @ObservedObject var graph: GraphingViewModel
+    @Binding var eq: GraphingViewModel.Equation
+    @Environment(\.colorScheme) private var colorScheme
+
+    @State private var stylePanelShown = false
+
+    private var color: Color {
+        GraphingViewModel.equationColor(index: eq.colorIndex, darkMode: colorScheme == .dark)
     }
 
-    private func equationRow(_ eq: Binding<GraphingViewModel.Equation>) -> some View {
+    var body: some View {
         HStack(spacing: 6) {
             Button {
-                graph.toggleVisibility(id: eq.wrappedValue.id)
+                stylePanelShown.toggle()
             } label: {
                 Circle()
-                    .fill(eq.wrappedValue.isVisible ? eq.wrappedValue.color : Color.secondary.opacity(0.3))
+                    .fill(eq.isVisible ? color : Color.secondary.opacity(0.3))
                     .frame(width: 12, height: 12)
             }
             .buttonStyle(.plain)
-            .help(eq.wrappedValue.isVisible ? "隐藏" : "显示")
+            .help("线条样式")
+            .accessibilityLabel("线条样式")
+            .popover(isPresented: $stylePanelShown, arrowEdge: .bottom) {
+                EquationStylePanel(graph: graph, eq: eq)
+            }
 
             HStack(spacing: 2) {
                 Text("ƒ")
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(.secondary)
                 MathInputField(
-                    initialLatex: eq.wrappedValue.latex.isEmpty ? eq.wrappedValue.text : eq.wrappedValue.latex
+                    initialLatex: eq.latex.isEmpty ? eq.text : eq.latex
                 ) { ascii, latex in
-                    graph.updateEquation(id: eq.wrappedValue.id, ascii: ascii, latex: latex)
+                    graph.updateEquation(id: eq.id, ascii: ascii, latex: latex)
                 }
                 .frame(height: 32)
-                if eq.wrappedValue.hasError {
+                if eq.hasError {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: 10))
                         .foregroundStyle(.red)
@@ -163,7 +189,18 @@ struct GraphingView: View {
             }
 
             Button {
-                graph.removeEquation(id: eq.wrappedValue.id)
+                graph.toggleVisibility(id: eq.id)
+            } label: {
+                Image(systemName: eq.isVisible ? "eye" : "eye.slash")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(eq.isVisible ? "隐藏" : "显示")
+            .accessibilityLabel(eq.isVisible ? "隐藏函数" : "显示函数")
+
+            Button {
+                graph.removeEquation(id: eq.id)
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 9))
@@ -180,20 +217,311 @@ struct GraphingView: View {
                 .fill(Color.primary.opacity(0.05))
         )
     }
+}
 
-    private var viewControls: some View {
-        HStack(spacing: 8) {
-            Button { graph.zoom(factor: 0.8) } label: { Image(systemName: "plus.magnifyingglass") }
-                .help("放大").accessibilityLabel("放大")
-            Button { graph.zoom(factor: 1.25) } label: { Image(systemName: "minus.magnifyingglass") }
-                .help("缩小").accessibilityLabel("缩小")
-            Button { graph.resetView() } label: { Image(systemName: "scope") }
-                .help("重置视图").accessibilityLabel("重置视图")
-            Spacer()
+// MARK: - 方程样式面板（EquationStylePanelControl：14 色 + 线型）
+
+private struct EquationStylePanel: View {
+    @ObservedObject var graph: GraphingViewModel
+    let eq: GraphingViewModel.Equation
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var palette: [Color] {
+        colorScheme == .dark ? GraphingViewModel.darkPalette : GraphingViewModel.lightPalette
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("线条颜色")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(24), spacing: 6), count: 7), spacing: 6) {
+                ForEach(0..<palette.count, id: \.self) { index in
+                    Button {
+                        graph.setColorIndex(id: eq.id, index)
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(palette[index])
+                                .frame(width: 20, height: 20)
+                            if index == eq.colorIndex {
+                                Circle()
+                                    .strokeBorder(Color.accentColor, lineWidth: 2)
+                                    .frame(width: 26, height: 26)
+                            }
+                        }
+                        .frame(width: 26, height: 26)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("颜色 \(index + 1)")
+                }
+            }
+
+            Text("线条样式")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                ForEach(EquationLineStyle.allCases, id: \.self) { style in
+                    Button {
+                        graph.setLineStyle(id: eq.id, style)
+                    } label: {
+                        LineStyleSample(style: style)
+                            .frame(width: 48, height: 18)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .strokeBorder(style == eq.lineStyle ? Color.accentColor : Color.secondary.opacity(0.3),
+                                                  lineWidth: style == eq.lineStyle ? 2 : 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(styleName(style))
+                    .help(styleName(style))
+                }
+            }
         }
-        .buttonStyle(.borderless)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(12)
+    }
+
+    private func styleName(_ style: EquationLineStyle) -> String {
+        switch style {
+        case .solid: return "实线"
+        case .dash: return "虚线"
+        case .dot: return "点线"
+        }
+    }
+}
+
+/// 线型示意小样。
+private struct LineStyleSample: View {
+    let style: EquationLineStyle
+
+    var body: some View {
+        Canvas { context, size in
+            var path = Path()
+            path.move(to: CGPoint(x: 4, y: size.height / 2))
+            path.addLine(to: CGPoint(x: size.width - 4, y: size.height / 2))
+            context.stroke(
+                path,
+                with: .color(.primary),
+                style: StrokeStyle(lineWidth: 2, dash: style.dashPattern(lineWidth: 2)))
+        }
+    }
+}
+
+// MARK: - 变量滑块行（值滑块 + ± 步进 + Min/Max/Step 编辑）
+
+private struct VariableSliderRow: View {
+    @ObservedObject var graph: GraphingViewModel
+    let name: String
+
+    @State private var editorShown = false
+    @State private var minText = ""
+    @State private var maxText = ""
+    @State private var stepText = ""
+
+    private var variable: GraphingViewModel.SliderVariable {
+        graph.variables[name] ?? .init()
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("\(name) = \(fmt(variable.value))")
+                .font(.system(size: 10, design: .monospaced))
+                .frame(width: 64, alignment: .leading)
+            Button { graph.stepVariable(name, direction: -1) } label: {
+                Image(systemName: "minus.circle").font(.system(size: 10))
+            }
+            .buttonStyle(.plain)
+            .help("减一步")
+            .accessibilityLabel("参数 \(name) 减一步")
+            Slider(value: Binding(
+                get: { variable.value },
+                set: { graph.setVariableValue(name, $0) }), in: variable.min...variable.max)
+                .controlSize(.mini)
+                .accessibilityLabel("参数 \(name)")
+            Button { graph.stepVariable(name, direction: 1) } label: {
+                Image(systemName: "plus.circle").font(.system(size: 10))
+            }
+            .buttonStyle(.plain)
+            .help("加一步")
+            .accessibilityLabel("参数 \(name) 加一步")
+            Button {
+                minText = fmt(variable.min)
+                maxText = fmt(variable.max)
+                stepText = fmt(variable.step)
+                editorShown.toggle()
+            } label: {
+                Image(systemName: "slider.horizontal.3").font(.system(size: 10))
+            }
+            .buttonStyle(.plain)
+            .help("范围与步长")
+            .accessibilityLabel("参数 \(name) 范围与步长")
+            .popover(isPresented: $editorShown, arrowEdge: .bottom) {
+                editor
+            }
+        }
+    }
+
+    private var editor: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("参数 \(name)")
+                .font(.system(size: 11, weight: .semibold))
+            HStack(spacing: 6) {
+                field("最小", $minText)
+                field("最大", $maxText)
+                field("步长", $stepText)
+            }
+            Button("应用") {
+                if let v = Double(minText) { graph.setVariableMin(name, v) }
+                if let v = Double(maxText) { graph.setVariableMax(name, v) }
+                if let v = Double(stepText) { graph.setVariableStep(name, v) }
+                editorShown = false
+            }
+            .controlSize(.small)
+        }
+        .padding(12)
+    }
+
+    private func field(_ label: String, _ text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+            TextField("", text: text)
+                .textFieldStyle(.roundedBorder)
+                .controlSize(.small)
+                .frame(width: 56)
+        }
+    }
+
+    private func fmt(_ v: Double) -> String {
+        if abs(v) < 5e-7 { return "0" }
+        return String(format: "%.4g", v)
+    }
+}
+
+// MARK: - 图形设置面板（GraphingSettings.xaml：范围/三角单位/线宽/重置）
+
+private struct GraphingSettingsPanel: View {
+    @ObservedObject var graph: GraphingViewModel
+
+    @State private var xMinText = ""
+    @State private var xMaxText = ""
+    @State private var yMinText = ""
+    @State private var yMaxText = ""
+    @State private var rangeError = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("图形选项")
+                .font(.system(size: 13, weight: .semibold))
+
+            Text("网格范围")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Grid(horizontalSpacing: 8, verticalSpacing: 6) {
+                GridRow {
+                    rangeField("X 最小值", $xMinText)
+                    rangeField("X 最大值", $xMaxText)
+                }
+                GridRow {
+                    rangeField("Y 最小值", $yMinText)
+                    rangeField("Y 最大值", $yMaxText)
+                }
+            }
+            if rangeError {
+                Text("最小值必须小于最大值")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.red)
+            }
+
+            Button("重置视图") {
+                graph.resetView()
+                loadRange()
+            }
+            .controlSize(.small)
+
+            Divider()
+
+            Text("单位")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Picker("三角单位", selection: $graph.trigMode) {
+                Text("弧度").tag(GraphTrigMode.radians)
+                Text("角度").tag(GraphTrigMode.degrees)
+                Text("梯度").tag(GraphTrigMode.gradians)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            Divider()
+
+            Text("线条粗细")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Picker("线条粗细", selection: $graph.lineWidth) {
+                ForEach([1.0, 2.0, 3.0, 4.0], id: \.self) { width in
+                    LineWidthSample(width: width)
+                        .frame(width: 120, height: 14)
+                        .tag(width)
+                }
+            }
+            .pickerStyle(.radioGroup)
+            .labelsHidden()
+        }
+        .padding(14)
+        .frame(width: 240)
+        .onAppear(perform: loadRange)
+        .onSubmit(applyRange)
+    }
+
+    private func rangeField(_ label: String, _ text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+            TextField("", text: text, onEditingChanged: { began in
+                if !began { applyRange() }
+            })
+            .textFieldStyle(.roundedBorder)
+            .controlSize(.small)
+        }
+    }
+
+    private func loadRange() {
+        xMinText = fmt(graph.xMin)
+        xMaxText = fmt(graph.xMax)
+        yMinText = fmt(graph.yMin)
+        yMaxText = fmt(graph.yMax)
+        rangeError = false
+    }
+
+    private func applyRange() {
+        guard let x0 = Double(xMinText), let x1 = Double(xMaxText),
+              let y0 = Double(yMinText), let y1 = Double(yMaxText) else {
+            rangeError = true
+            return
+        }
+        rangeError = !graph.applyRange(xMin: x0, xMax: x1, yMin: y0, yMax: y1)
+    }
+
+    private func fmt(_ v: Double) -> String {
+        if v == v.rounded(), abs(v) < 1e15 { return String(Int64(v)) }
+        return String(format: "%.6g", v)
+    }
+}
+
+/// 线宽示意小样（对应原版 ComboBox 内的 Line 预览）。
+private struct LineWidthSample: View {
+    let width: Double
+
+    var body: some View {
+        Canvas { context, size in
+            var path = Path()
+            path.move(to: CGPoint(x: 0, y: size.height / 2))
+            path.addLine(to: CGPoint(x: size.width, y: size.height / 2))
+            context.stroke(path, with: .color(.primary), lineWidth: width)
+        }
     }
 }
 
@@ -202,17 +530,24 @@ private struct GiacAnalysisRow: View {
     let eq: GraphingViewModel.Equation
     let expr: GraphExpression
     let params: [String: Double]
+    let trig: GraphTrigMode
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var analysis: GiacFunctionAnalysis?
 
     private var taskKey: String {
-        eq.text + "|" + params.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+        eq.text + "|" + trig.rawValue + "|"
+            + params.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+    }
+
+    private var color: Color {
+        GraphingViewModel.equationColor(index: eq.colorIndex, darkMode: colorScheme == .dark)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                Circle().fill(eq.color).frame(width: 8, height: 8)
+                Circle().fill(color).frame(width: 8, height: 8)
                 Text(eq.text)
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .lineLimit(1)
@@ -243,8 +578,9 @@ private struct GiacAnalysisRow: View {
         .task(id: taskKey) {
             let expr = expr
             let params = params
+            let trig = trig
             analysis = await Task.detached(priority: .utility) {
-                GiacMathSolver.analyze(expr, params: params)
+                GiacMathSolver.analyze(expr, params: params, trig: trig)
             }.value
         }
     }
@@ -265,6 +601,7 @@ private struct GiacAnalysisRow: View {
 /// 自研图形渲染器：网格 + 坐标轴 + 逐像素列自适应采样曲线 + 间断检测。
 private struct GraphCanvas: View {
     @ObservedObject var graph: GraphingViewModel
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var dragAccum: CGSize = .zero
     @GestureState private var magnify: CGFloat = 1
@@ -276,11 +613,15 @@ private struct GraphCanvas: View {
                 drawGrid(context: context, size: canvasSize)
                 drawAxes(context: context, size: canvasSize)
                 for eq in graph.equations where eq.isVisible {
+                    let color = GraphingViewModel.equationColor(index: eq.colorIndex, darkMode: colorScheme == .dark)
+                    let stroke = StrokeStyle(
+                        lineWidth: graph.lineWidth,
+                        dash: eq.lineStyle.dashPattern(lineWidth: graph.lineWidth))
                     switch eq.compiled {
                     case .explicitFn(let expr):
-                        drawCurve(expr, color: eq.color, context: context, size: canvasSize)
+                        drawCurve(expr, color: color, stroke: stroke, context: context, size: canvasSize)
                     case .implicitEq(let expr):
-                        drawImplicit(expr, color: eq.color, context: context, size: canvasSize)
+                        drawImplicit(expr, color: color, stroke: stroke, context: context, size: canvasSize)
                     case nil:
                         break
                     }
@@ -386,7 +727,7 @@ private struct GraphCanvas: View {
         }
     }
 
-    private func drawCurve(_ expr: GraphExpression, color: Color, context: GraphicsContext, size: CGSize) {
+    private func drawCurve(_ expr: GraphExpression, color: Color, stroke: StrokeStyle, context: GraphicsContext, size: CGSize) {
         guard size.width > 1 else { return }
         var path = Path()
         var penDown = false
@@ -398,7 +739,7 @@ private struct GraphCanvas: View {
         for column in 0...columns {
             let sx = CGFloat(column)
             let mathX = graph.xMin + Double(sx) / Double(size.width) * graph.xSpan
-            guard let mathY = expr.evaluate(x: mathX, params: graph.parameters) else {
+            guard let mathY = expr.evaluate(x: mathX, params: graph.parameters, trig: graph.trigMode) else {
                 penDown = false
                 continue
             }
@@ -417,18 +758,18 @@ private struct GraphCanvas: View {
             lastScreenY = sy
         }
 
-        context.stroke(path, with: .color(color), lineWidth: 1.8)
+        context.stroke(path, with: .color(color), style: stroke)
     }
 
     /// 隐式方程 F(x,y)=0：marching squares 等值线（约 3px 网格）。
-    private func drawImplicit(_ expr: GraphExpression, color: Color, context: GraphicsContext, size: CGSize) {
+    private func drawImplicit(_ expr: GraphExpression, color: Color, stroke: StrokeStyle, context: GraphicsContext, size: CGSize) {
         guard size.width > 1, size.height > 1 else { return }
         let cellPx = 3.0
         let cols = max(8, Int(size.width / cellPx))
         let rows = max(8, Int(size.height / cellPx))
 
         let segments = MarchingSquares.trace(
-            f: { expr.evaluate(x: $0, y: $1, params: graph.parameters) },
+            f: { expr.evaluate(x: $0, y: $1, params: graph.parameters, trig: graph.trigMode) },
             xMin: graph.xMin, xMax: graph.xMax, yMin: graph.yMin, yMax: graph.yMax,
             cols: cols, rows: rows)
 
@@ -437,6 +778,6 @@ private struct GraphCanvas: View {
             path.move(to: CGPoint(x: toScreenX(seg.x1, size), y: toScreenY(seg.y1, size)))
             path.addLine(to: CGPoint(x: toScreenX(seg.x2, size), y: toScreenY(seg.y2, size)))
         }
-        context.stroke(path, with: .color(color), lineWidth: 1.8)
+        context.stroke(path, with: .color(color), style: stroke)
     }
 }

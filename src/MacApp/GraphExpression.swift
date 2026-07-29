@@ -13,6 +13,20 @@
 
 import Foundation
 
+/// 三角单位（对应原版 GraphingSettings 的 Radians/Degrees/Gradians 单选）。
+enum GraphTrigMode: String, CaseIterable, Codable {
+    case radians, degrees, gradians
+
+    /// 输入角 → 弧度的换算系数（sin(x) 按 sin(x·scale) 求值）。
+    var scale: Double {
+        switch self {
+        case .radians: return 1
+        case .degrees: return .pi / 180
+        case .gradians: return .pi / 200
+        }
+    }
+}
+
 /// 把一元函数表达式 y=f(x) 解析为可反复求值的树。
 struct GraphExpression {
     private let root: Node
@@ -33,14 +47,14 @@ struct GraphExpression {
     }
 
     /// 在给定 x 处求值；非有限（NaN/Inf，如定义域外）返回 nil。
-    func evaluate(x: Double, params: [String: Double] = [:]) -> Double? {
-        let value = root.eval(x: x, y: 0, params: params)
+    func evaluate(x: Double, params: [String: Double] = [:], trig: GraphTrigMode = .radians) -> Double? {
+        let value = root.eval(x: x, y: 0, params: params, trig: trig)
         return value.isFinite ? value : nil
     }
 
     /// 双变量求值（隐式方程 F(x,y) 用）；非有限返回 nil。
-    func evaluate(x: Double, y: Double, params: [String: Double] = [:]) -> Double? {
-        let value = root.eval(x: x, y: y, params: params)
+    func evaluate(x: Double, y: Double, params: [String: Double] = [:], trig: GraphTrigMode = .radians) -> Double? {
+        let value = root.eval(x: x, y: y, params: params, trig: trig)
         return value.isFinite ? value : nil
     }
 
@@ -76,15 +90,15 @@ struct GraphExpression {
         case binary(Character, Node, Node)
         case call(String, Node)
 
-        func eval(x: Double, y: Double, params: [String: Double]) -> Double {
+        func eval(x: Double, y: Double, params: [String: Double], trig: GraphTrigMode = .radians) -> Double {
             switch self {
             case .number(let v): return v
             case .variable: return x
             case .variableY: return y
             case .parameter(let name): return params[name] ?? .nan
-            case .negate(let n): return -n.eval(x: x, y: y, params: params)
+            case .negate(let n): return -n.eval(x: x, y: y, params: params, trig: trig)
             case .binary(let op, let l, let r):
-                let a = l.eval(x: x, y: y, params: params), b = r.eval(x: x, y: y, params: params)
+                let a = l.eval(x: x, y: y, params: params, trig: trig), b = r.eval(x: x, y: y, params: params, trig: trig)
                 switch op {
                 case "+": return a + b
                 case "-": return a - b
@@ -94,14 +108,14 @@ struct GraphExpression {
                 default: return .nan
                 }
             case .call(let name, let arg):
-                let v = arg.eval(x: x, y: y, params: params)
+                let v = arg.eval(x: x, y: y, params: params, trig: trig)
                 switch name {
-                case "sin": return sin(v)
-                case "cos": return cos(v)
-                case "tan": return tan(v)
-                case "asin": return asin(v)
-                case "acos": return acos(v)
-                case "atan": return atan(v)
+                case "sin": return sin(v * trig.scale)
+                case "cos": return cos(v * trig.scale)
+                case "tan": return tan(v * trig.scale)
+                case "asin": return asin(v) / trig.scale
+                case "acos": return acos(v) / trig.scale
+                case "atan": return atan(v) / trig.scale
                 case "sinh": return sinh(v)
                 case "cosh": return cosh(v)
                 case "tanh": return tanh(v)
@@ -133,7 +147,7 @@ struct GraphExpression {
         }
 
         /// 序列化为 Giac/Xcas 输入语法（全部显式加括号，规避优先级差异）。
-        func giacString(params: [String: Double]) -> String {
+        func giacString(params: [String: Double], trig: GraphTrigMode = .radians) -> String {
             switch self {
             case .number(let v):
                 if v == .pi { return "pi" }
@@ -147,14 +161,28 @@ struct GraphExpression {
                 let v = params[name] ?? 1
                 return "(\(v == v.rounded() ? String(Int64(v)) : String(v)))"
             case .negate(let n):
-                return "(-(\(n.giacString(params: params))))"
+                return "(-(\(n.giacString(params: params, trig: trig))))"
             case .binary(let op, let l, let r):
-                return "((\(l.giacString(params: params)))\(op)(\(r.giacString(params: params))))"
+                return "((\(l.giacString(params: params, trig: trig)))\(op)(\(r.giacString(params: params, trig: trig))))"
             case .call(let name, let arg):
-                let a = arg.giacString(params: params)
+                let a = arg.giacString(params: params, trig: trig)
+                // 非弧度模式：正三角入参乘换算系数，反三角结果除以系数。
+                let factor: String? = {
+                    switch trig {
+                    case .radians: return nil
+                    case .degrees: return "pi/180"
+                    case .gradians: return "pi/200"
+                    }
+                }()
                 switch name {
                 case "log": return "log10(\(a))"
                 case "log2": return "(ln(\(a))/ln(2))"
+                case "sin", "cos", "tan":
+                    if let factor { return "\(name)((\(factor))*(\(a)))" }
+                    return "\(name)(\(a))"
+                case "asin", "acos", "atan":
+                    if let factor { return "((\(name)(\(a)))/(\(factor)))" }
+                    return "\(name)(\(a))"
                 default: return "\(name)(\(a))"
                 }
             }
@@ -162,8 +190,8 @@ struct GraphExpression {
     }
 
     /// 以 Giac/Xcas 语法输出该表达式（参数用给定滑块值代入）。
-    func giacForm(params: [String: Double] = [:]) -> String {
-        root.giacString(params: params)
+    func giacForm(params: [String: Double] = [:], trig: GraphTrigMode = .radians) -> String {
+        root.giacString(params: params, trig: trig)
     }
 
     // MARK: - 递归下降解析器

@@ -32,8 +32,8 @@ struct GiacFunctionAnalysis {
 
 enum GiacMathSolver {
     /// 对显式函数 y=f(x) 做符号分析。Giac 求解失败的子项将被跳过（返回部分结果）。
-    static func analyze(_ expr: GraphExpression, params: [String: Double] = [:]) -> GiacFunctionAnalysis {
-        let f = expr.giacForm(params: params)
+    static func analyze(_ expr: GraphExpression, params: [String: Double] = [:], trig: GraphTrigMode = .radians) -> GiacFunctionAnalysis {
+        let f = expr.giacForm(params: params, trig: trig)
         var a = GiacFunctionAnalysis()
 
         if let d = ask("domain(\(f),x)"), d != "x" {
