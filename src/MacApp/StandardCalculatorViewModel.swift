@@ -16,9 +16,11 @@ enum CalculatorMode {
     case date
     /// 单位换算：不走计算引擎，用 UnitConverterData 静态换算。
     case converter
+    /// 绘图：不走 CalcManager，用 GraphExpression(Mock)/Giac 求值与自研渲染。
+    case graphing
 
-    /// 是否为引擎驱动的计算模式（日期计算/单位换算不使用 CalcManager）。
-    var usesEngine: Bool { self != .date && self != .converter }
+    /// 是否为引擎驱动的计算模式（日期计算/单位换算/绘图不使用 CalcManager）。
+    var usesEngine: Bool { self == .standard || self == .scientific || self == .programmer }
 
     var precision: Int {
         switch self {
@@ -27,6 +29,7 @@ enum CalculatorMode {
         case .programmer: return 64
         case .date: return 16
         case .converter: return 16
+        case .graphing: return 32
         }
     }
 
@@ -37,6 +40,7 @@ enum CalculatorMode {
         case .programmer: return .modeProgrammer
         case .date: return .modeBasic
         case .converter: return .modeBasic
+        case .graphing: return .modeBasic
         }
     }
 }
@@ -380,6 +384,9 @@ final class StandardCalculatorViewModel: ObservableObject {
             break
         case .converter:
             // 单位换算不触碰计算引擎，仅切换视图。
+            break
+        case .graphing:
+            // 绘图不触碰计算引擎，仅切换视图。
             break
         }
 

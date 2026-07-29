@@ -42,6 +42,7 @@ struct CalculatorHeader: View {
                     Label("程序员", systemImage: "chevron.left.forwardslash.chevron.right").tag(CalculatorMode.programmer)
                     Label("日期计算", systemImage: "calendar").tag(CalculatorMode.date)
                     Label("单位换算", systemImage: "arrow.left.arrow.right").tag(CalculatorMode.converter)
+                    Label("绘图", systemImage: "chart.xyaxis.line").tag(CalculatorMode.graphing)
                 }
                 .pickerStyle(.inline)
             } label: {
@@ -67,6 +68,7 @@ struct CalculatorHeader: View {
         case .standard: return "square.grid.2x2"
         case .date: return "calendar"
         case .converter: return "arrow.left.arrow.right"
+        case .graphing: return "chart.xyaxis.line"
         }
     }
 

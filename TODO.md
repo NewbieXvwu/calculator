@@ -190,11 +190,24 @@
         选中时显示汇率日期 + 刷新按钮。
 
 ### Phase 4：绘图模式（8–12 周+，最后攻坚）
-- [ ] 先接 `GraphingImpl/Mocks` 等价的 Swift Mock，跑通 UI 架构
+- [x] 先接 `GraphingImpl/Mocks` 等价的 Swift Mock，跑通 UI 架构
+      - GraphExpression：纯 Swift 递归下降解析/求值器（Mock 数学引擎），支持
+        数字/变量 x/常数(pi π e)、+ - * / ^(右结合)、一元 ±、隐式乘法(2x/3sin(x)/(x+1)(x-1))、
+        科学计数，函数 sin cos tan asin acos atan sinh cosh tanh ln log log2 sqrt abs exp；
+        剥离 y=/f(x)= 前缀，非有限值(定义域外)返回 nil。
+      - 优先级校验：-x^2=-(x^2)、2^3^2=512、2^-3=0.125、隐式乘法均正确。
+      - GraphingViewModel：多方程列表(颜色/可见性/编译错误)、视口 xMin/xMax/yMin/yMax、
+        平移/缩放(含锚点缩放)/重置视图，8 色调色板，默认种子 x^2、sin(x)。
+      - GraphingView：CalculatorHeader + 左画布/右方程面板两栏；.graphing 作为非引擎
+        CalculatorMode（usesEngine=false，隐藏历史/记忆 Dock）。
+      - （待人工确认：真机核对画布渲染与两栏排版）
+- [x] 自研渲染器：自适应采样 + 间断点检测 + Metal/CG 绘制 + 平移缩放交互
+      - SwiftUI Canvas(CoreGraphics)：逐像素列自适应采样 + 间断点断线检测，
+        niceStep 网格 + 坐标轴，DragGesture 平移 + MagnificationGesture/按钮缩放。
+      - （Metal 加速与更高级抗锯齿留待后续；当前 CG 足够跑通交互）
 - [ ] 编译 Giac 为 macOS 静态库，桥接
 - [ ] 实现 `IMathSolver` 适配（解析/求值/格式化，对齐计算器输入语法）
 - [ ] 实现 `IGraphAnalyzer` 适配（零点/极值/拐点/渐近线/单调区间）
-- [ ] 自研渲染器：自适应采样 + 间断点检测 + Metal/CG 绘制 + 平移缩放交互
 - [ ] 隐式方程：marching squares
 - [ ] MathLive + WKWebView 公式输入编辑器
 - [ ] 变量滑块、函数分析面板等 `GraphControl` 周边 UI
