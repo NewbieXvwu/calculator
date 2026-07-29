@@ -544,39 +544,260 @@ final class StandardCalculatorViewModel: ObservableObject {
 
     // MARK: - Physical keyboard (mirrors Windows keyboard accelerators)
 
-    /// 把物理按键映射到引擎命令，命中即闪动对应屏幕键。返回是否已消费该事件。
-    func handleKey(chars: String, keyCode: UInt16, hasCommand: Bool) -> Bool {
-        // ⌘ 组合交给菜单栏快捷键，这里不拦截。
-        if hasCommand { return false }
+    /// 物理键盘修饰键（⌘ 放行菜单栏；⌃/⇧ 参与原版 Ctrl/Shift 和弦）。
+    struct KeyModifiers {
+        var command = false
+        var shift = false
+        var control = false
+    }
 
-        // 先处理特殊物理键（keyCode 与字符无关）。
+    /// Ctrl+H 历史面板开关脉冲（视图 onChange 监听后翻转 popover）。
+    @Published private(set) var historyTogglePulse = 0
+
+    /// 完整键盘映射，对照原版 Resources.resw 的 KeyboardShortcutManager 词条（129 条）。
+    /// Character/VirtualKey/Shift/Ctrl(=macOS ⌃)/Ctrl+Shift 五类和弦；按当前模式分发。
+    /// 返回是否已消费该事件。
+    func handleKey(chars: String, keyCode: UInt16, modifiers: KeyModifiers) -> Bool {
+        // ⌘ 组合交给菜单栏快捷键，这里不拦截。
+        if modifiers.command { return false }
+
+        let upper = chars.uppercased().first
+
+        if modifiers.control {
+            return handleControlChord(upper, shift: modifiers.shift)
+        }
+
+        // 特殊物理键（keyCode 与字符无关）。
         switch keyCode {
-        case 53: dispatchFromKeyboard(.clear); return true       // Escape
-        case 51, 117: dispatchFromKeyboard(.backspace); return true // Delete / Forward-Delete
-        case 36, 76: dispatchFromKeyboard(.equals); return true  // Return / Enter
+        case 53: dispatchFromKeyboard(.clear); return true        // Escape → C
+        case 51: dispatchFromKeyboard(.backspace); return true    // Delete → ⌫（对应 Windows Back）
+        case 117: dispatchFromKeyboard(.clearEntry); return true  // Fn+Delete → CE（对应 Windows Delete）
+        case 36, 76: dispatchFromKeyboard(.equals); return true   // Return / Enter → =
+        default: break
+        }
+        if handleFunctionKey(keyCode) { return true }
+
+        guard let ch = chars.first else { return false }
+
+        // 数字（程序员模式按当前进制过滤，等价禁用键）。
+        if let d = ch.wholeNumberValue, ch.isNumber, d <= 9 {
+            guard keyboardDigitAllowed(d) else { return true }
+            dispatchFromKeyboard(.digit(d))
+            return true
+        }
+
+        // Character 词条（标点，按模式分发）。
+        switch ch {
+        case "+": dispatchFromKeyboard(.add); return true
+        case "-": dispatchFromKeyboard(.subtract); return true
+        case "*": dispatchFromKeyboard(.multiply); return true
+        case "/": dispatchFromKeyboard(.divide); return true
+        case "=": dispatchFromKeyboard(.equals); return true
+        case "%":
+            dispatchFromKeyboard(mode == .programmer ? .mod : .percent)
+            return true
+        case ".", ",":
+            // 程序员模式小数点禁用，"." 是 NAND 的快捷键（nandButton Character "."）。
+            if mode == .programmer {
+                if ch == "." { dispatchFromKeyboard(.nand); return true }
+                return true
+            }
+            dispatchFromKeyboard(.point)
+            return true
+        case "(" where mode != .standard: dispatchFromKeyboard(.openParen); return true
+        case ")" where mode != .standard: dispatchFromKeyboard(.closeParen); return true
+        case "@" where mode != .programmer: dispatchFromKeyboard(.sqrt); return true
+        case "!" where mode == .scientific: dispatchFromKeyboard(.factorial); return true
+        case "#" where mode == .scientific: dispatchFromKeyboard(.cube); return true
+        case "^":
+            if mode == .scientific { dispatchFromKeyboard(.power); return true }
+            if mode == .programmer { dispatchFromKeyboard(.xor); return true }
+            return false
+        case "|":
+            if mode == .programmer { dispatchFromKeyboard(.or); return true }
+            if mode == .scientific { dispatchFromKeyboard(.abs); return true }
+            return false
+        case "&" where mode == .programmer: dispatchFromKeyboard(.and); return true
+        case "~" where mode == .programmer: dispatchFromKeyboard(.not); return true
+        case "\\" where mode == .programmer: dispatchFromKeyboard(.nor); return true
+        case "[" where mode == .scientific: dispatchFromKeyboard(.floor); return true
+        case "]" where mode == .scientific: dispatchFromKeyboard(.ceil); return true
+        case "<" where mode == .programmer:
+            dispatchFromKeyboard(shiftMode.leftKey.command)
+            return true
+        case ">" where mode == .programmer:
+            dispatchFromKeyboard(shiftMode.rightKey.command)
+            return true
+        default:
+            break
+        }
+
+        // 本地化小数点分隔符（如 ','）。
+        if String(ch) == decimalSeparator, mode != .programmer {
+            dispatchFromKeyboard(.point)
+            return true
+        }
+
+        // 字母 VirtualKey 词条。
+        guard let u = upper, u.isLetter else { return false }
+
+        // 程序员模式：A–F 十六进制数字（仅 HEX 进制可用；Shift 同映射）。
+        if mode == .programmer {
+            if let offset = "ABCDEF".firstIndex(of: u) {
+                guard currentRadix == .hex else { return true }
+                let i = "ABCDEF".distance(from: "ABCDEF".startIndex, to: offset)
+                dispatchFromKeyboard(EngineCommand(rawValue: EngineCommand.digitA.rawValue + i)!)
+                return true
+            }
+            return false
+        }
+
+        guard mode == .scientific else { return false }
+
+        if modifiers.shift {
+            switch u {
+            case "S": dispatchFromKeyboard(.asin); return true
+            case "O": dispatchFromKeyboard(.acos); return true
+            case "T": dispatchFromKeyboard(.atan); return true
+            case "U": dispatchFromKeyboard(.asec); return true
+            case "I": dispatchFromKeyboard(.acsc); return true
+            case "J": dispatchFromKeyboard(.acot); return true
+            case "L": dispatchFromKeyboard(.logBaseY); return true
+            case "R": dispatchFromKeyboard(.rand); return true
+            case "E": dispatchFromKeyboard(.euler); return true
+            default: return false
+            }
+        }
+
+        switch u {
+        case "S": dispatchFromKeyboard(.sin); return true
+        case "O": dispatchFromKeyboard(.cos); return true
+        case "T": dispatchFromKeyboard(.tan); return true
+        case "U": dispatchFromKeyboard(.sec); return true
+        case "I": dispatchFromKeyboard(.csc); return true
+        case "J": dispatchFromKeyboard(.cot); return true
+        case "L": dispatchFromKeyboard(.log); return true
+        case "N": dispatchFromKeyboard(.ln); return true
+        case "X": dispatchFromKeyboard(.exp); return true
+        case "R": dispatchFromKeyboard(.reciprocal); return true
+        case "Q": dispatchFromKeyboard(.sqr); return true
+        case "B": dispatchFromKeyboard(.cubeRoot); return true
+        case "Y": dispatchFromKeyboard(.power); return true
+        case "G": dispatchFromKeyboard(.pow2); return true
+        case "P": dispatchFromKeyboard(.pi); return true
+        case "M": dispatchFromKeyboard(.dms); return true
+        case "V":
+            guard isFToEEnabled, !isInError else { return true }
+            isFToEChecked.toggle()
+            fToEButtonToggled()
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Ctrl（macOS ⌃）与 Ctrl+Shift 和弦。
+    private func handleControlChord(_ upper: Character?, shift: Bool) -> Bool {
+        guard let u = upper else { return false }
+
+        if shift {
+            if u == "D" { clearHistory(); return true } // Ctrl+Shift+D 清除历史
+            guard mode == .scientific else { return false }
+            switch u { // 反双曲
+            case "S": dispatchFromKeyboard(.asinh); return true
+            case "O": dispatchFromKeyboard(.acosh); return true
+            case "T": dispatchFromKeyboard(.atanh); return true
+            case "U": dispatchFromKeyboard(.asech); return true
+            case "I": dispatchFromKeyboard(.acsch); return true
+            case "J": dispatchFromKeyboard(.acoth); return true
+            default: return false
+            }
+        }
+
+        // 记忆/历史（全引擎模式）。
+        switch u {
+        case "L": clearMemory(); return true                       // MC
+        case "R":
+            guard !memorizedNumbers.isEmpty else { return true }
+            memoryItemPressed(0)                                   // MR
+            return true
+        case "P": memoryAdd(0); return true                        // M+
+        case "Q": memorySubtract(0); return true                   // M−
+        case "M": memorizeNumber(); return true                    // MS
+        case "H":
+            guard mode != .programmer else { return false }        // 程序员模式无历史
+            historyTogglePulse += 1
+            return true
         default: break
         }
 
-        guard let ch = chars.first else { return false }
-        switch ch {
-        case "0"..."9":
-            dispatchFromKeyboard(.digit(Int(String(ch))!))
-        case "+": dispatchFromKeyboard(.add)
-        case "-": dispatchFromKeyboard(.subtract)
-        case "*": dispatchFromKeyboard(.multiply)
-        case "/": dispatchFromKeyboard(.divide)
-        case "=": dispatchFromKeyboard(.equals)
-        case "%": dispatchFromKeyboard(.percent)
-        case ".", ",": dispatchFromKeyboard(.point)
-        default:
-            // 小数点分隔符可能是本地化字符（如 ','）。
-            if String(ch) == decimalSeparator {
-                dispatchFromKeyboard(.point)
-            } else {
-                return false
-            }
+        guard mode == .scientific else { return false }
+        switch u { // 双曲及 Ctrl 变体
+        case "S": dispatchFromKeyboard(.sinh); return true
+        case "O": dispatchFromKeyboard(.cosh); return true
+        case "T": dispatchFromKeyboard(.tanh); return true
+        case "U": dispatchFromKeyboard(.sech); return true
+        case "I": dispatchFromKeyboard(.csch); return true
+        case "J": dispatchFromKeyboard(.coth); return true
+        case "N": dispatchFromKeyboard(.powE); return true         // eˣ
+        case "G": dispatchFromKeyboard(.pow10); return true        // 10ˣ
+        case "Y": dispatchFromKeyboard(.yroot); return true        // y√x
+        case "D": dispatchFromKeyboard(.degrees); return true      // deg 转换
+        default: return false
         }
-        return true
+    }
+
+    /// F2–F12 功能键（macOS keyCode），按模式分发。
+    private func handleFunctionKey(_ keyCode: UInt16) -> Bool {
+        switch keyCode {
+        case 120: // F2 → QWORD
+            guard mode == .programmer else { return false }
+            setWordSize(.qword)
+            return true
+        case 99: // F3 → DWORD / GRAD
+            if mode == .programmer { setWordSize(.dword); return true }
+            if mode == .scientific { switchAngleType(.grad); return true }
+            return false
+        case 118: // F4 → WORD / DEG
+            if mode == .programmer { setWordSize(.word); return true }
+            if mode == .scientific { switchAngleType(.deg); return true }
+            return false
+        case 96: // F5 → HEX / RAD
+            if mode == .programmer { switchRadix(.hex); return true }
+            if mode == .scientific { switchAngleType(.rad); return true }
+            return false
+        case 97: // F6 → DEC
+            guard mode == .programmer else { return false }
+            switchRadix(.dec)
+            return true
+        case 98: // F7 → OCT
+            guard mode == .programmer else { return false }
+            switchRadix(.oct)
+            return true
+        case 100: // F8 → BIN
+            guard mode == .programmer else { return false }
+            switchRadix(.bin)
+            return true
+        case 101: // F9 → ±
+            dispatchFromKeyboard(.sign)
+            return true
+        case 111: // F12 → BYTE
+            guard mode == .programmer else { return false }
+            setWordSize(.byte)
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// 程序员模式下按当前进制过滤数字键（等价原版禁用按钮）。
+    private func keyboardDigitAllowed(_ digit: Int) -> Bool {
+        guard mode == .programmer else { return true }
+        switch currentRadix {
+        case .hex, .dec: return true
+        case .oct: return digit < 8
+        case .bin: return digit < 2
+        }
     }
 
     private func dispatchFromKeyboard(_ command: EngineCommand) {

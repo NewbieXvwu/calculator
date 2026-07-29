@@ -37,6 +37,9 @@ struct StandardCalculatorView: View {
                 .padding(.bottom, 8)
         }
         .calculatorKeyMonitor(model: model)
+        .onChange(of: model.historyTogglePulse) {
+            if showsHistoryButton { historyPopoverShown.toggle() }
+        }
     }
 
     private var keypad: some View {

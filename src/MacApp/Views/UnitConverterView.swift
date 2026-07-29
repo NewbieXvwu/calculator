@@ -249,6 +249,9 @@ private struct ConverterKeyMonitor: ViewModifier {
             case 53: // Esc → 清除
                 converter.clear()
                 return nil
+            case 101: // F9 → 正负号（converterNegateButton VirtualKey F9）
+                if supportsNegative { converter.toggleSign() }
+                return nil
             default:
                 break
             }

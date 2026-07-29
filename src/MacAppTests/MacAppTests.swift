@@ -139,6 +139,152 @@ final class CalculatorViewModelTests: XCTestCase {
         await drain()
         XCTAssertFalse(model.isInError)
     }
+
+    // MARK: - 键盘快捷键（对照 Resources.resw KeyboardShortcutManager 词条）
+
+    private func key(_ chars: String, keyCode: UInt16 = 0,
+                     shift: Bool = false, control: Bool = false, command: Bool = false) -> Bool {
+        model.handleKey(chars: chars, keyCode: keyCode,
+                        modifiers: .init(command: command, shift: shift, control: control))
+    }
+
+    func testKeyboardBasicArithmetic() async {
+        XCTAssertTrue(key("5"))
+        XCTAssertTrue(key("+"))
+        XCTAssertTrue(key("3"))
+        XCTAssertTrue(key("=", keyCode: 36))
+        await drain()
+        XCTAssertEqual(model.displayValue, "8")
+    }
+
+    func testKeyboardCommandPassthrough() {
+        XCTAssertFalse(key("c", command: true), "⌘ 组合应放行给菜单栏")
+    }
+
+    func testKeyboardScientificLetterChords() async {
+        model.setCalculatorType(.scientific)
+        model.digitPressed(9)
+        XCTAssertTrue(key("q")) // Q → x²
+        await drain()
+        XCTAssertEqual(model.displayValue, "81")
+
+        model.buttonPressed(.clear)
+        XCTAssertTrue(key("p")) // P → π
+        await drain()
+        XCTAssertTrue(model.displayValue.hasPrefix("3.14"))
+
+        // Shift+E → euler
+        model.buttonPressed(.clear)
+        XCTAssertTrue(key("E", shift: true))
+        await drain()
+        XCTAssertTrue(model.displayValue.hasPrefix("2.71"))
+    }
+
+    func testKeyboardScientificHyperbolicChords() async {
+        model.setCalculatorType(.scientific)
+        model.buttonPressed(.clear)
+        XCTAssertTrue(key("s", control: true)) // Ctrl+S → sinh(0)=0
+        await drain()
+        XCTAssertEqual(model.displayValue, "0")
+        XCTAssertTrue(key("o", shift: false, control: true)) // Ctrl+O → cosh(0)=1
+        await drain()
+        XCTAssertEqual(model.displayValue, "1")
+    }
+
+    func testKeyboardScientificPunctuation() async {
+        model.setCalculatorType(.scientific)
+        model.digitPressed(5)
+        XCTAssertTrue(key("!")) // 阶乘
+        await drain()
+        XCTAssertEqual(model.displayValue, "120")
+        model.buttonPressed(.clear)
+        model.digitPressed(2)
+        XCTAssertTrue(key("#")) // x³
+        await drain()
+        XCTAssertEqual(model.displayValue, "8")
+        XCTAssertFalse(key("&"), "& 仅程序员模式有效")
+    }
+
+    func testKeyboardProgrammerChords() async {
+        model.setCalculatorType(.programmer)
+        // ^ → XOR：5 ^ 3 = 6
+        model.digitPressed(5)
+        XCTAssertTrue(key("^"))
+        model.digitPressed(3)
+        XCTAssertTrue(key("=", keyCode: 36))
+        await drain()
+        XCTAssertEqual(model.displayValue, "6")
+
+        // A–F 仅 HEX 进制可用。
+        model.buttonPressed(.clear)
+        XCTAssertTrue(key("a"))
+        await drain()
+        XCTAssertEqual(model.displayValue, "0", "DEC 进制下 A 应被吞掉不生效")
+        model.switchRadix(.hex)
+        XCTAssertTrue(key("f"))
+        await drain()
+        XCTAssertEqual(model.displayValue, "F")
+
+        // BIN 进制过滤数字 2-9。
+        model.buttonPressed(.clear)
+        model.switchRadix(.bin)
+        XCTAssertTrue(key("2"))
+        await drain()
+        XCTAssertEqual(model.displayValue, "0")
+        XCTAssertTrue(key("1"))
+        await drain()
+        XCTAssertEqual(model.displayValue, "1")
+        model.switchRadix(.dec)
+    }
+
+    func testKeyboardProgrammerFunctionKeys() async {
+        model.setCalculatorType(.programmer)
+        XCTAssertTrue(key("", keyCode: 99)) // F3 → DWORD
+        XCTAssertEqual(model.wordSize, .dword)
+        XCTAssertTrue(key("", keyCode: 96)) // F5 → HEX
+        XCTAssertEqual(model.currentRadix, .hex)
+        XCTAssertTrue(key("", keyCode: 97)) // F6 → DEC
+        XCTAssertEqual(model.currentRadix, .dec)
+        XCTAssertTrue(key("", keyCode: 120)) // F2 → QWORD
+        XCTAssertEqual(model.wordSize, .qword)
+    }
+
+    func testKeyboardScientificFunctionKeys() {
+        model.setCalculatorType(.scientific)
+        XCTAssertTrue(key("", keyCode: 96)) // F5 → RAD
+        XCTAssertEqual(model.currentAngleType, .rad)
+        XCTAssertTrue(key("", keyCode: 99)) // F3 → GRAD
+        XCTAssertEqual(model.currentAngleType, .grad)
+        XCTAssertTrue(key("", keyCode: 118)) // F4 → DEG
+        XCTAssertEqual(model.currentAngleType, .deg)
+    }
+
+    func testKeyboardMemoryChords() async {
+        model.digitPressed(4)
+        model.digitPressed(2)
+        XCTAssertTrue(key("m", control: true)) // Ctrl+M → MS
+        await drain()
+        XCTAssertFalse(model.isMemoryEmpty)
+        model.buttonPressed(.clear)
+        XCTAssertTrue(key("r", control: true)) // Ctrl+R → MR
+        await drain()
+        XCTAssertEqual(model.displayValue, "42")
+        XCTAssertTrue(key("l", control: true)) // Ctrl+L → MC
+        await drain()
+        XCTAssertTrue(model.isMemoryEmpty)
+    }
+
+    func testKeyboardClearHistoryChord() async {
+        model.digitPressed(1)
+        model.buttonPressed(.add)
+        model.digitPressed(1)
+        model.buttonPressed(.equals)
+        await drain()
+        XCTAssertFalse(model.historyItems.isEmpty)
+        XCTAssertTrue(key("d", shift: true, control: true)) // Ctrl+Shift+D
+        await drain()
+        XCTAssertTrue(model.historyItems.isEmpty)
+    }
 }
 
 // MARK: - 绘图表达式解析/求值

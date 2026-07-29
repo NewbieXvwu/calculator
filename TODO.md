@@ -37,23 +37,22 @@
 
 ## 三、对齐残差任务（按优先级）
 
-### P1-1 键盘快捷键完整复刻（影响日常可用性最大）
-现状：`StandardCalculatorViewModel.handleKey`（`src/MacApp/StandardCalculatorViewModel.swift:506`）只接了
-数字/四则/`=`/`%`/小数点/Esc/⌫/回车，**连 `(` `)` 都没接**。
-规格：`src/Calculator/Resources/en-US/Resources.resw` 中全部 `KeyboardShortcutManager.*` 条目（100+ 项），
+### P1-1 键盘快捷键完整复刻（影响日常可用性最大）✅
+规格：`src/Calculator/Resources/en-US/Resources.resw` 中全部 `KeyboardShortcutManager.*` 条目（实测 129 项），
 含 `Character`、`VirtualKey`、`VirtualKeyShiftChord`、`VirtualKeyControlChord`、`VirtualKeyControlShiftChord` 五类。
-- [ ] 写脚本或手工把 resw 快捷键表逐条导出成对照清单（**以 resw 键值为准，禁止凭记忆猜按键**），进代码常量表
-- [ ] 标准/科学字符键：`( )`、`@`(√)、`!`(n!)、`|`(Abs) 等 Character 类全部接入
-- [ ] 科学 VirtualKey 类：三角 sin/cos/tan/sec/csc/cot 及 Shift(反函数)/Ctrl(双曲)/Ctrl+Shift(反双曲) 和弦、
-      对数/幂 (`logBase10Button`/`logBaseEButton`/`powerButton`/`cubeRootButton`…)、`F-E`、DEG/RAD/GRAD 切换、
-      π/e (`pButton`/Shift 和弦)、F9=±、DMS/Degrees
-- [ ] 程序员：A–F 直接输入（仅 HEX 态）、F5/F6/F7/F8=HEX/DEC/OCT/BIN、位运算字符键（`&` `|` `~` `^` `<` `>` 类）、
-      字长循环、位翻转切换
-- [ ] 记忆/历史和弦（Windows Ctrl→macOS ⌘）：⌘L=MC、⌘R=MR、⌘P=M+、⌘Q=M−、⌘M=MS、⇧⌘P=M 面板、
-      ⌘H=历史面板、⇧⌘D=清历史（⌘H 与 macOS「隐藏窗口」冲突时改 ⌥⌘H 并记录）
-- [ ] 换算器负号键（`converterNegateButton`）
-- [ ] 全部进菜单栏（macOS 惯例：快捷键必须可发现），按模式分组启用/禁用
-- [ ] 测试：每类和弦至少一条 ViewModel 级按键分发测试
+- [x] resw 快捷键表已逐条导出对照（129 条），进 `handleKey`/`handleControlChord`/`handleFunctionKey` 分发表
+- [x] 标准/科学字符键：`( )`、`@`(√)、`!`(n!)、`|`(Abs)、`[`/`]`(floor/ceil)、`#`(x³) 等 Character 类全部接入
+- [x] 科学 VirtualKey 类：三角 s/c/t/o/e/j 及 Shift(反函数)/Ctrl(双曲)/Ctrl+Shift(反双曲) 和弦、
+      L/N/G/Y/D/V/M/P/Q/X/R 全套、F3/F4/F5=GRAD/DEG/RAD、F9=±、Delete=CE（原版 Back=⌫、Delete=CE 语义已纠正）
+- [x] 程序员：A–F 直接输入（仅 HEX 态，进制门控 `keyboardDigitAllowed`）、F5/F6/F7/F8=HEX/DEC/OCT/BIN、
+      F2/F3/F4/F12=字长、位运算字符键 `& | ~ ^ % . < >`（< > 随 shiftMode 联动）
+- [x] 记忆/历史和弦：**设计决策——原版 Ctrl 和弦在 macOS 按 ⌃（Control）字面映射**，⌘ 一律放行给菜单栏
+      （避开系统 ⌘H 隐藏/⌘Q 退出/⌘M 最小化冲突）：⌃L=MC、⌃R=MR、⌃P=M+、⌃Q=M−、⌃M=MS、
+      ⌃H=历史面板（`historyTogglePulse`）、⇧⌃D=清历史
+- [x] 换算器负号键 F9（`converterNegateButton`）
+- [x] 测试：10 条 ViewModel 级按键分发测试（基础运算/⌘放行/科学字母与和弦/标点/程序员进制与F键/记忆/清历史）
+- 豁免与顺延：Insert 复制粘贴备选键无 Mac 等价物（豁免）；`Ctrl+Home/End` graphView 与 plotButton 回车归 P2-5；
+  「全部进菜单栏」并入 P3-1 设置/菜单项工作。
 
 ### P1-2 CopyPasteManager 完整移植
 现状：`pasteFromPasteboard` 只识别数字/小数点/前导负号（`StandardCalculatorViewModel.swift:565`）。

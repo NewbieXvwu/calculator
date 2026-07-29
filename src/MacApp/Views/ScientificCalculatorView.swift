@@ -55,6 +55,9 @@ struct ScientificCalculatorView: View {
                 .padding(.bottom, 8)
         }
         .calculatorKeyMonitor(model: model)
+        .onChange(of: model.historyTogglePulse) {
+            if showsHistoryButton { historyPopoverShown.toggle() }
+        }
     }
 
     // MARK: - 角度 / F-E 栏

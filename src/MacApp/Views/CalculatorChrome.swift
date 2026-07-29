@@ -91,11 +91,15 @@ private struct KeyMonitor: ViewModifier {
     private func install() {
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            let hasCommand = event.modifierFlags.contains(.command)
+            let flags = event.modifierFlags
             let consumed = model.handleKey(
                 chars: event.charactersIgnoringModifiers ?? "",
                 keyCode: event.keyCode,
-                hasCommand: hasCommand
+                modifiers: .init(
+                    command: flags.contains(.command),
+                    shift: flags.contains(.shift),
+                    control: flags.contains(.control)
+                )
             )
             return consumed ? nil : event
         }
