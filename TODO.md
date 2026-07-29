@@ -104,7 +104,11 @@
       表达式 tokens、IsInputEmpty；桥接层补齐 SetPrecision/SetRadix/GetResultForRadix。
       暂缺随后续条目补：表达式 token 点击编辑（SaveEditedCommand/HandleUpdatedOperandData，
       随科学模式 UI 补）、粘贴解析（独立条目）、Narrator 播报（无障碍条目））
-- [ ] 标准模式 UI（含历史/内存面板）
+- [x] 标准模式 UI（含历史/内存面板）
+      （已完成：`src/MacApp/Views/`——StandardCalculatorView 按 CalculatorStandardOperators.xaml
+      1:1 转译（6 行×4 列：%/CE/C/⌫、1/x/x²/√/÷、数字区、±0.=）+ 内存栏 MC/MR/M+/M−/MS；
+      HistoryMemoryPanel 对应 HistoryList.xaml/Memory.xaml（宽 ≥560 显示右侧 Dock）。
+      注意：无头环境无法截图目测，仅验证编译+运行不崩溃，需人工过一遍视觉）
 - [ ] 科学模式 UI（含 F-E 切换、角度模式等）
 - [ ] 键盘映射 + 菜单栏快捷键
 - [ ] 复制/粘贴（对照 `CopyPasteManager` 的解析规则）
