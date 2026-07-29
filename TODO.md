@@ -166,7 +166,17 @@
       - CalculatorChrome 模式菜单 + modeIcon 增补 .date(calendar 图标)；ContentView 接入并补最小窗口尺寸。
 
 ### Phase 3：单位/汇率换算器（2–3 周）
-- [ ] Swift 重写 `UnitConverterViewModel` + `UnitConverterDataLoader`
+- [x] Swift 重写 `UnitConverterViewModel` + `UnitConverterDataLoader`（静态单位部分）
+      - UnitConverterData（Swift）：移植 GetConversionData 全量换算因子 + GetExplicitConversionData
+        温度非线性换算。12 个类别（长度/重量/体积/温度/面积/速度/时间/功率/数据/压强/角度/能量），
+        每类别以基准单位 factor==1，convert = value*(fromFactor/toFactor)；温度用摄氏中转特判。
+        暂不含趣味单位(isWhimsical)。
+      - UnitConverterViewModel：类别/单位选择、活动框切换(SwitchActive)、数字/小数点/退格/清除/正负号
+        输入、换算与补充结果(CalculateSuggested)、有效数字格式化(去尾零/科学计数)。
+      - UnitConverterView：类别 Picker + 数值1/单位1 + ⇅交换 + 数值2/单位2 + 补充结果横向条 + 数字键盘；
+        .converter 作为非引擎 CalculatorMode（usesEngine=false），隐藏历史/记忆 Dock，专用键盘监听。
+      - 数值校验：1m→100cm / 1kg→2.2046lb / 100°C→212°F / 32°F→0°C / 1mi→1.609344km / 1GB→1000MB 均正确。
+      - （待人工确认：横向排布与原版上下双数值框排版需真机截图核对）
 - [ ] 汇率：按上文决策接 fawazahmed0 + Frankfurter 兜底 + 缓存
 - [ ] 货币元数据改用 `Foundation.Locale`
 

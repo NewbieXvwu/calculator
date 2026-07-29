@@ -25,6 +25,8 @@ struct ContentView: View {
                         ProgrammerCalculatorView(model: model, showsHistoryButton: !dockVisible)
                     case .date:
                         DateCalculatorView(model: model, showsHistoryButton: !dockVisible)
+                    case .converter:
+                        UnitConverterView(model: model, showsHistoryButton: !dockVisible)
                     default:
                         StandardCalculatorView(model: model, showsHistoryButton: !dockVisible)
                     }
@@ -48,6 +50,7 @@ struct ContentView: View {
         case .scientific: return 360
         case .programmer: return 340
         case .date: return 300
+        case .converter: return 300
         case .standard: return 280
         }
     }
@@ -57,6 +60,7 @@ struct ContentView: View {
         case .scientific: return 400
         case .programmer: return 380
         case .date: return 340
+        case .converter: return 340
         case .standard: return 322
         }
     }
@@ -66,6 +70,7 @@ struct ContentView: View {
         case .scientific: return 560
         case .programmer: return 600
         case .date: return 460
+        case .converter: return 520
         case .standard: return 480
         }
     }
