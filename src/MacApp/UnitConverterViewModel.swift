@@ -18,7 +18,19 @@ final class UnitConverterViewModel: ObservableObject {
         let abbreviation: String
     }
 
-    let categories = UnitConverterData.categories
+    /// 货币类别 id / 货币单位 id 偏移（避开静态单位 id，静态最大 168）。
+    static let currencyCategoryID = 100
+    static let currencyUnitIDBase = 10000
+
+    /// 动态货币类别（汇率加载成功后填充）。
+    @Published private(set) var currencyCategory: ConverterCategory?
+    /// 货币数据状态提示（加载中 / 日期 / 失败）。
+    @Published private(set) var currencyStatus = "正在加载汇率…"
+
+    /// 全部类别 = 静态单位 + （已加载的）货币。
+    var categories: [ConverterCategory] {
+        UnitConverterData.categories + (currencyCategory.map { [$0] } ?? [])
+    }
 
     @Published private(set) var currentCategory: ConverterCategory
     @Published private(set) var fromUnit: ConverterUnit
@@ -44,6 +56,80 @@ final class UnitConverterViewModel: ObservableObject {
         fromUnit = category.units[0]
         toUnit = category.units.count > 1 ? category.units[1] : category.units[0]
         recalculate()
+        Task { await loadCurrencies() }
+    }
+
+    // MARK: - 货币（动态汇率）
+
+    /// 常用货币优先排序，其余按代码字母序。
+    private static let majorCurrencyOrder = ["USD", "EUR", "GBP", "JPY", "CNY", "HKD", "CAD", "AUD", "CHF", "KRW"]
+
+    func loadCurrencies() async {
+        guard let rates = await CurrencyService.loadRates() else {
+            currencyStatus = "汇率加载失败（可稍后刷新）"
+            return
+        }
+        applyRates(rates)
+    }
+
+    /// 手动刷新汇率。
+    func refreshCurrencies() async {
+        currencyStatus = "正在刷新汇率…"
+        if let rates = await CurrencyService.refreshFromNetwork() {
+            applyRates(rates)
+        } else {
+            currencyStatus = "刷新失败（保留上次数据）"
+        }
+    }
+
+    private func applyRates(_ rates: CurrencyRates) {
+        let category = Self.buildCurrencyCategory(from: rates)
+        currencyCategory = category
+        currencyStatus = "汇率更新于 \(rates.date)"
+        // 若当前正处于货币类别，刷新其单位引用（保持代码不变的前提下更新 factor）。
+        if currentCategory.id == Self.currencyCategoryID {
+            let from = category.units.first { $0.abbreviation == fromUnit.abbreviation } ?? category.units[0]
+            let to = category.units.first { $0.abbreviation == toUnit.abbreviation }
+                ?? (category.units.count > 1 ? category.units[1] : category.units[0])
+            currentCategory = category
+            fromUnit = from
+            toUnit = to
+            recalculate()
+        }
+    }
+
+    private static func buildCurrencyCategory(from rates: CurrencyRates) -> ConverterCategory {
+        let known = Set(Locale.commonISOCurrencyCodes)
+        let locale = Locale.current
+        // 仅保留有元数据的 ISO 货币，避免混入加密货币等。
+        let codes = rates.rates.keys.filter { known.contains($0) && (rates.rates[$0] ?? 0) > 0 }
+
+        let sorted = codes.sorted { a, b in
+            let ia = majorCurrencyOrder.firstIndex(of: a)
+            let ib = majorCurrencyOrder.firstIndex(of: b)
+            switch (ia, ib) {
+            case let (.some(x), .some(y)): return x < y
+            case (.some, .none): return true
+            case (.none, .some): return false
+            default: return a < b
+            }
+        }
+
+        var units: [ConverterUnit] = []
+        for (index, code) in sorted.enumerated() {
+            guard let rate = rates.rates[code], rate > 0 else { continue }
+            let name = locale.localizedString(forCurrencyCode: code) ?? code
+            // factor = 1/rate（相对 USD 的价值），复用普通类别的 value*(fromFactor/toFactor)。
+            units.append(ConverterUnit(
+                id: currencyUnitIDBase + index,
+                name: name,
+                abbreviation: code,
+                factor: 1.0 / rate))
+        }
+
+        return ConverterCategory(
+            id: currencyCategoryID, name: "货币",
+            supportsNegative: false, isTemperature: false, units: units)
     }
 
     // MARK: - 类别 / 单位选择

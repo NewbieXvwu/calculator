@@ -177,8 +177,17 @@
         .converter 作为非引擎 CalculatorMode（usesEngine=false），隐藏历史/记忆 Dock，专用键盘监听。
       - 数值校验：1m→100cm / 1kg→2.2046lb / 100°C→212°F / 32°F→0°C / 1mi→1.609344km / 1GB→1000MB 均正确。
       - （待人工确认：横向排布与原版上下双数值框排版需真机截图核对）
-- [ ] 汇率：按上文决策接 fawazahmed0 + Frankfurter 兜底 + 缓存
-- [ ] 货币元数据改用 `Foundation.Locale`
+- [x] 汇率：按上文决策接 fawazahmed0 + Frankfurter 兜底 + 缓存
+      - CurrencyService：主源 fawazahmed0 currency-api（jsDelivr，无 key），兜底 Frankfurter，
+        均以 USD 为基准；结果写入 ~/Library/Caches/MacCalculator/currency_rates.json，
+        离线/失败回退缓存；提供手动刷新。
+      - 端到端联网校验：拉取 338 种货币，100 USD→676.78 CNY，factor(=1/rate) 换算与直算一致。
+      - （打包分发为 .app 时需补 com.apple.security.network.client 权限，留待 Phase 5）
+- [x] 货币元数据改用 `Foundation.Locale`
+      - 货币列表取 Locale.commonISOCurrencyCodes ∩ 汇率键集（滤除加密货币等），
+        本地化名用 localizedString(forCurrencyCode:)，常用币种(USD/EUR/GBP/JPY/CNY…)优先排序。
+      - 「货币」作为动态 ConverterCategory 接入换算器（factor=1/rate 复用现有换算逻辑），
+        选中时显示汇率日期 + 刷新按钮。
 
 ### Phase 4：绘图模式（8–12 周+，最后攻坚）
 - [ ] 先接 `GraphingImpl/Mocks` 等价的 Swift Mock，跑通 UI 架构

@@ -29,6 +29,12 @@ struct UnitConverterView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
 
+            if converter.currentCategory.id == UnitConverterViewModel.currencyCategoryID {
+                currencyStatusBar
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 6)
+            }
+
             valueRow(
                 display: converter.fromDisplay,
                 unit: converter.fromUnit,
@@ -76,7 +82,24 @@ struct UnitConverterView: View {
         .labelsHidden()
     }
 
-    // MARK: - 数值 + 单位行
+    private var currencyStatusBar: some View {
+        HStack(spacing: 8) {
+            Text(converter.currencyStatus)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer()
+            Button {
+                Task { await converter.refreshCurrencies() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .buttonStyle(.borderless)
+            .help("刷新汇率")
+            .accessibilityLabel("刷新汇率")
+        }
+    }
 
     private func valueRow(
         display: String,
