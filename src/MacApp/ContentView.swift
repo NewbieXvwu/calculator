@@ -23,13 +23,15 @@ struct ContentView: View {
                         ScientificCalculatorView(model: model, showsHistoryButton: !dockVisible)
                     case .programmer:
                         ProgrammerCalculatorView(model: model, showsHistoryButton: !dockVisible)
+                    case .date:
+                        DateCalculatorView(model: model, showsHistoryButton: !dockVisible)
                     default:
                         StandardCalculatorView(model: model, showsHistoryButton: !dockVisible)
                     }
                 }
                 .frame(minWidth: minBodyWidth)
 
-                if dockVisible {
+                if dockVisible && model.mode.usesEngine {
                     Divider()
                     HistoryMemoryPanel(model: model)
                         .frame(width: min(300, proxy.size.width - 320))
@@ -45,6 +47,7 @@ struct ContentView: View {
         switch model.mode {
         case .scientific: return 360
         case .programmer: return 340
+        case .date: return 300
         case .standard: return 280
         }
     }
@@ -53,6 +56,7 @@ struct ContentView: View {
         switch model.mode {
         case .scientific: return 400
         case .programmer: return 380
+        case .date: return 340
         case .standard: return 322
         }
     }
@@ -61,6 +65,7 @@ struct ContentView: View {
         switch model.mode {
         case .scientific: return 560
         case .programmer: return 600
+        case .date: return 460
         case .standard: return 480
         }
     }

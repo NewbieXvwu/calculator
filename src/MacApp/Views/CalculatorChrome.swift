@@ -40,6 +40,7 @@ struct CalculatorHeader: View {
                     Label("标准", systemImage: "plusminus").tag(CalculatorMode.standard)
                     Label("科学", systemImage: "function").tag(CalculatorMode.scientific)
                     Label("程序员", systemImage: "chevron.left.forwardslash.chevron.right").tag(CalculatorMode.programmer)
+                    Label("日期计算", systemImage: "calendar").tag(CalculatorMode.date)
                 }
                 .pickerStyle(.inline)
             } label: {
@@ -63,6 +64,7 @@ struct CalculatorHeader: View {
         case .scientific: return "function"
         case .programmer: return "chevron.left.forwardslash.chevron.right"
         case .standard: return "square.grid.2x2"
+        case .date: return "calendar"
         }
     }
 

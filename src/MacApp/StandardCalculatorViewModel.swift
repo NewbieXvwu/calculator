@@ -12,12 +12,18 @@ enum CalculatorMode {
     case standard
     case scientific
     case programmer
+    /// 日期计算：不走计算引擎，用 Foundation.Calendar 自成一体。
+    case date
+
+    /// 是否为引擎驱动的计算模式（日期计算不使用 CalcManager）。
+    var usesEngine: Bool { self != .date }
 
     var precision: Int {
         switch self {
         case .standard: return 16
         case .scientific: return 32
         case .programmer: return 64
+        case .date: return 16
         }
     }
 
@@ -26,6 +32,7 @@ enum CalculatorMode {
         case .standard: return .modeBasic
         case .scientific: return .modeScientific
         case .programmer: return .modeProgrammer
+        case .date: return .modeBasic
         }
     }
 }
@@ -364,6 +371,9 @@ final class StandardCalculatorViewModel: ObservableObject {
             isBitFlipChecked = false
             bridge.setRadix(RadixKind.dec.rawValue)
             updateProgrammerDisplay()
+        case .date:
+            // 日期计算不触碰计算引擎，仅切换视图。
+            break
         }
 
         refreshHistory()

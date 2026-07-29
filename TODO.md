@@ -156,7 +156,14 @@
         A–F + 数字 + 运算符键盘网格、按字长(64/32/16/8)铺开的位翻转开关面板。
       - calc-smoke 增补 255→HEX FF / OCT 377 / BIN 11111111 校验，通过。
       - （待人工确认：位翻转面板与四进制行的视觉排布需真机截图核对；分组填充 AddPadding 暂用引擎原始分组）
-- [ ] 日期计算模式
+- [x] 日期计算模式
+      - DateCalculatorViewModel（Swift）：直接用 Foundation.Calendar / DateComponents 替代原版
+        Windows.Globalization.Calendar；日期差先算年、月，剩余天数拆周+天，另给纯天数结果，
+        同天或仅差天数时只显示一个结果（对应 StrDateDiffResult / InDays / IsDiffInDays）；
+        加减日期为起始日 ±(年,月,天)，越界返回 nil→"超出范围"（对应 IsOutOfBound）；偏移上限 999。
+      - DateCalculatorView：日期差/加减日期分段切换、DatePicker、年/月/日 Stepper(0...999)、结果卡片；
+        .date 作为非引擎 CalculatorMode（usesEngine=false），隐藏历史/记忆 Dock。
+      - CalculatorChrome 模式菜单 + modeIcon 增补 .date(calendar 图标)；ContentView 接入并补最小窗口尺寸。
 
 ### Phase 3：单位/汇率换算器（2–3 周）
 - [ ] Swift 重写 `UnitConverterViewModel` + `UnitConverterDataLoader`
