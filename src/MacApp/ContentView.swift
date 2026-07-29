@@ -21,11 +21,13 @@ struct ContentView: View {
                     switch model.mode {
                     case .scientific:
                         ScientificCalculatorView(model: model, showsHistoryButton: !dockVisible)
+                    case .programmer:
+                        ProgrammerCalculatorView(model: model, showsHistoryButton: !dockVisible)
                     default:
                         StandardCalculatorView(model: model, showsHistoryButton: !dockVisible)
                     }
                 }
-                .frame(minWidth: model.mode == .scientific ? 360 : 280)
+                .frame(minWidth: minBodyWidth)
 
                 if dockVisible {
                     Divider()
@@ -36,7 +38,31 @@ struct ContentView: View {
         }
         .background(VisualEffectBackground().ignoresSafeArea())
         .background(WindowConfigurator())
-        .frame(minWidth: model.mode == .scientific ? 400 : 322, minHeight: model.mode == .scientific ? 560 : 480)
+        .frame(minWidth: minWindowWidth, minHeight: minWindowHeight)
+    }
+
+    private var minBodyWidth: CGFloat {
+        switch model.mode {
+        case .scientific: return 360
+        case .programmer: return 340
+        case .standard: return 280
+        }
+    }
+
+    private var minWindowWidth: CGFloat {
+        switch model.mode {
+        case .scientific: return 400
+        case .programmer: return 380
+        case .standard: return 322
+        }
+    }
+
+    private var minWindowHeight: CGFloat {
+        switch model.mode {
+        case .scientific: return 560
+        case .programmer: return 600
+        case .standard: return 480
+        }
     }
 }
 

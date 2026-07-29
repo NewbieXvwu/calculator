@@ -43,7 +43,7 @@ struct CalculatorHeader: View {
                 }
                 .pickerStyle(.inline)
             } label: {
-                Image(systemName: model.mode == .scientific ? "function" : "square.grid.2x2")
+                Image(systemName: modeIcon)
             }
             .menuStyle(.button)
             .buttonStyle(.glass)
@@ -56,6 +56,14 @@ struct CalculatorHeader: View {
         .padding(.trailing, 12)
         .padding(.top, 8)
         .padding(.bottom, 2)
+    }
+
+    private var modeIcon: String {
+        switch model.mode {
+        case .scientific: return "function"
+        case .programmer: return "chevron.left.forwardslash.chevron.right"
+        case .standard: return "square.grid.2x2"
+        }
     }
 
     private var modeBinding: Binding<CalculatorMode> {

@@ -30,6 +30,83 @@ enum CalculatorMode {
     }
 }
 
+/// 程序员模式的进制（对应原版 NumberBase / RadixType）。
+/// rawValue 与 bridge `setRadix:` 约定一致：0=Hex 1=Decimal 2=Octal 3=Binary。
+enum RadixKind: Int, CaseIterable, Identifiable {
+    case hex = 0
+    case dec = 1
+    case oct = 2
+    case bin = 3
+
+    var id: Int { rawValue }
+
+    /// 传给 `resultForRadix:` 的实际基数。
+    var radixValue: Int {
+        switch self {
+        case .hex: return 16
+        case .dec: return 10
+        case .oct: return 8
+        case .bin: return 2
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .hex: return "HEX"
+        case .dec: return "DEC"
+        case .oct: return "OCT"
+        case .bin: return "BIN"
+        }
+    }
+}
+
+/// 程序员模式的字长（对应原版 BitLength）。
+enum WordSize: CaseIterable {
+    case qword
+    case dword
+    case word
+    case byte
+
+    var label: String {
+        switch self {
+        case .qword: return "QWORD"
+        case .dword: return "DWORD"
+        case .word: return "WORD"
+        case .byte: return "BYTE"
+        }
+    }
+
+    /// 该字长对应的引擎命令。
+    var command: EngineCommand {
+        switch self {
+        case .qword: return .qword
+        case .dword: return .dword
+        case .word: return .word
+        case .byte: return .byte
+        }
+    }
+
+    /// 位翻转面板显示的位数。
+    var bitCount: Int {
+        switch self {
+        case .qword: return 64
+        case .dword: return 32
+        case .word: return 16
+        case .byte: return 8
+        }
+    }
+
+    /// 单击字长按钮时循环到的下一档（对应原版单按钮循环）。
+    var next: WordSize {
+        switch self {
+        case .qword: return .dword
+        case .dword: return .word
+        case .word: return .byte
+        case .byte: return .qword
+        }
+    }
+}
+
 struct ExpressionToken: Identifiable, Equatable {
     let id: Int
     let text: String
@@ -63,6 +140,22 @@ final class StandardCalculatorViewModel: ObservableObject {
     @Published private(set) var isFToEEnabled = true
     /// 科学模式左侧函数列的 2nd/Shift 态（对应原版 ShiftButton）：切换 x²↔x³ 等。
     @Published private(set) var isInvChecked = false
+    // MARK: 程序员模式状态
+    /// 当前进制（对应原版 CurrentRadixType）。
+    @Published private(set) var currentRadix: RadixKind = .dec
+    /// 当前字长（对应原版 ValueBitLength）。
+    @Published private(set) var wordSize: WordSize = .qword
+    /// 是否处于位翻转（Bit Flip）键盘（对应原版 IsBitFlipChecked）。
+    @Published var isBitFlipChecked = false
+    /// 四个进制的转换显示（对应原版 Hex/Dec/Oct/BinaryDisplayValue）。
+    @Published private(set) var hexDisplay = "0"
+    @Published private(set) var decDisplay = "0"
+    @Published private(set) var octDisplay = "0"
+    @Published private(set) var binDisplay = "0"
+    /// 位翻转面板的 64 位（bit 0 在数组首位），随显示更新。
+    @Published private(set) var binaryBits: [Bool] = Array(repeating: false, count: 64)
+    /// A–F 十六进制按钮是否可用（仅 HEX 进制下可用，对应原版 AreHEXButtonsEnabled）。
+    var areHexButtonsEnabled: Bool { currentRadix == .hex }
     /// 物理键盘命中的按键，用于瞬时闪动高亮；短暂置位后自动清空。
     @Published private(set) var flashedCommand: EngineCommand?
 
@@ -161,6 +254,85 @@ final class StandardCalculatorViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Programmer mode (mirrors SwitchProgrammerModeBase / ValueBitLength)
+
+    /// 切换进制（对应原版 SwitchProgrammerModeBase）。会更新 HEX 按钮可用性与四进制显示。
+    func switchRadix(_ radix: RadixKind) {
+        guard radix != currentRadix else { return }
+        if isInError {
+            bridge.sendCommand(EngineCommand.clear.rawValue)
+        }
+        currentRadix = radix
+        bridge.setRadix(radix.rawValue)
+        updateProgrammerDisplay()
+    }
+
+    /// 单击字长按钮循环 QWORD→DWORD→WORD→BYTE→QWORD（对应原版单个循环按钮）。
+    func cycleWordSize() {
+        setWordSize(wordSize.next)
+    }
+
+    /// 设置指定字长（对应原版 ValueBitLength::set）。
+    func setWordSize(_ newSize: WordSize) {
+        guard newSize != wordSize else { return }
+        wordSize = newSize
+        buttonPressed(newSize.command)
+        updateProgrammerDisplay()
+    }
+
+    /// 在整键盘 / 位翻转键盘之间切换（对应原版 IsBitFlipChecked）。
+    func toggleBitFlip() {
+        isBitFlipChecked.toggle()
+    }
+
+    /// 翻转第 `position` 位（对应原版 BinaryDigit 点击）。
+    func flipBit(_ position: Int) {
+        guard position >= 0, position < wordSize.bitCount else { return }
+        buttonPressed(.bitFlip(position))
+        updateProgrammerDisplay()
+    }
+
+    /// 当前进制下某个 0–9 数字键是否可用（BIN 只允许 0/1，OCT 允许 0–7）。
+    func isDigitAllowed(_ value: Int) -> Bool {
+        guard mode == .programmer else { return true }
+        return value < currentRadix.radixValue
+    }
+
+    /// 重新计算四进制显示与位数组（对应原版 UpdateProgrammerPanelDisplay）。
+    func updateProgrammerDisplay() {
+        guard mode == .programmer else { return }
+        let precision = CalculatorMode.programmer.precision
+        if isInError {
+            hexDisplay = displayValue
+            decDisplay = displayValue
+            octDisplay = displayValue
+            binDisplay = displayValue
+            binaryBits = Array(repeating: false, count: 64)
+            return
+        }
+
+        let hex = bridge.result(forRadix: 16, precision: precision, groupDigits: true)
+        if hex.isEmpty {
+            hexDisplay = displayValue
+            decDisplay = displayValue
+            octDisplay = displayValue
+            binDisplay = displayValue
+        } else {
+            hexDisplay = hex
+            decDisplay = bridge.result(forRadix: 10, precision: precision, groupDigits: true)
+            octDisplay = bridge.result(forRadix: 8, precision: precision, groupDigits: true)
+            binDisplay = bridge.result(forRadix: 2, precision: precision, groupDigits: true)
+        }
+
+        // 位数组来自未分组的纯二进制串，bit 0 位于字符串末尾。
+        let rawBinary = bridge.result(forRadix: 2, precision: precision, groupDigits: false)
+        var bits = Array(repeating: false, count: 64)
+        for (index, char) in rawBinary.reversed().enumerated() where index < 64 {
+            bits[index] = (char == "1")
+        }
+        binaryBits = bits
+    }
+
     // MARK: - Mode switching (mirrors SetCalculatorType)
 
     func setCalculatorType(_ newMode: CalculatorMode) {
@@ -187,6 +359,11 @@ final class StandardCalculatorViewModel: ObservableObject {
             bridge.setProgrammerMode()
             resetRadixAndUpdateMemory(resetRadix: false)
             bridge.setPrecision(newMode.precision)
+            currentRadix = .dec
+            wordSize = .qword
+            isBitFlipChecked = false
+            bridge.setRadix(RadixKind.dec.rawValue)
+            updateProgrammerDisplay()
         }
 
         refreshHistory()
@@ -256,6 +433,7 @@ final class StandardCalculatorViewModel: ObservableObject {
                 guard let self else { return }
                 self.displayValue = text
                 self.isInError = isError
+                self.updateProgrammerDisplay()
             }
         }
         bridge.onIsInErrorChanged = { [weak self] isError in

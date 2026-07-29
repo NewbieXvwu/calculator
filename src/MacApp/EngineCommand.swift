@@ -138,7 +138,15 @@ enum EngineCommand: Int {
     case rand = 600
     case euler = 601
 
+    /// 位翻转面板的第 0 位命令；第 i 位为 binPos0 + i（对应 CommandBINPOS0..63 = 700..763）。
+    case binPos0 = 700
+
     static func digit(_ value: Int) -> EngineCommand {
         EngineCommand(rawValue: digit0.rawValue + value)!
+    }
+
+    /// 位翻转：翻转第 `position`（0..63）位的命令。
+    static func bitFlip(_ position: Int) -> EngineCommand {
+        EngineCommand(rawValue: binPos0.rawValue + position)!
     }
 }

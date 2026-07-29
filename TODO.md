@@ -145,7 +145,17 @@
       计算结果的主动播报（NarratorAnnouncement 等价物）待后续补齐）
 
 ### Phase 2：程序员 + 日期计算（2–3 周）
-- [ ] 程序员模式（进制转换、位运算、位翻转面板）
+- [x] 程序员模式（进制转换、位运算、位翻转面板）
+      - RadixKind / WordSize 枚举 + ViewModel 状态（currentRadix / wordSize / isBitFlipChecked /
+        四进制显示 / binaryBits / areHexButtonsEnabled），对照原版 SwitchProgrammerModeBase /
+        ValueBitLength / UpdateProgrammerPanelDisplay；进制切换、字长循环、位翻转、A–F 与 0–9
+        按进制启用/禁用均已接通。
+      - EngineCommand 增补 binPos0(700) + bitFlip(pos) / lshfl 保持与算术左移复用（引擎无独立命令）。
+      - ProgrammerCalculatorView：四进制转换行（点按切进制）、整键盘/位翻转分段、字长循环按钮、
+        位运算 ▾ / 移位 ▾ 菜单（AND/OR/XOR/NOT/NAND/NOR，算术/逻辑/循环/带进位移位）、
+        A–F + 数字 + 运算符键盘网格、按字长(64/32/16/8)铺开的位翻转开关面板。
+      - calc-smoke 增补 255→HEX FF / OCT 377 / BIN 11111111 校验，通过。
+      - （待人工确认：位翻转面板与四进制行的视觉排布需真机截图核对；分组填充 AddPadding 暂用引擎原始分组）
 - [ ] 日期计算模式
 
 ### Phase 3：单位/汇率换算器（2–3 周）

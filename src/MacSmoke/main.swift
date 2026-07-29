@@ -38,4 +38,19 @@ let historyOK = history.count == 2 && history[1].result == "42"
 print("\(historyOK ? "PASS" : "FAIL"): history entries -> \(history.count) items, last result \(history.last?.result ?? "nil")")
 if !historyOK { failures += 1 }
 
+// Programmer-mode base conversion: 255 in HEX/OCT/BIN.
+bridge.setProgrammerMode()
+bridge.setPrecision(64)
+bridge.setRadix(1) // Decimal
+bridge.reset()
+bridge.sendDigit(2)
+bridge.sendDigit(5)
+bridge.sendDigit(5)
+let hex = bridge.result(forRadix: 16, precision: 64, groupDigits: false)
+let oct = bridge.result(forRadix: 8, precision: 64, groupDigits: false)
+let bin = bridge.result(forRadix: 2, precision: 64, groupDigits: false)
+let radixOK = hex == "FF" && oct == "377" && bin == "11111111"
+print("\(radixOK ? "PASS" : "FAIL"): 255 -> HEX \(hex) / OCT \(oct) / BIN \(bin) (expected FF / 377 / 11111111)")
+if !radixOK { failures += 1 }
+
 exit(failures == 0 ? 0 : 1)
