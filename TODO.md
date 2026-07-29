@@ -70,7 +70,12 @@
 ## 三、实施阶段（按序）
 
 ### Phase 0：骨架（1–2 周）
-- [ ] 创建 Xcode 工程（SwiftUI App，macOS target）
+- [x] 创建 Xcode 工程（SwiftUI App，macOS target）
+      （已完成：沿用 SPM 方案（Xcode 可直接打开 Package.swift 运行），新增 `MacCalculator`
+      可执行 target（`src/MacApp/`）：SwiftUI App + AppDelegate（无 bundle 需手动
+      `setActivationPolicy(.regular)`）+ CalculatorModel（ObservableObject 包桥接）+
+      骨架键盘验证全链路。完整 1:1 排版归 Phase 1。若后续需要正式 app bundle/签名，
+      再引入 xcodegen 或手建 .xcodeproj）
 - [x] 为 `CalcManager` 写 CMake 构建，在 macOS 编译通过
       （已完成：`src/CalcManager/CMakeLists.txt`；PPL 依赖用 `ppltasks_cross_platform.h` 垫片解决；
       冒烟测试 `smoketest/main.cpp` 在 arm64 通过：1+2=3、2*8=16、10/3=3.333333333333333）

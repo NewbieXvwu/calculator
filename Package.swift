@@ -33,6 +33,11 @@ let package = Package(
             ]
         ),
         .executableTarget(
+            name: "MacCalculator",
+            dependencies: ["CalcManagerBridge"],
+            path: "src/MacApp"
+        ),
+        .executableTarget(
             name: "calc-smoke",
             dependencies: ["CalcManagerBridge"],
             path: "src/MacSmoke"
