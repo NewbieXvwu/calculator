@@ -32,9 +32,11 @@ fi
 
 cd "giac-$VERSION"
 if [ ! -f config.h ]; then
+    # -O3 依官方 API 文档 1.4「full speed binaries」建议（原文另有 -fexpensive-optimizations
+    # 与 -malign-*，均为古老 GCC/x86 专属标志，clang/arm64 不适用，予以省略）。
     CPPFLAGS="-I$BREW/include" \
     LDFLAGS="-L$BREW/lib" \
-    CXXFLAGS="-O2 -std=gnu++17" \
+    CXXFLAGS="-O3 -std=gnu++17" \
     ./configure --disable-shared --enable-static \
         --disable-fltk --disable-gui --disable-ntl --disable-pari \
         --disable-gsl --disable-lapack --disable-ecm --disable-bernmm \

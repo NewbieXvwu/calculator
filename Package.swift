@@ -30,8 +30,8 @@ let package = Package(
             cxxSettings: [
                 .headerSearchPath("."),
                 .headerSearchPath("Ratpack"),
-                // Release 提速：覆盖 Xcode 默认的 -Os（与 giac 的 -O2 对齐）。
-                .unsafeFlags(["-O2"], .when(configuration: .release)),
+                // Release 提速：覆盖 Xcode 默认的 -Os（与 giac 官方 full-speed 建议的 -O3 对齐）。
+                .unsafeFlags(["-O3"], .when(configuration: .release)),
             ]
         ),
         .target(
@@ -41,7 +41,7 @@ let package = Package(
             publicHeadersPath: "include",
             cxxSettings: [
                 .headerSearchPath("../CalcManager"),
-                .unsafeFlags(["-O2"], .when(configuration: .release)),
+                .unsafeFlags(["-O3"], .when(configuration: .release)),
             ]
         ),
         .target(
@@ -49,7 +49,7 @@ let package = Package(
             path: "src/MacGiacBridge",
             publicHeadersPath: "include",
             cxxSettings: [
-                .unsafeFlags(["-O2"], .when(configuration: .release)),
+                .unsafeFlags(["-O3"], .when(configuration: .release)),
             ],
             linkerSettings: [
                 // libgiac.a 由 Tools/build_giac.sh 产出到 third_party/giac/lib，
