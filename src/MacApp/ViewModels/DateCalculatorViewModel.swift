@@ -51,11 +51,11 @@ final class DateCalculatorViewModel: ObservableObject {
         let days = trailingDays % 7
 
         var parts: [String] = []
-        if years != 0 { parts.append("\(years) 年") }
-        if months != 0 { parts.append("\(months) 个月") }
-        if weeks != 0 { parts.append("\(weeks) 周") }
-        if days != 0 { parts.append("\(days) 天") }
-        if parts.isEmpty { return "相同的日期" }
+        if years != 0 { parts.append(L10n.format("Mac_Date_YearsPart", "\(years)")) }
+        if months != 0 { parts.append(L10n.format("Mac_Date_MonthsPart", "\(months)")) }
+        if weeks != 0 { parts.append(L10n.format("Mac_Date_WeeksPart", "\(weeks)")) }
+        if days != 0 { parts.append(L10n.format("Mac_Date_DaysPart", "\(days)")) }
+        if parts.isEmpty { return L10n.string("Mac_Date_SameDates") }
         return parts.joined(separator: " ")
     }
 
@@ -64,7 +64,7 @@ final class DateCalculatorViewModel: ObservableObject {
         let start = calendar.startOfDay(for: min(fromDate, toDate))
         let end = calendar.startOfDay(for: max(fromDate, toDate))
         let totalDays = calendar.dateComponents([.day], from: start, to: end).day ?? 0
-        return "\(totalDays) 天"
+        return L10n.format("Mac_Date_DaysPart", "\(totalDays)")
     }
 
     /// 差值是否只有天数（此时只显示一个结果，避免冗余；对应原版 IsDiffInDays）。
@@ -89,7 +89,7 @@ final class DateCalculatorViewModel: ObservableObject {
 
     /// 结果日期的本地化长格式字符串。
     var dateResultString: String {
-        guard let result = dateResult else { return "超出范围" }
+        guard let result = dateResult else { return L10n.string("Mac_Date_OutOfRange") }
         return Self.longDateFormatter.string(from: result)
     }
 

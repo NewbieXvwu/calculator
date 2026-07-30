@@ -97,7 +97,7 @@ struct ProgrammerCalculatorView: View {
             .pickerStyle(.segmented)
             .labelsHidden()
             .frame(width: 96)
-            .help("整键盘 / 位翻转")
+            .help(L10n.string("Mac_FullKeypadBitFlip"))
 
             Button {
                 model.cycleWordSize()
@@ -108,8 +108,8 @@ struct ProgrammerCalculatorView: View {
             }
             .glassButtonStyle()
             .controlSize(.small)
-            .help("字长（点按循环 QWORD / DWORD / WORD / BYTE）")
-            .accessibilityLabel("字长 \(model.wordSize.label)")
+            .help(L10n.string("Mac_WordSizeHelp"))
+            .accessibilityLabel(L10n.format("Mac_WordSize", model.wordSize.label))
 
             Spacer(minLength: 0)
         }
@@ -128,7 +128,7 @@ struct ProgrammerCalculatorView: View {
                 opItem("AND", .and); opItem("OR", .or); opItem("XOR", .xor)
                 opItem("NOT", .not); opItem("NAND", .nand); opItem("NOR", .nor)
             } label: {
-                Label("位运算", systemImage: "point.3.filled.connected.trianglepath.dotted")
+                Label(L10n.string("Mac_BitwiseOps"), systemImage: "point.3.filled.connected.trianglepath.dotted")
             }
             .menuStyle(.button)
             .glassButtonStyle()
@@ -136,7 +136,7 @@ struct ProgrammerCalculatorView: View {
             .disabled(model.isInError)
 
             Menu {
-                Picker("移位类型", selection: $model.shiftMode) {
+                Picker(L10n.string("Mac_ShiftType"), selection: $model.shiftMode) {
                     ForEach(BitShiftMode.allCases) { mode in
                         Text(mode.label).tag(mode)
                     }
@@ -144,7 +144,7 @@ struct ProgrammerCalculatorView: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
             } label: {
-                Label("移位", systemImage: "chevron.right.2")
+                Label(L10n.string("Mac_Shift"), systemImage: "chevron.right.2")
             }
             .menuStyle(.button)
             .glassButtonStyle()
@@ -174,8 +174,8 @@ struct ProgrammerCalculatorView: View {
             Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                 GridRow {
                     hexKey("A", .digitA)
-                    CalcKey(model.shiftMode.leftKey.label, style: .function, fontSize: model.shiftMode.leftKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: "左移（\(model.shiftMode.label)）") { model.buttonPressed(model.shiftMode.leftKey.command) }
-                    CalcKey(model.shiftMode.rightKey.label, style: .function, fontSize: model.shiftMode.rightKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: "右移（\(model.shiftMode.label)）") { model.buttonPressed(model.shiftMode.rightKey.command) }
+                    CalcKey(model.shiftMode.leftKey.label, style: .function, fontSize: model.shiftMode.leftKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: L10n.format("Mac_ShiftLeft", model.shiftMode.label)) { model.buttonPressed(model.shiftMode.leftKey.command) }
+                    CalcKey(model.shiftMode.rightKey.label, style: .function, fontSize: model.shiftMode.rightKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: L10n.format("Mac_ShiftRight", model.shiftMode.label)) { model.buttonPressed(model.shiftMode.rightKey.command) }
                     clearKey
                     CalcKey(symbol: "delete.left", style: .function, a11yLabel: L10n.button("backSpaceButton")) { model.buttonPressed(.backspace) }
                 }
@@ -292,7 +292,7 @@ struct ProgrammerCalculatorView: View {
                 .fill(on ? Color.orange.opacity(0.15) : Color.primary.opacity(0.04))
         )
         .disabled(model.isInError || !enabled)
-        .accessibilityLabel("第 \(position) 位")
+        .accessibilityLabel(L10n.format("Mac_BitPosition", "\(position)"))
         .accessibilityValue(on ? "1" : "0")
     }
 }

@@ -36,7 +36,7 @@ struct GraphingView: View {
     private var equationPanel: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("函数")
+                Text(L10n.string("funcButton.Text"))
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Button {
@@ -45,16 +45,16 @@ struct GraphingView: View {
                     Image(systemName: showAnalysis ? "list.bullet.rectangle.fill" : "list.bullet.rectangle")
                 }
                 .buttonStyle(.borderless)
-                .help("函数分析")
-                .accessibilityLabel("函数分析")
+                .help(L10n.string("KeyGraphFeaturesLabel.Text"))
+                .accessibilityLabel(L10n.string("KeyGraphFeaturesLabel.Text"))
                 Button {
                     graph.addEquation()
                 } label: {
                     Image(systemName: "plus")
                 }
                 .buttonStyle(.borderless)
-                .help("添加函数")
-                .accessibilityLabel("添加函数")
+                .help(L10n.string("Mac_AddFunction"))
+                .accessibilityLabel(L10n.string("Mac_AddFunction"))
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -135,8 +135,8 @@ private struct EquationRow: View {
                     .frame(width: 12, height: 12)
             }
             .buttonStyle(.plain)
-            .help("线条样式")
-            .accessibilityLabel("线条样式")
+            .help(L10n.string("Mac_LineStyle"))
+            .accessibilityLabel(L10n.string("Mac_LineStyle"))
             .popover(isPresented: $stylePanelShown, arrowEdge: .bottom) {
                 EquationStylePanel(graph: graph, eq: eq)
             }
@@ -163,7 +163,7 @@ private struct EquationRow: View {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: 10))
                         .foregroundStyle(.red)
-                        .help("表达式无法解析")
+                        .help(L10n.string("Mac_ExprParseError"))
                 }
             }
 
@@ -175,8 +175,8 @@ private struct EquationRow: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help(eq.isVisible ? "隐藏" : "显示")
-            .accessibilityLabel(eq.isVisible ? "隐藏函数" : "显示函数")
+            .help(eq.isVisible ? L10n.string("Mac_Hide") : L10n.string("Mac_Show"))
+            .accessibilityLabel(eq.isVisible ? L10n.string("Mac_HideFunction") : L10n.string("Mac_ShowFunction"))
 
             Button {
                 graph.removeEquation(id: eq.id)
@@ -186,8 +186,8 @@ private struct EquationRow: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help("删除")
-            .accessibilityLabel("删除函数")
+            .help(L10n.string("DeleteHistoryMenuItem.Text"))
+            .accessibilityLabel(L10n.string("Mac_DeleteFunction"))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
@@ -211,7 +211,7 @@ private struct EquationStylePanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("线条颜色")
+            Text(L10n.string("Mac_LineColor"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(24), spacing: 6), count: 7), spacing: 6) {
@@ -232,11 +232,11 @@ private struct EquationStylePanel: View {
                         .frame(width: 26, height: 26)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("颜色 \(index + 1)")
+                    .accessibilityLabel(L10n.format("Mac_ColorN", "\(index + 1)"))
                 }
             }
 
-            Text("线条样式")
+            Text(L10n.string("Mac_LineStyle"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
@@ -263,9 +263,9 @@ private struct EquationStylePanel: View {
 
     private func styleName(_ style: EquationLineStyle) -> String {
         switch style {
-        case .solid: return "实线"
-        case .dash: return "虚线"
-        case .dot: return "点线"
+        case .solid: return L10n.string("Mac_LineSolid")
+        case .dash: return L10n.string("Mac_LineDash")
+        case .dot: return L10n.string("Mac_LineDot")
         }
     }
 }
@@ -311,19 +311,19 @@ private struct VariableSliderRow: View {
                 Image(systemName: "minus.circle").font(.system(size: 10))
             }
             .buttonStyle(.plain)
-            .help("减一步")
-            .accessibilityLabel("参数 \(name) 减一步")
+            .help(L10n.string("Mac_StepMinus"))
+            .accessibilityLabel(L10n.format("Mac_ParamStepMinus", name))
             Slider(value: Binding(
                 get: { variable.value },
                 set: { graph.setVariableValue(name, $0) }), in: variable.min...variable.max)
                 .controlSize(.mini)
-                .accessibilityLabel("参数 \(name)")
+                .accessibilityLabel(L10n.format("Mac_Param", name))
             Button { graph.stepVariable(name, direction: 1) } label: {
                 Image(systemName: "plus.circle").font(.system(size: 10))
             }
             .buttonStyle(.plain)
-            .help("加一步")
-            .accessibilityLabel("参数 \(name) 加一步")
+            .help(L10n.string("Mac_StepPlus"))
+            .accessibilityLabel(L10n.format("Mac_ParamStepPlus", name))
             Button {
                 minText = fmt(variable.min)
                 maxText = fmt(variable.max)
@@ -333,8 +333,8 @@ private struct VariableSliderRow: View {
                 Image(systemName: "slider.horizontal.3").font(.system(size: 10))
             }
             .buttonStyle(.plain)
-            .help("范围与步长")
-            .accessibilityLabel("参数 \(name) 范围与步长")
+            .help(L10n.string("Mac_RangeAndStep"))
+            .accessibilityLabel(L10n.format("Mac_ParamRangeAndStep", name))
             .popover(isPresented: $editorShown, arrowEdge: .bottom) {
                 editor
             }
@@ -343,14 +343,14 @@ private struct VariableSliderRow: View {
 
     private var editor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("参数 \(name)")
+            Text(L10n.format("Mac_Param", name))
                 .font(.system(size: 11, weight: .semibold))
             HStack(spacing: 6) {
-                field("最小", $minText)
-                field("最大", $maxText)
-                field("步长", $stepText)
+                field(L10n.string("Mac_Min"), $minText)
+                field(L10n.string("Mac_Max"), $maxText)
+                field(L10n.string("Mac_Step"), $stepText)
             }
-            Button("应用") {
+            Button(L10n.string("Mac_Apply")) {
                 if let v = Double(minText) { graph.setVariableMin(name, v) }
                 if let v = Double(maxText) { graph.setVariableMax(name, v) }
                 if let v = Double(stepText) { graph.setVariableStep(name, v) }
@@ -392,29 +392,29 @@ private struct GraphingSettingsPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("图形选项")
+            Text(L10n.string("GraphOptionsHeading.Text"))
                 .font(.system(size: 13, weight: .semibold))
 
-            Text("网格范围")
+            Text(L10n.string("Mac_GridRange"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
             Grid(horizontalSpacing: 8, verticalSpacing: 6) {
                 GridRow {
-                    rangeField("X 最小值", $xMinText)
-                    rangeField("X 最大值", $xMaxText)
+                    rangeField(L10n.string("Mac_XMin"), $xMinText)
+                    rangeField(L10n.string("Mac_XMax"), $xMaxText)
                 }
                 GridRow {
-                    rangeField("Y 最小值", $yMinText)
-                    rangeField("Y 最大值", $yMaxText)
+                    rangeField(L10n.string("Mac_YMin"), $yMinText)
+                    rangeField(L10n.string("Mac_YMax"), $yMaxText)
                 }
             }
             if rangeError {
-                Text("最小值必须小于最大值")
+                Text(L10n.string("Mac_MinLessThanMax"))
                     .font(.system(size: 10))
                     .foregroundStyle(.red)
             }
 
-            Button("重置视图") {
+            Button(L10n.string("ResetViewButton.Content")) {
                 graph.resetView()
                 loadRange()
             }
@@ -422,23 +422,23 @@ private struct GraphingSettingsPanel: View {
 
             Divider()
 
-            Text("单位")
+            Text(L10n.string("UnitsHeading.Text"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
-            Picker("三角单位", selection: $graph.trigMode) {
-                Text("弧度").tag(GraphTrigMode.radians)
-                Text("角度").tag(GraphTrigMode.degrees)
-                Text("梯度").tag(GraphTrigMode.gradians)
+            Picker(L10n.string("Mac_TrigUnit"), selection: $graph.trigMode) {
+                Text(L10n.string("Mac_Radians")).tag(GraphTrigMode.radians)
+                Text(L10n.string("Mac_Degrees")).tag(GraphTrigMode.degrees)
+                Text(L10n.string("Mac_Gradians")).tag(GraphTrigMode.gradians)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
 
             Divider()
 
-            Text("线条粗细")
+            Text(L10n.string("LineThicknessBoxHeading.Text"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
-            Picker("线条粗细", selection: $graph.lineWidth) {
+            Picker(L10n.string("LineThicknessBoxHeading.Text"), selection: $graph.lineWidth) {
                 ForEach([1.0, 2.0, 3.0, 4.0], id: \.self) { width in
                     LineWidthSample(width: width)
                         .frame(width: 120, height: 14)
@@ -533,34 +533,34 @@ private struct GiacAnalysisRow: View {
             }
             if let a = analysis {
                 if a.isEmpty {
-                    Text("无可报告特征")
+                    Text(L10n.string("Mac_NoFeatures"))
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                 } else {
-                    if let d = a.domain { line("定义域", d) }
-                    if let r = a.range { line("值域", r) }
-                    if a.parity == .even { line("奇偶性", "偶函数") }
-                    if a.parity == .odd { line("奇偶性", "奇函数") }
-                    if let p = a.periodicity { line("周期性", p) }
-                    if let y0 = a.yIntercept { line("y 截距", "(0, \(y0))") }
-                    if !a.zeros.isEmpty { line("零点", a.zeros.prefix(6).joined(separator: ", ")) }
-                    if !a.maxima.isEmpty { line("极大值", a.maxima.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
-                    if !a.minima.isEmpty { line("极小值", a.minima.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
-                    if !a.inflectionPoints.isEmpty { line("拐点", a.inflectionPoints.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
+                    if let d = a.domain { line(L10n.string("Domain"), d) }
+                    if let r = a.range { line(L10n.string("Range"), r) }
+                    if a.parity == .even { line(L10n.string("Parity"), L10n.string("Mac_Even")) }
+                    if a.parity == .odd { line(L10n.string("Parity"), L10n.string("Mac_Odd")) }
+                    if let p = a.periodicity { line(L10n.string("Periodicity"), p) }
+                    if let y0 = a.yIntercept { line(L10n.string("YIntercept"), "(0, \(y0))") }
+                    if !a.zeros.isEmpty { line(L10n.string("Mac_Zeros"), a.zeros.prefix(6).joined(separator: ", ")) }
+                    if !a.maxima.isEmpty { line(L10n.string("Maxima"), a.maxima.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
+                    if !a.minima.isEmpty { line(L10n.string("Minima"), a.minima.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
+                    if !a.inflectionPoints.isEmpty { line(L10n.string("InflectionPoints"), a.inflectionPoints.prefix(4).map { "(\($0.x), \($0.y))" }.joined(separator: " ")) }
                     if !a.monotonicity.isEmpty {
-                        line("单调性", a.monotonicity.prefix(5).map { "\($0.interval) \($0.direction)" }.joined(separator: "; "))
+                        line(L10n.string("Monotonicity"), a.monotonicity.prefix(5).map { "\($0.interval) \($0.direction)" }.joined(separator: "; "))
                     }
-                    if !a.verticalAsymptotes.isEmpty { line("垂直渐近线", a.verticalAsymptotes.prefix(4).joined(separator: ", ")) }
-                    if !a.horizontalAsymptotes.isEmpty { line("水平渐近线", a.horizontalAsymptotes.prefix(2).joined(separator: ", ")) }
-                    if !a.obliqueAsymptotes.isEmpty { line("斜渐近线", a.obliqueAsymptotes.prefix(2).joined(separator: ", ")) }
+                    if !a.verticalAsymptotes.isEmpty { line(L10n.string("VerticalAsymptotes"), a.verticalAsymptotes.prefix(4).joined(separator: ", ")) }
+                    if !a.horizontalAsymptotes.isEmpty { line(L10n.string("HorizontalAsymptotes"), a.horizontalAsymptotes.prefix(2).joined(separator: ", ")) }
+                    if !a.obliqueAsymptotes.isEmpty { line(L10n.string("ObliqueAsymptotes"), a.obliqueAsymptotes.prefix(2).joined(separator: ", ")) }
                     if !a.tooComplexFeatures.isEmpty {
-                        Text("因太复杂而无法计算：\(a.tooComplexFeatures.joined(separator: "、"))")
+                        Text(L10n.format("Mac_TooComplex", a.tooComplexFeatures.joined(separator: "、")))
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                     }
                 }
             } else {
-                Text("分析中…")
+                Text(L10n.string("Mac_Analyzing"))
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
             }
@@ -650,7 +650,7 @@ private struct GraphCanvas: View {
                     moveTraceCursor(key, fine: fine, size: size)
                 }
                 .contextMenu {
-                    Button("复制图形") { copyGraphImage(size: size) }
+                    Button(L10n.string("GraphCopyMenuItem.Text")) { copyGraphImage(size: size) }
                 }
                 .onChangeCompat(of: traceCursor) { _ in
                     announceTrace(size: size)
@@ -667,7 +667,7 @@ private struct GraphCanvas: View {
         let mathX = graph.xMin + Double(cursor.x) / Double(size.width) * graph.xSpan
         let mathY = graph.yMin + Double(size.height - cursor.y) / Double(size.height) * graph.ySpan
         guard let snap = graph.nearestCurvePoint(mathX: mathX, mathY: mathY) else { return }
-        AccessibilityAnnouncer.announce("x 等于 \(traceFmt(snap.x))，y 等于 \(traceFmt(snap.y))", highPriority: false)
+        AccessibilityAnnouncer.announce(L10n.format("Mac_TracePoint", traceFmt(snap.x), traceFmt(snap.y)), highPriority: false)
     }
 
     // MARK: - 命令面板（跟踪/放大/缩小/图形视图）
@@ -687,29 +687,29 @@ private struct GraphCanvas: View {
                 Image(systemName: "scope")
                     .foregroundStyle(graph.isTracing ? Color.accentColor : Color.primary)
             }
-            .help(graph.isTracing ? "停止跟踪" : "开始跟踪")
-            .accessibilityLabel(graph.isTracing ? "停止跟踪" : "开始跟踪")
+            .help(graph.isTracing ? L10n.string("disableTracingButtonToolTip") : L10n.string("enableTracingButtonToolTip"))
+            .accessibilityLabel(graph.isTracing ? L10n.string("disableTracingButtonToolTip") : L10n.string("enableTracingButtonToolTip"))
 
             Button {
                 share(size: size)
             } label: {
                 Image(systemName: "square.and.arrow.up")
             }
-            .help("分享")
-            .accessibilityLabel("分享")
+            .help(L10n.button("shareButton"))
+            .accessibilityLabel(L10n.button("shareButton"))
 
             Button { settingsShown.toggle() } label: { Image(systemName: "gearshape") }
-                .help("图形选项")
-                .accessibilityLabel("图形选项")
+                .help(L10n.string("GraphOptionsHeading.Text"))
+                .accessibilityLabel(L10n.string("GraphOptionsHeading.Text"))
                 .popover(isPresented: $settingsShown, arrowEdge: .bottom) {
                     GraphingSettingsPanel(graph: graph)
                 }
 
             Button { graph.zoom(factor: 0.8) } label: { Image(systemName: "plus.magnifyingglass") }
-                .help("放大 (⌃+)").accessibilityLabel("放大")
+                .help(L10n.string("Mac_ZoomIn")).accessibilityLabel(L10n.button("zoomInButton"))
                 .keyboardShortcut("=", modifiers: .control)
             Button { graph.zoom(factor: 1.25) } label: { Image(systemName: "minus.magnifyingglass") }
-                .help("缩小 (⌃-)").accessibilityLabel("缩小")
+                .help(L10n.string("Mac_ZoomOut")).accessibilityLabel(L10n.button("zoomOutButton"))
                 .keyboardShortcut("-", modifiers: .control)
 
             Button {
@@ -718,8 +718,8 @@ private struct GraphCanvas: View {
                 Image(systemName: "arrow.up.left.and.down.right.magnifyingglass")
                     .foregroundStyle(graph.isManualAdjustment ? Color.accentColor : Color.primary)
             }
-            .help(graph.isManualAdjustment ? "恢复自动适应视图 (⌃0)" : "自动适应视图 (⌃0)")
-            .accessibilityLabel("自动适应视图")
+            .help(graph.isManualAdjustment ? L10n.string("Mac_RestoreAutoFit") : L10n.string("Mac_AutoFitView"))
+            .accessibilityLabel(L10n.string("Mac_AutoFitViewLabel"))
             .keyboardShortcut("0", modifiers: .control)
             .background(
                 // 原版 Ctrl+Home 和弦同样触发 graphViewButton。

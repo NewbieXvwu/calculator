@@ -144,7 +144,7 @@ struct DisplayArea: View {
             .frame(height: 18)
             .accessibilityIdentifier("expressionDisplay")
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("表达式")
+            .accessibilityLabel(L10n.string("Mac_Expression"))
             .accessibilityValue(model.expressionTokens.map(\.text).joined())
 
             Text(model.displayValue)
@@ -155,7 +155,7 @@ struct DisplayArea: View {
                 .contentTransition(.numericText())
                 .animation(.snappy(duration: 0.18), value: model.displayValue)
                 .accessibilityIdentifier("primaryDisplay")
-                .accessibilityLabel("显示")
+                .accessibilityLabel(L10n.string("Mac_Display"))
                 .accessibilityValue(model.displayValue)
                 .textSelection(.enabled)
         }
@@ -178,7 +178,7 @@ struct DisplayArea: View {
                     .underline(editingTokenID == token.id)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("编辑操作数 \(token.text)")
+            .accessibilityLabel(L10n.format("Mac_EditOperand", token.text))
             .popover(isPresented: Binding(
                 get: { editingTokenID == token.id },
                 set: { if !$0 { editingTokenID = nil } }
@@ -195,13 +195,13 @@ struct DisplayArea: View {
 
     private var operandEditor: some View {
         VStack(spacing: 8) {
-            TextField("操作数", text: $editingText)
+            TextField(L10n.string("Mac_Operand"), text: $editingText)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 140)
                 .onSubmit(commitOperandEdit)
             HStack {
-                Button("取消") { editingTokenID = nil }
-                Button("确定", action: commitOperandEdit)
+                Button(L10n.string("Mac_Cancel")) { editingTokenID = nil }
+                Button(L10n.string("ErrorButtonOk"), action: commitOperandEdit)
                     .keyboardShortcut(.defaultAction)
             }
         }
@@ -222,11 +222,11 @@ struct MemoryBar: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            memoryKey("MC", disabled: model.isMemoryEmpty, a11y: "清除内存") { model.clearMemory() }
-            memoryKey("MR", disabled: model.isMemoryEmpty, a11y: "读取内存") { model.memoryItemPressed(0) }
-            memoryKey("M+", disabled: model.isInError, a11y: "内存加") { model.memoryAdd(0) }
-            memoryKey("M−", disabled: model.isInError, a11y: "内存减") { model.memorySubtract(0) }
-            memoryKey("MS", disabled: model.isInError, a11y: "存入内存") { model.memorizeNumber() }
+            memoryKey("MC", disabled: model.isMemoryEmpty, a11y: L10n.string("Mac_MemClear")) { model.clearMemory() }
+            memoryKey("MR", disabled: model.isMemoryEmpty, a11y: L10n.string("Mac_MemRecall")) { model.memoryItemPressed(0) }
+            memoryKey("M+", disabled: model.isInError, a11y: L10n.string("Mac_MemAdd")) { model.memoryAdd(0) }
+            memoryKey("M−", disabled: model.isInError, a11y: L10n.string("Mac_MemSubtract")) { model.memorySubtract(0) }
+            memoryKey("MS", disabled: model.isInError, a11y: L10n.string("Mac_MemStore")) { model.memorizeNumber() }
         }
         .frame(height: 26)
     }

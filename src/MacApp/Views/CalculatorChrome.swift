@@ -16,20 +16,20 @@ struct ModeMenuButton: View {
 
     var body: some View {
         Menu {
-            Picker("模式", selection: modeBinding) {
-                Label("标准", systemImage: "plus.slash.minus").tag(CalculatorMode.standard)
-                Label("科学", systemImage: "function").tag(CalculatorMode.scientific)
-                Label("程序员", systemImage: "cpu").tag(CalculatorMode.programmer)
-                Label("日期计算", systemImage: "calendar").tag(CalculatorMode.date)
-                Label("单位换算", systemImage: "arrow.left.arrow.right").tag(CalculatorMode.converter)
-                Label("绘图", systemImage: "chart.xyaxis.line").tag(CalculatorMode.graphing)
+            Picker(L10n.string("Mac_Menu_Mode"), selection: modeBinding) {
+                Label(L10n.string("StandardModeText"), systemImage: "plus.slash.minus").tag(CalculatorMode.standard)
+                Label(L10n.string("ScientificModeText"), systemImage: "function").tag(CalculatorMode.scientific)
+                Label(L10n.string("ProgrammerModeText"), systemImage: "cpu").tag(CalculatorMode.programmer)
+                Label(L10n.string("DateCalculationModeText"), systemImage: "calendar").tag(CalculatorMode.date)
+                Label(L10n.string("ConverterModeText"), systemImage: "arrow.left.arrow.right").tag(CalculatorMode.converter)
+                Label(L10n.string("GraphingCalculatorModeText"), systemImage: "chart.xyaxis.line").tag(CalculatorMode.graphing)
             }
             .pickerStyle(.inline)
         } label: {
             Image(systemName: "circle.grid.3x3")
         }
-        .help("计算器模式")
-        .accessibilityLabel("计算器模式")
+        .help(L10n.string("Mac_ModeButtonLabel"))
+        .accessibilityLabel(L10n.string("Mac_ModeButtonLabel"))
     }
 
     private var modeBinding: Binding<CalculatorMode> {

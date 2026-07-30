@@ -35,8 +35,8 @@ struct ContentView: View {
                 } label: {
                     Image(systemName: "sidebar.leading")
                 }
-                .help("历史记录与内存")
-                .accessibilityLabel("历史记录与内存")
+                .help(L10n.string("Mac_HistoryAndMemory"))
+                .accessibilityLabel(L10n.string("Mac_HistoryAndMemory"))
                 .disabled(!model.mode.usesEngine)
             }
             ToolbarItem(placement: .primaryAction) {
@@ -78,7 +78,7 @@ struct ContentView: View {
             sidebarShown.toggle()
         }
         AccessibilityAnnouncer.announce(
-            sidebarShown ? "历史记录面板已打开" : "历史记录面板已关闭", highPriority: false)
+            sidebarShown ? L10n.string("Mac_Ann_SidebarOpen") : L10n.string("Mac_Ann_SidebarClosed"), highPriority: false)
     }
 
     private var minBodyWidth: CGFloat {

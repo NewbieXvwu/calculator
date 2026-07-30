@@ -536,12 +536,12 @@ final class GiacMathSolverTests: XCTestCase {
         let expr = try XCTUnwrap(GraphExpression("x^2-4"))
         let a = GiacMathSolver.analyze(expr)
         XCTAssertEqual(a.range, "[-4, +∞)")
-        XCTAssertEqual(a.periodicity, "非周期")
+        XCTAssertEqual(a.periodicity, L10n.string("Mac_Aperiodic"))
         XCTAssertEqual(a.monotonicity.count, 2)
         XCTAssertEqual(a.monotonicity[0].interval, "(-∞, 0)")
-        XCTAssertEqual(a.monotonicity[0].direction, "递减")
+        XCTAssertEqual(a.monotonicity[0].direction, L10n.string("KGFMonotonicityDecreasing"))
         XCTAssertEqual(a.monotonicity[1].interval, "(0, +∞)")
-        XCTAssertEqual(a.monotonicity[1].direction, "递增")
+        XCTAssertEqual(a.monotonicity[1].direction, L10n.string("KGFMonotonicityIncreasing"))
         XCTAssertTrue(a.obliqueAsymptotes.isEmpty)
     }
 
@@ -662,31 +662,31 @@ final class UnitConverterDataTests: XCTestCase {
     }
 
     func testLength() {
-        XCTAssertEqual(convert(1, from: "米", to: "厘米", category: "长度")!, 100, accuracy: 1e-9)
-        XCTAssertEqual(convert(1, from: "英里", to: "千米", category: "长度")!, 1.609344, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: L10n.string("UnitName_Meter"), to: L10n.string("UnitName_Centimeter"), category: L10n.string("CategoryName_LengthText"))!, 100, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: L10n.string("UnitName_Mile"), to: L10n.string("UnitName_Kilometer"), category: L10n.string("CategoryName_LengthText"))!, 1.609344, accuracy: 1e-9)
     }
 
     func testWeight() {
-        XCTAssertEqual(convert(1, from: "千克", to: "磅", category: "重量和质量")!, 2.2046226218, accuracy: 1e-6)
+        XCTAssertEqual(convert(1, from: L10n.string("UnitName_Kilogram"), to: L10n.string("UnitName_Pound"), category: L10n.string("CategoryName_WeightText"))!, 2.2046226218, accuracy: 1e-6)
     }
 
     func testTemperature() {
-        XCTAssertEqual(convert(100, from: "摄氏度", to: "华氏度", category: "温度")!, 212, accuracy: 1e-9)
-        XCTAssertEqual(convert(32, from: "华氏度", to: "摄氏度", category: "温度")!, 0, accuracy: 1e-9)
-        XCTAssertEqual(convert(0, from: "摄氏度", to: "开尔文", category: "温度")!, 273.15, accuracy: 1e-9)
+        XCTAssertEqual(convert(100, from: L10n.string("UnitName_DegreesCelsius"), to: L10n.string("UnitName_DegreesFahrenheit"), category: L10n.string("CategoryName_TemperatureText"))!, 212, accuracy: 1e-9)
+        XCTAssertEqual(convert(32, from: L10n.string("UnitName_DegreesFahrenheit"), to: L10n.string("UnitName_DegreesCelsius"), category: L10n.string("CategoryName_TemperatureText"))!, 0, accuracy: 1e-9)
+        XCTAssertEqual(convert(0, from: L10n.string("UnitName_DegreesCelsius"), to: L10n.string("UnitName_Kelvin"), category: L10n.string("CategoryName_TemperatureText"))!, 273.15, accuracy: 1e-9)
     }
 
     func testData() {
-        XCTAssertEqual(convert(1, from: "吉字节", to: "兆字节", category: "数据")!, 1000, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: L10n.string("UnitName_Gigabyte"), to: L10n.string("UnitName_Megabyte"), category: L10n.string("CategoryName_DataText"))!, 1000, accuracy: 1e-9)
     }
 
     func testWhimsicalFactors() {
         // 原版 UnitConverterDataLoader.cpp 因子表抽查。
-        XCTAssertEqual(convert(1, from: "大象", to: "千克", category: "重量和质量")!, 4000, accuracy: 1e-9)
-        XCTAssertEqual(convert(1, from: "足球场", to: "平方米", category: "面积")!, 10869.66, accuracy: 1e-9)
-        XCTAssertEqual(convert(1, from: "DVD", to: "兆字节", category: "数据")!, 4700, accuracy: 1e-9)
-        XCTAssertEqual(convert(1, from: "香蕉", to: "焦耳", category: "能量")!, 439614, accuracy: 1e-9)
-        XCTAssertEqual(convert(1, from: "大型喷气式客机", to: "米", category: "长度")!, 76, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: L10n.string("UnitName_Elephant"), to: L10n.string("UnitName_Kilogram"), category: L10n.string("CategoryName_WeightText"))!, 4000, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: L10n.string("UnitName_SoccerField"), to: L10n.string("UnitName_SquareMeter"), category: L10n.string("CategoryName_AreaText"))!, 10869.66, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: L10n.string("UnitName_DVD"), to: L10n.string("UnitName_Megabyte"), category: L10n.string("CategoryName_DataText"))!, 4700, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: L10n.string("UnitName_Banana"), to: L10n.string("UnitName_Joule"), category: L10n.string("CategoryName_EnergyText"))!, 439614, accuracy: 1e-9)
+        XCTAssertEqual(convert(1, from: L10n.string("UnitName_JumboJet"), to: L10n.string("UnitName_Meter"), category: L10n.string("CategoryName_LengthText"))!, 76, accuracy: 1e-9)
     }
 
     func testWhimsicalNotSelectable() {
@@ -694,16 +694,16 @@ final class UnitConverterDataTests: XCTestCase {
             XCTAssertFalse(cat.selectableUnits.contains { $0.isWhimsical },
                            "\(cat.name) 下拉框不应包含趣味单位")
         }
-        let weight = UnitConverterData.categories.first { $0.name == "重量和质量" }!
+        let weight = UnitConverterData.categories.first { $0.name == L10n.string("CategoryName_WeightText") }!
         XCTAssertTrue(weight.units.contains { $0.isWhimsical })
     }
 
     @MainActor
     func testSupplementaryResultsAppendSingleWhimsical() {
         let vm = UnitConverterViewModel()
-        let weight = UnitConverterData.categories.first { $0.name == "重量和质量" }!
+        let weight = UnitConverterData.categories.first { $0.name == L10n.string("CategoryName_WeightText") }!
         vm.selectCategory(weight)
-        vm.selectFromUnit(weight.units.first { $0.name == "千克" }!)
+        vm.selectFromUnit(weight.units.first { $0.name == L10n.string("UnitName_Kilogram") }!)
         vm.inputDigit(4)
         for _ in 0..<3 { vm.inputDigit(0) } // 4000 kg = 1 大象
         let whimsicalIDs = Set(weight.units.filter { $0.isWhimsical }.map { $0.id })
@@ -711,7 +711,7 @@ final class UnitConverterDataTests: XCTestCase {
         XCTAssertEqual(whimsicalResults.count, 1, "补充结果应恰好含一个趣味条目")
         XCTAssertTrue(whimsicalIDs.contains(vm.supplementaryResults.last!.id), "趣味条目应在末位")
         // 4000 kg 恰为 1 大象（量级 |log10(1)|=0 最小，应被选为最佳趣味结果）。
-        XCTAssertEqual(vm.supplementaryResults.last!.abbreviation, "大象")
+        XCTAssertEqual(vm.supplementaryResults.last!.abbreviation, L10n.string("UnitAbbreviation_Elephant"))
         XCTAssertEqual(vm.supplementaryResults.last!.value, "1")
     }
 

@@ -16,9 +16,9 @@ enum AppAppearance: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .light: return "浅色"
-        case .dark: return "深色"
-        case .system: return "使用系统设置"
+        case .light: return L10n.string("LightThemeRadioButton.Content")
+        case .dark: return L10n.string("DarkThemeRadioButton.Content")
+        case .system: return L10n.string("SystemThemeRadioButton.Content")
         }
     }
 
@@ -47,13 +47,13 @@ struct SettingsView: View {
     @State private var appearance = AppAppearance.current
 
     private var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "开发构建"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? L10n.string("Mac_DevBuild")
     }
 
     var body: some View {
         Form {
-            Section("外观") {
-                Picker("应用主题", selection: $appearance) {
+            Section(L10n.string("SettingsAppearance.Text")) {
+                Picker(L10n.string("Mac_AppTheme"), selection: $appearance) {
                     ForEach(AppAppearance.allCases) { option in
                         Text(option.label).tag(option)
                     }
@@ -64,22 +64,22 @@ struct SettingsView: View {
                 }
             }
 
-            Section("关于") {
-                LabeledContent("计算器", value: "版本 \(version)")
-                Text("© Microsoft Corporation。原版计算器以 MIT 许可开源；本 macOS 移植因静态链接 Giac（GPLv3）整体以 GPLv3 分发，源码保留 MIT 文件头。")
+            Section(L10n.string("AboutGroupTitle.Text")) {
+                LabeledContent(L10n.string("AppName"), value: L10n.format("Mac_Version", version))
+                Text(L10n.string("Mac_LicenseCopyright"))
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                Text("第三方组件：Giac/Xcas（GPLv3）、MathLive（MIT）、GMP 与 MPFR（LGPL）。")
+                Text(L10n.string("Mac_ThirdParty"))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 // AboutContribute：贡献链接。
-                Link("在 GitHub 上参与贡献", destination: URL(string: "https://github.com/NewbieXvwu/calculator")!)
+                Link(L10n.string("Mac_ContributeOnGitHub"), destination: URL(string: "https://github.com/NewbieXvwu/calculator")!)
             }
         }
         .formStyle(.grouped)
         .frame(width: 420)
         .fixedSize(horizontal: false, vertical: true)
         // 对应原版 SettingsPageOpened 播报。
-        .onAppear { AccessibilityAnnouncer.announce("已打开设置", highPriority: false) }
+        .onAppear { AccessibilityAnnouncer.announce(L10n.string("SettingsPageOpenedAnnouncement"), highPriority: false) }
     }
 }

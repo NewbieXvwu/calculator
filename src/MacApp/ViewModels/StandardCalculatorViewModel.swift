@@ -25,12 +25,12 @@ enum CalculatorMode {
     /// VoiceOver 播报用的模式名称。
     var announcementLabel: String {
         switch self {
-        case .standard: return "标准"
-        case .scientific: return "科学"
-        case .programmer: return "程序员"
-        case .date: return "日期计算"
-        case .converter: return "单位换算"
-        case .graphing: return "绘图"
+        case .standard: return L10n.string("StandardModeText")
+        case .scientific: return L10n.string("ScientificModeText")
+        case .programmer: return L10n.string("ProgrammerModeText")
+        case .date: return L10n.string("DateCalculationModeText")
+        case .converter: return L10n.string("ConverterModeText")
+        case .graphing: return L10n.string("GraphingCalculatorModeText")
         }
     }
 
@@ -170,10 +170,10 @@ enum BitShiftMode: CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .arithmetic: return "算术移位"
-        case .logical: return "逻辑移位"
-        case .rotate: return "循环移位"
-        case .rotateCarry: return "带进位循环移位"
+        case .arithmetic: return L10n.string("arithmeticShiftButton.Content")
+        case .logical: return L10n.string("logicalShiftButton.Content")
+        case .rotate: return L10n.string("rotateCircularButton.Content")
+        case .rotateCarry: return L10n.string("rotateCarryShiftButton.Content")
         }
     }
 
@@ -324,9 +324,9 @@ final class StandardCalculatorViewModel: ObservableObject {
 
     private func angleAnnouncementLabel(_ command: EngineCommand) -> String {
         switch command {
-        case .rad: return "弧度"
-        case .grad: return "百分度"
-        default: return "度"
+        case .rad: return L10n.string("TrigModeRadians.Content")
+        case .grad: return L10n.string("TrigModeGradians.Content")
+        default: return L10n.string("TrigModeDegrees.Content")
         }
     }
 
@@ -347,7 +347,7 @@ final class StandardCalculatorViewModel: ObservableObject {
     /// 切换左侧函数列的 2nd 态（x²↔x³、√↔∛、log↔logₓ 等）。
     func toggleInv() {
         isInvChecked.toggle()
-        AccessibilityAnnouncer.announce(isInvChecked ? "已打开 2nd 功能" : "已关闭 2nd 功能", highPriority: false)
+        AccessibilityAnnouncer.announce(isInvChecked ? L10n.string("Mac_Ann_2ndOn") : L10n.string("Mac_Ann_2ndOff"), highPriority: false)
     }
 
     /// 按下 2nd 态函数键后自动复位 Shift（对应原版 ShiftButton_Uncheck）。
@@ -393,10 +393,10 @@ final class StandardCalculatorViewModel: ObservableObject {
 
     private func radixAnnouncementLabel(_ radix: RadixKind) -> String {
         switch radix {
-        case .hex: return "十六进制"
-        case .dec: return "十进制"
-        case .oct: return "八进制"
-        case .bin: return "二进制"
+        case .hex: return L10n.string("Mac_Radix_Hex")
+        case .dec: return L10n.string("Mac_Radix_Dec")
+        case .oct: return L10n.string("Mac_Radix_Oct")
+        case .bin: return L10n.string("Mac_Radix_Bin")
         }
     }
 
@@ -514,7 +514,7 @@ final class StandardCalculatorViewModel: ObservableObject {
         refreshHistory()
         refreshInputEmpty()
         // 对应原版模式切换播报(含 GraphModeChanged)。
-        AccessibilityAnnouncer.announce("已切换到\(newMode.announcementLabel)", highPriority: false)
+        AccessibilityAnnouncer.announce(L10n.format("Mac_Ann_SwitchedTo", newMode.announcementLabel), highPriority: false)
     }
 
     private func resetRadixAndUpdateMemory(resetRadix: Bool) {
@@ -527,7 +527,7 @@ final class StandardCalculatorViewModel: ObservableObject {
 
     func memorizeNumber() {
         bridge.memorizeNumber()
-        AccessibilityAnnouncer.announce("已存入内存", highPriority: false)
+        AccessibilityAnnouncer.announce(L10n.string("Mac_Ann_MemStored"), highPriority: false)
     }
 
     func memoryItemPressed(_ index: Int) {
@@ -552,7 +552,7 @@ final class StandardCalculatorViewModel: ObservableObject {
 
     func clearMemory() {
         bridge.memoryClearAll()
-        AccessibilityAnnouncer.announce("内存已清除")
+        AccessibilityAnnouncer.announce(L10n.string("Mac_Ann_MemCleared"))
     }
 
     // MARK: - History
@@ -560,14 +560,14 @@ final class StandardCalculatorViewModel: ObservableObject {
     func removeHistoryItem(_ index: Int) {
         if bridge.removeHistoryItem(UInt(index)) {
             refreshHistory()
-            AccessibilityAnnouncer.announce("历史记录项已删除")
+            AccessibilityAnnouncer.announce(L10n.string("Mac_Ann_HistItemDeleted"))
         }
     }
 
     func clearHistory() {
         bridge.clearHistory()
         refreshHistory()
-        AccessibilityAnnouncer.announce("历史记录已清除", highPriority: false)
+        AccessibilityAnnouncer.announce(L10n.string("Mac_Ann_HistCleared"), highPriority: false)
     }
 
     /// 历史面板开关（⌃H / 菜单栏）；程序员模式无历史。
@@ -637,13 +637,13 @@ final class StandardCalculatorViewModel: ObservableObject {
         bridge.onMaxDigitsReached = { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
-                AccessibilityAnnouncer.announce("已达到最大位数 \(self.displayValue)")
+                AccessibilityAnnouncer.announce(L10n.format("Mac_Ann_MaxDigits", self.displayValue))
             }
         }
         // 对应原版 NoParenthesisAdded 播报。
         bridge.onNoRightParenAdded = {
             Task { @MainActor in
-                AccessibilityAnnouncer.announce("没有左括号可匹配，未添加右括号")
+                AccessibilityAnnouncer.announce(L10n.string("Mac_Ann_NoParen"))
             }
         }
         bridge.onExpressionChanged = { [weak self] tokens in
@@ -658,7 +658,7 @@ final class StandardCalculatorViewModel: ObservableObject {
                 guard let self else { return }
                 // 对应原版 OpenParenthesisCountChanged 播报(仅计数变化时)。
                 if count != self.openParenthesisCount {
-                    AccessibilityAnnouncer.announce("打开的括号数 \(count)", highPriority: false)
+                    AccessibilityAnnouncer.announce(L10n.format("Mac_Ann_OpenParenCount", "\(count)"), highPriority: false)
                 }
                 self.openParenthesisCount = count
             }
@@ -674,7 +674,7 @@ final class StandardCalculatorViewModel: ObservableObject {
         bridge.onMemoryItemChanged = { [weak self] index in
             Task { @MainActor in
                 guard let self, Int(index) < self.memorizedNumbers.count else { return }
-                AccessibilityAnnouncer.announce("内存已更新为 \(self.memorizedNumbers[Int(index)].value)", highPriority: false)
+                AccessibilityAnnouncer.announce(L10n.format("Mac_Ann_MemoryUpdated", self.memorizedNumbers[Int(index)].value), highPriority: false)
             }
         }
         bridge.onHistoryItemAdded = { [weak self] _ in
@@ -976,7 +976,7 @@ final class StandardCalculatorViewModel: ObservableObject {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(displayValue, forType: .string)
-        AccessibilityAnnouncer.announce("结果已复制到剪贴板")
+        AccessibilityAnnouncer.announce(L10n.string("Mac_Ann_Copied"))
     }
 
     /// 粘贴入口（对应原版 OnPasteCommand）：按模式选择校验规则，

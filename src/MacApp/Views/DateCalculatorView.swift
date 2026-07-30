@@ -17,8 +17,8 @@ struct DateCalculatorView: View {
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $dateModel.isDateDiffMode) {
-                Text("日期差").tag(true)
-                Text("加减日期").tag(false)
+                Text(L10n.string("Mac_Date_Difference")).tag(true)
+                Text(L10n.string("Mac_Date_AddSubtract")).tag(false)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -43,8 +43,8 @@ struct DateCalculatorView: View {
 
     private var dateDiffSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            labeledPicker("起始日期", selection: $dateModel.fromDate)
-            labeledPicker("结束日期", selection: $dateModel.toDate)
+            labeledPicker(L10n.string("DateDiff_FromHeader.Header"), selection: $dateModel.fromDate)
+            labeledPicker(L10n.string("DateDiff_ToHeader.Header"), selection: $dateModel.toDate)
 
             resultCard {
                 if dateModel.isDiffInDays {
@@ -64,21 +64,21 @@ struct DateCalculatorView: View {
 
     private var addSubtractSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            labeledPicker("起始日期", selection: $dateModel.startDate)
+            labeledPicker(L10n.string("DateDiff_FromHeader.Header"), selection: $dateModel.startDate)
 
             Picker("", selection: $dateModel.isAddMode) {
-                Text("加").tag(true)
-                Text("减").tag(false)
+                Text(L10n.string("Mac_Date_Add")).tag(true)
+                Text(L10n.string("Mac_Date_Subtract")).tag(false)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
 
-            offsetStepper("年", value: $dateModel.yearsOffset)
-            offsetStepper("月", value: $dateModel.monthsOffset)
-            offsetStepper("日", value: $dateModel.daysOffset)
+            offsetStepper(L10n.string("Mac_Date_Years"), value: $dateModel.yearsOffset)
+            offsetStepper(L10n.string("Mac_Date_Months"), value: $dateModel.monthsOffset)
+            offsetStepper(L10n.string("Mac_Date_Days"), value: $dateModel.daysOffset)
 
             resultCard {
-                Text("结果日期")
+                Text(L10n.string("Mac_Date_ResultDate"))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
                 resultLine(dateModel.dateResultString)

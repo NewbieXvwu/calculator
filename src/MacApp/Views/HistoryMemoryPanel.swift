@@ -8,10 +8,17 @@
 import SwiftUI
 
 enum DockTab: String, CaseIterable, Identifiable {
-    case history = "历史记录"
-    case memory = "内存"
+    case history
+    case memory
 
     var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .history: return L10n.string("HistoryLabel.Text")
+        case .memory: return L10n.string("MemoryLabel.Text")
+        }
+    }
 }
 
 struct HistoryMemoryPanel: View {
@@ -31,7 +38,7 @@ struct HistoryMemoryPanel: View {
         VStack(spacing: 0) {
             Picker("", selection: $tab) {
                 ForEach(availableTabs) { tab in
-                    Text(tab.rawValue).tag(tab)
+                    Text(tab.title).tag(tab)
                 }
             }
             .pickerStyle(.segmented)
@@ -55,9 +62,9 @@ struct HistoryListView: View {
         VStack(spacing: 0) {
             if model.historyItems.isEmpty {
                 CalcEmptyState(
-                    title: "尚无历史记录",
+                    title: L10n.string("Mac_NoHistory"),
                     systemImage: "clock.arrow.circlepath",
-                    description: Text("你的计算结果会显示在这里。")
+                    description: Text(L10n.string("Mac_NoHistoryDesc"))
                 )
             } else {
                 ScrollView {
@@ -80,7 +87,7 @@ struct HistoryListView: View {
                         Image(systemName: "trash")
                     }
                     .buttonStyle(.borderless)
-                    .help("清除所有历史记录")
+                    .help(L10n.string("Mac_ClearAllHistory"))
                     .padding(8)
                 }
             }
@@ -113,11 +120,11 @@ private struct HistoryRow: View {
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .contextMenu {
-            Button("删除") { onDelete() }
+            Button(L10n.string("DeleteHistoryMenuItem.Text")) { onDelete() }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(item.expression) 等于 \(item.result)")
-        .accessibilityAction(named: "删除") { onDelete() }
+        .accessibilityLabel(L10n.format("Mac_HistoryItemA11y", item.expression, item.result))
+        .accessibilityAction(named: Text(L10n.string("DeleteHistoryMenuItem.Text"))) { onDelete() }
     }
 }
 
@@ -128,9 +135,9 @@ struct MemoryListView: View {
         VStack(spacing: 0) {
             if model.memorizedNumbers.isEmpty {
                 CalcEmptyState(
-                    title: "内存中没有内容",
+                    title: L10n.string("Mac_NoMemory"),
                     systemImage: "memorychip",
-                    description: Text("使用 MS 键存入数值。")
+                    description: Text(L10n.string("Mac_NoMemoryDesc"))
                 )
             } else {
                 ScrollView {
@@ -150,7 +157,7 @@ struct MemoryListView: View {
                         Image(systemName: "trash")
                     }
                     .buttonStyle(.borderless)
-                    .help("清除所有内存")
+                    .help(L10n.string("Mac_ClearAllMemory"))
                     .padding(8)
                 }
             }

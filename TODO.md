@@ -38,70 +38,55 @@
 
 ---
 
-## 三、UI 忠实度审查问题清单（2026-07-30，全部未修复）
+## 三、UI 忠实度审查问题清单（2026-07-30）
 
-### P0-1 本地化系统性失效（最严重）
+> 进度：P0-1/P0-2/P0-3/P1-1/P1-2/P1-3 已完成；剩余 P2-1（应用图标）、P2-2（菜单充实）、
+> P2-3（键盘监听守卫）、P2-4（排版校准）。
+
+### P0-1 本地化系统性失效（最严重）✅ 已完成（2026-07-30）
 现状：60 语言 xcstrings 只服务无障碍标签，可见 UI 是另一套硬编码中文。
-- [ ] 全部可见文案改走 String Catalog：各 View / `MacCalculatorApp.swift` 菜单 /
+- [x] 全部可见文案改走 String Catalog：各 View / `MacCalculatorApp.swift` 菜单 /
       `HistoryMemoryPanel`（"历史记录/内存/尚无历史记录…"）/ `GraphingView`（"函数/线条颜色/图形选项…"）/
       `SettingsView` 等所有硬编码中文串换成 `L10n`/`String(localized:)` 查表，英文系统显示英文
-- [ ] `Tools/package_app.sh` 生成的 Info.plist 修正：`CFBundleDevelopmentRegion` 与实际一致、
-      补 `CFBundleAllowMixedLocalizations`（否则 AppKit 系统菜单——应用/编辑/窗口/帮助——永远英文，
-      与中文自定义菜单混搭，即用户实测现象）；确认主 bundle 语言协商能命中资源 bundle 的 .lproj
-- [ ] 窗口标题硬编码 "计算器"（`MacCalculatorApp.swift:13`）改本地化
-- [ ] `CommandMenu("模式")`/`CommandMenu("记忆")` 等全部菜单标题与菜单项本地化
-- [ ] 验证：切系统语言 en/zh-Hans 两遍，菜单栏 + 窗口内文案 + 系统菜单三处语言一致
+      —— 新增 143 个 `Mac_` 键（en+zh-Hans），复用原版 KeyGraphFeatures/按钮 AutomationProperties 键；
+      全 MacApp 源码 0 处硬编码中文串（Python 全量清扫确认）
+- [x] `Tools/package_app.sh` 生成的 Info.plist 修正：补 `CFBundleAllowMixedLocalizations`+`CFBundleLocalizations`
+      （从 xcstrings 抽取全部语言列表注入），使 AppKit 系统菜单跟随 bundle 语言协商
+- [x] 窗口标题硬编码 "计算器"改本地化
+- [x] `CommandMenu` 等全部菜单标题与菜单项本地化
+- [x] 验证：`xcstringstool compile` 产出全部 60 个 .lproj；en/zh-Hans 键值抽查正确
+      （待人工真机确认三处语言一致——见文末清单）
 
-### P0-2 绘图无法拖动平移（功能性破损）
+### P0-2 绘图无法拖动平移（功能性破损）✅ 已完成
 根因：`WindowConfigurator` 设 `window.isMovableByWindowBackground = true`（`CalcKeyStyles.swift:35`），
-画布上的 `DragGesture`（`GraphingView.swift:868-880`）被 AppKit 抢去拖窗口，平移形同虚设。
-- [ ] 解决拖窗与画布手势冲突（画布区域禁用背景拖窗：如 NSHostingView 覆盖 `mouseDownCanMoveWindow`，
-      或整窗弃用 isMovableByWindowBackground、由标题栏区域拖动）
-- [ ] 顺带核验捏合缩放/滚轮在画布上的可用性（真机）
+画布上的 `DragGesture` 被 AppKit 抢去拖窗口，平移形同虚设。
+- [x] 解决拖窗与画布手势冲突：画布 NSHostingView 覆盖 `mouseDownCanMoveWindow=false`，
+      挂载期间关闭 `isMovableByWindowBackground`、卸载时恢复（`CalcKeyStyles.swift:51-92`）
+- [ ] 顺带核验捏合缩放/滚轮在画布上的可用性（真机——见文末清单）
 
-### P0-3 `logo.playstation` 商标图标（ProgrammerCalculatorView.swift:136）
-位运算下拉用了索尼 PS 商标图标，语义零关联 + 商标滥用风险。原版是计算器字体字形 U+F895
-（`CalculatorProgrammerRadixOperators.xaml:241`）。
-- [ ] 换 `point.3.filled.connected.trianglepath.dotted`（逻辑门拓扑感）或 `circle.grid.2x1.left.filled`
-      （维恩图交并感）——两者均已验证本机存在
+### P0-3 `logo.playstation` 商标图标 ✅ 已完成
+- [x] 已换 `point.3.filled.connected.trianglepath.dotted`（`ProgrammerCalculatorView.swift:131`）
 
-### P1-1 顶栏 chrome 重构（模式切换 + 历史按钮 + 动画）
-现状（`CalculatorChrome.swift` + `ContentView.swift:14-42`）：
-自绘顶栏放在**计算器列内部**而非整窗——宽窗停靠历史面板后模式按钮悬在窗口中间；
-`.padding(.leading, 76)` 给红绿灯硬留白导致窄窗历史按钮距左缘 76pt；
-历史按钮仅窗宽 < 560 时存在（宽窗消失、用户实测"点了会消失"）；
-面板开合零动画、从右侧突兀出现；popover 式历史两头不靠（原版窄窗是全高覆盖层，macOS 惯例是侧栏）。
-- [ ] 改用原生 `.toolbar`（Apple 计算器特写截图核实的布局基准）：
-      历史按钮**常驻**工具栏 leading 端、紧贴红绿灯，图标用 `sidebar.leading`（Apple 同款侧栏开关，
-      时钟图标只留给空态插画）；模式菜单按钮在工具栏 trailing 端（右上角本身就是 Apple 惯例，
-      现病灶是自绘顶栏内嵌计算器列导致按钮悬在窗口中部）
-- [ ] 历史/内存面板改为侧栏伸缩：常驻按钮 toggle + `withAnimation` 非线性动画开合
-      （参照 Apple 计算器），替换现有"宽度阈值硬跳变 + 窄窗 popover"双态方案
-- [ ] 删除 `.padding(.leading, 76)` 一类红绿灯硬编码留白（工具栏体系下不需要）
-- [ ] 保留原版语义：程序员模式无历史；⌃H 开合、⇧⌃D 清除仍可用
+### P1-1 顶栏 chrome 重构（模式切换 + 历史按钮 + 动画）✅ 已完成
+现状（`CalculatorChrome.swift` + `ContentView.swift`）已重制为原生 `.toolbar`。
+- [x] 改用原生 `.toolbar`：历史按钮常驻工具栏 leading（`sidebar.leading`）、模式菜单在 trailing
+- [x] 历史/内存面板改为侧栏伸缩：常驻按钮 toggle + `withAnimation` 开合
+- [x] 删除 `.padding(.leading, 76)` 红绿灯硬编码留白
+- [x] 保留原版语义：程序员模式无历史；⌃H 开合、⇧⌃D 清除仍可用
 
-### P1-2 绘图 graphView 按钮图标不可读（GraphingView.swift:716-723）
-原版 graphViewButton（`GraphingCalculator.xaml:748-762`）在"手动调整 ⇄ 自动适应"两态切换字形；
-本移植选的 `arrow.up.left.and.arrow.down.right` / `sparkle.magnifyingglass` 双态图标均无法传达语义
-（用户实测："默认全屏图标，点了变魔法放大镜，不知道干什么用"）。
-- [ ] 固定用 `arrow.up.left.and.down.right.magnifyingglass`（zoom-to-fit 惯例，已验证存在），
-      手动调整态加 accentColor 高亮；tooltip 明确"恢复自动适应视图"
+### P1-2 绘图 graphView 按钮图标不可读 ✅ 已完成
+- [x] 固定用 `arrow.up.left.and.down.right.magnifyingglass`（`GraphingView.swift:718`），
+      手动调整态高亮 + tooltip"恢复自动适应视图"
 
-### P1-3 图标语义修正（除 P0-3/P1-2 外的全部替换项，均已验证本机存在）
-- [ ] 程序员"移位"菜单 `arrow.left.arrow.right`（`ProgrammerCalculatorView.swift:152`）与
-      "单位换算"模式图标（`CalculatorChrome.swift:44`）**一符两义撞车** → 移位改 `chevron.right.2`（`>>` 即移位运算符）
-- [ ] 模式菜单按钮图标（`CalculatorChrome.swift:49,64-72`）：Apple 用私有"计算器"字形
-      （圆角矩形 = 显示条 + 键盘点阵；SF 公共库无 `calculator`，已验证不存在）→
-      自绘 custom SF symbol 对齐 Apple；过渡期可用 `circle.grid.3x3` 兜底
-- [ ] 标准模式菜单项：菜单里 `plusminus`（`CalculatorChrome.swift:40`）vs 按钮 `square.grid.2x2`
-      （`CalculatorChrome.swift:68`）不一致 → 对齐 Apple"基础"混合运算符字形，
-      公共库最接近 `plus.slash.minus`（已验证存在），或随模式按钮一起自绘
-- [ ] 科学模式 `function` 可保留，或换 Apple 同款 `fx`（已验证存在）
-- [ ] 程序员模式 `chevron.left.forwardslash.chevron.right`（"写代码"）→ `cpu`（Apple 计算器同款芯片隐喻）
-- [ ] 位翻转键盘段选 `switch.2`（`ProgrammerCalculatorView.swift:100`，拨杆勉强）→ `01.square`
-- [ ] 绘图"函数分析"开关 `chart.bar.doc.horizontal`（`GraphingView.swift:51`，"报表"无关）→
-      `doc.text.magnifyingglass` 或 `list.bullet.rectangle`
-- [ ] 绘图删除方程 `xmark`（`GraphingView.swift:190`，"关闭"非"删除"，轻微）→ 评估换 `trash` 或保留
+### P1-3 图标语义修正 ✅ 已完成
+- [x] 移位改 `chevron.right.2`（`ProgrammerCalculatorView.swift:147`），与换算模式图标不再撞车
+- [x] 模式菜单按钮 `circle.grid.3x3` 兜底（`CalculatorChrome.swift:29`）
+- [x] 标准模式菜单项对齐 `plus.slash.minus`（`CalculatorChrome.swift:20`）
+- [x] 科学模式保留 `function`（`CalculatorChrome.swift:21`）
+- [x] 程序员模式 `cpu`（`CalculatorChrome.swift:22`）
+- [x] 位翻转键盘段选 `01.square`（`ProgrammerCalculatorView.swift:95`）
+- [x] 绘图"函数分析"开关 `list.bullet.rectangle`（`GraphingView.swift:45`）
+- [x] 绘图删除方程：保留 `xmark`（与新建/隐藏并排，语义为"移除该行"，评估后保留）
 - 合格无需动（复查结论，30 处中 22 处）：`function`/`calendar`/`arrow.left.arrow.right`(换算)/
   `chart.xyaxis.line`/`clock.arrow.circlepath`(**仅空态插画**；工具栏历史按钮归 P1-1 改 `sidebar.leading`)/
   `trash`/`memorychip`/`plus`/`eye`(.slash)/

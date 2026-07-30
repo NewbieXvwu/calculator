@@ -69,7 +69,7 @@ struct UnitConverterView: View {
     // MARK: - 类别选择
 
     private var categoryPicker: some View {
-        Picker("类别", selection: Binding(
+        Picker(L10n.string("Mac_Category"), selection: Binding(
             get: { converter.currentCategory.id },
             set: { newID in
                 if let category = converter.categories.first(where: { $0.id == newID }) {
@@ -98,8 +98,8 @@ struct UnitConverterView: View {
                     .font(.system(size: 11, weight: .semibold))
             }
             .buttonStyle(.borderless)
-            .help("刷新汇率")
-            .accessibilityLabel("刷新汇率")
+            .help(L10n.string("Mac_RefreshRates"))
+            .accessibilityLabel(L10n.string("Mac_RefreshRates"))
         }
     }
 
@@ -122,10 +122,10 @@ struct UnitConverterView: View {
                 .textSelection(.enabled)
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onActivate)
-                .accessibilityLabel("数值")
+                .accessibilityLabel(L10n.string("Mac_Value"))
                 .accessibilityValue(display)
 
-            Picker("单位", selection: Binding(
+            Picker(L10n.string("UnitsHeading.Text"), selection: Binding(
                 get: { unit.id },
                 set: { newID in
                     if let u = units.first(where: { $0.id == newID }) { onSelectUnit(u) }
@@ -153,8 +153,8 @@ struct UnitConverterView: View {
         }
         .glassButtonStyle()
         .controlSize(.small)
-        .help("交换单位")
-        .accessibilityLabel("交换单位")
+        .help(L10n.string("Mac_SwapUnits"))
+        .accessibilityLabel(L10n.string("Mac_SwapUnits"))
         .padding(.vertical, 2)
     }
 
@@ -195,25 +195,25 @@ struct UnitConverterView: View {
                     digitKey(7)
                     digitKey(8)
                     digitKey(9)
-                    CalcKey(symbol: "delete.left", style: .function, a11yLabel: "退格") { converter.inputBackspace() }
+                    CalcKey(symbol: "delete.left", style: .function, a11yLabel: L10n.button("backSpaceButton")) { converter.inputBackspace() }
                 }
                 GridRow {
                     digitKey(4)
                     digitKey(5)
                     digitKey(6)
-                    CalcKey("C", style: .function, fontSize: 14, a11yLabel: "清除") { converter.clear() }
+                    CalcKey("C", style: .function, fontSize: 14, a11yLabel: L10n.button("clearButton")) { converter.clear() }
                 }
                 GridRow {
                     digitKey(1)
                     digitKey(2)
                     digitKey(3)
                     CalcKey(symbol: "plus.forwardslash.minus", style: .function,
-                            disabled: !converter.currentCategory.supportsNegative, a11yLabel: "正负号") { converter.toggleSign() }
+                            disabled: !converter.currentCategory.supportsNegative, a11yLabel: L10n.button("negateButton")) { converter.toggleSign() }
                 }
                 GridRow {
                     digitKey(0)
                         .gridCellColumns(2)
-                    CalcKey(model.decimalSeparator, style: .digit, fontSize: 18, a11yLabel: "小数点") { converter.inputDecimal() }
+                    CalcKey(model.decimalSeparator, style: .digit, fontSize: 18, a11yLabel: L10n.button("decimalSeparatorButton")) { converter.inputDecimal() }
                     Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
                 }
             }

@@ -26,7 +26,7 @@ final class UnitConverterViewModel: ObservableObject {
     /// 动态货币类别（汇率加载成功后填充）。
     @Published private(set) var currencyCategory: ConverterCategory?
     /// 货币数据状态提示（加载中 / 日期 / 失败）。
-    @Published private(set) var currencyStatus = "正在加载汇率…"
+    @Published private(set) var currencyStatus = L10n.string("Mac_Currency_Loading")
 
     /// 全部类别 = 静态单位 + （已加载的）货币。
     var categories: [ConverterCategory] {
@@ -68,7 +68,7 @@ final class UnitConverterViewModel: ObservableObject {
 
     func loadCurrencies() async {
         guard let rates = await CurrencyService.loadRates() else {
-            currencyStatus = "汇率加载失败（可稍后刷新）"
+            currencyStatus = L10n.string("Mac_Currency_LoadFailed")
             return
         }
         applyRates(rates)
@@ -76,21 +76,21 @@ final class UnitConverterViewModel: ObservableObject {
 
     /// 手动刷新汇率。
     func refreshCurrencies() async {
-        currencyStatus = "正在刷新汇率…"
+        currencyStatus = L10n.string("Mac_Currency_Refreshing")
         if let rates = await CurrencyService.refreshFromNetwork() {
             applyRates(rates)
             // 对应原版 UpdateCurrencyRates 播报。
-            AccessibilityAnnouncer.announce("汇率已更新", highPriority: false)
+            AccessibilityAnnouncer.announce(L10n.string("CurrencyRatesUpdated"), highPriority: false)
         } else {
-            currencyStatus = "刷新失败（保留上次数据）"
-            AccessibilityAnnouncer.announce("汇率刷新失败", highPriority: false)
+            currencyStatus = L10n.string("Mac_Currency_RefreshFailedKept")
+            AccessibilityAnnouncer.announce(L10n.string("CurrencyRatesUpdateFailed"), highPriority: false)
         }
     }
 
     private func applyRates(_ rates: CurrencyRates) {
         let category = Self.buildCurrencyCategory(from: rates)
         currencyCategory = category
-        currencyStatus = "汇率更新于 \(rates.date)"
+        currencyStatus = L10n.format("Mac_Currency_UpdatedAt", rates.date)
         // 若当前正处于货币类别，刷新其单位引用（保持代码不变的前提下更新 factor）。
         if currentCategory.id == Self.currencyCategoryID {
             let from = category.units.first { $0.abbreviation == fromUnit.abbreviation } ?? category.units[0]
@@ -133,7 +133,7 @@ final class UnitConverterViewModel: ObservableObject {
         }
 
         return ConverterCategory(
-            id: currencyCategoryID, name: "货币",
+            id: currencyCategoryID, name: L10n.string("CategoryName_CurrencyText"),
             supportsNegative: false, isTemperature: false, units: units)
     }
 
@@ -412,7 +412,7 @@ final class UnitConverterViewModel: ObservableObject {
     /// 有效数字格式化：整数直接显示，否则保留合理有效数字并去除末尾 0。
     static func format(_ value: Double) -> String {
         if value == 0 { return "0" }
-        if !value.isFinite { return "溢出" }
+        if !value.isFinite { return L10n.string("Mac_Overflow") }
 
         let absValue = abs(value)
         // 极大/极小用科学计数法。

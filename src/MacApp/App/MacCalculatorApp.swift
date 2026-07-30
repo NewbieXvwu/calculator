@@ -10,7 +10,7 @@ struct MacCalculatorApp: App {
     @State private var alwaysOnTop = UserDefaults.standard.bool(forKey: "AlwaysOnTop")
 
     var body: some Scene {
-        WindowGroup("计算器") {
+        WindowGroup(L10n.string("AppName")) {
             ContentView(model: model)
         }
         .windowStyle(.hiddenTitleBar)
@@ -20,50 +20,50 @@ struct MacCalculatorApp: App {
         .defaultSize(width: 322, height: 500)
         .commands {
             // 模式切换（对齐 Apple 计算器 ⌘1/2/3）。
-            CommandMenu("模式") {
-                Button("标准") { model.setCalculatorType(.standard) }
+            CommandMenu(L10n.string("Mac_Menu_Mode")) {
+                Button(L10n.string("StandardModeText")) { model.setCalculatorType(.standard) }
                     .keyboardShortcut("1", modifiers: .command)
-                Button("科学") { model.setCalculatorType(.scientific) }
+                Button(L10n.string("ScientificModeText")) { model.setCalculatorType(.scientific) }
                     .keyboardShortcut("2", modifiers: .command)
-                Button("程序员") { model.setCalculatorType(.programmer) }
+                Button(L10n.string("ProgrammerModeText")) { model.setCalculatorType(.programmer) }
                     .keyboardShortcut("3", modifiers: .command)
-                Button("日期计算") { model.setCalculatorType(.date) }
+                Button(L10n.string("DateCalculationModeText")) { model.setCalculatorType(.date) }
                     .keyboardShortcut("4", modifiers: .command)
-                Button("单位换算") { model.setCalculatorType(.converter) }
+                Button(L10n.string("ConverterModeText")) { model.setCalculatorType(.converter) }
                     .keyboardShortcut("5", modifiers: .command)
-                Button("绘图") { model.setCalculatorType(.graphing) }
+                Button(L10n.string("GraphingCalculatorModeText")) { model.setCalculatorType(.graphing) }
                     .keyboardShortcut("6", modifiers: .command)
             }
             CommandGroup(replacing: .pasteboard) {
-                Button("拷贝") { model.copyDisplay() }
+                Button(L10n.string("Mac_Menu_Copy")) { model.copyDisplay() }
                     .keyboardShortcut("c", modifiers: .command)
-                Button("粘贴") { model.pasteFromPasteboard() }
+                Button(L10n.string("Mac_Menu_Paste")) { model.pasteFromPasteboard() }
                     .keyboardShortcut("v", modifiers: .command)
             }
             // 历史（⌃H/⇧⌃D 和弦的菜单栏可发现性入口）。
             CommandGroup(after: .sidebar) {
                 Divider()
-                Button("历史记录") { model.toggleHistoryPanel() }
+                Button(L10n.string("HistoryLabel.Text")) { model.toggleHistoryPanel() }
                     .keyboardShortcut("h", modifiers: .control)
-                Button("清除历史记录") { model.clearHistory() }
+                Button(L10n.string("Mac_Menu_ClearHistory")) { model.clearHistory() }
                     .keyboardShortcut("d", modifiers: [.control, .shift])
             }
             // 记忆（对应原版 MC/MR/M+/M−/MS 的 Ctrl 和弦）。
-            CommandMenu("记忆") {
-                Button("记忆存储 (MS)") { model.memorizeNumber() }
+            CommandMenu(L10n.string("MemoryLabel.Text")) {
+                Button(L10n.string("Mac_Menu_MS")) { model.memorizeNumber() }
                     .keyboardShortcut("m", modifiers: .control)
-                Button("记忆调用 (MR)") { model.memoryItemPressed(0) }
+                Button(L10n.string("Mac_Menu_MR")) { model.memoryItemPressed(0) }
                     .keyboardShortcut("r", modifiers: .control)
-                Button("记忆加 (M+)") { model.memoryAdd(0) }
+                Button(L10n.string("Mac_Menu_MPlus")) { model.memoryAdd(0) }
                     .keyboardShortcut("p", modifiers: .control)
-                Button("记忆减 (M−)") { model.memorySubtract(0) }
+                Button(L10n.string("Mac_Menu_MMinus")) { model.memorySubtract(0) }
                     .keyboardShortcut("q", modifiers: .control)
-                Button("清除记忆 (MC)") { model.clearMemory() }
+                Button(L10n.string("Mac_Menu_MC")) { model.clearMemory() }
                     .keyboardShortcut("l", modifiers: .control)
             }
             // 窗口置顶（对应原版 Always-on-Top，Windows 快捷键 Alt+Up 映射为 ⌥⌘↑）。
             CommandGroup(after: .windowArrangement) {
-                Toggle("窗口置顶", isOn: Binding(
+                Toggle(L10n.string("Mac_Menu_AlwaysOnTop"), isOn: Binding(
                     get: { alwaysOnTop },
                     set: { newValue in
                         alwaysOnTop = newValue
@@ -72,7 +72,7 @@ struct MacCalculatorApp: App {
                             window.level = newValue ? .floating : .normal
                         }
                         // 对应原版 AlwaysOnTop 播报。
-                        AccessibilityAnnouncer.announce(newValue ? "已进入置顶视图" : "已退出置顶视图")
+                        AccessibilityAnnouncer.announce(newValue ? L10n.string("Mac_Ann_AOTOn") : L10n.string("Mac_Ann_AOTOff"))
                     }))
                     .keyboardShortcut(.upArrow, modifiers: [.option, .command])
             }

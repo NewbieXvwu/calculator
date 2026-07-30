@@ -131,7 +131,7 @@ enum GiacMathSolver {
 
         // 周期性：period(f,x)="+infinity" 表示非周期。
         if let p = ask("period(\(f),x)") {
-            a.periodicity = p == "+infinity" ? "非周期" : prettify(p)
+            a.periodicity = p == "+infinity" ? L10n.string("Mac_Aperiodic") : prettify(p)
         }
 
         // 单调区间：驻点 + 垂直渐近线切分实轴，区间中点看一阶导符号。
@@ -143,7 +143,7 @@ enum GiacMathSolver {
             a.range = range
         } else if !infLimits.isEmpty || !extremaY.isEmpty {
             // 有部分信息但拼不出可靠值域 → 按原版报"太复杂"。
-            a.tooComplexFeatures.append("值域")
+            a.tooComplexFeatures.append(L10n.string("Range"))
         }
 
         return a
@@ -180,11 +180,11 @@ enum GiacMathSolver {
             guard let s = ask("sign(subst(diff(\(f),x),x=\(mid)))"), let v = Double(s) else { continue }
             let direction: String
             if v > 0 {
-                direction = "递增"
+                direction = L10n.string("KGFMonotonicityIncreasing")
             } else if v < 0 {
-                direction = "递减"
+                direction = L10n.string("KGFMonotonicityDecreasing")
             } else {
-                direction = "恒定"
+                direction = L10n.string("KGFMonotonicityConstant")
             }
             result.append(("(\(loExact), \(hiExact))", direction))
         }

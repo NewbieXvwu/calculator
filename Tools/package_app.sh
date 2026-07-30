@@ -10,6 +10,18 @@ VERSION="${3:-0.1.0}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_NUMBER="$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)"
 
+# 从 xcstrings 派生实际发行的语言列表，写入 CFBundleLocalizations，
+# 让 AppKit 系统菜单与资源包都随系统语言切换（否则始终回落到开发区域 en）。
+LOCALIZATIONS_XML="$(python3 - "$ROOT/src/MacApp/Resources/Localizable.xcstrings" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1],encoding="utf-8"))
+langs=set()
+for v in d["strings"].values():
+    langs.update(v.get("localizations",{}).keys())
+print("".join(f"        <string>{l}</string>\n" for l in sorted(langs)).rstrip("\n"))
+PY
+)"
+
 STAGING="$(mktemp -d)"
 trap 'rm -rf "$STAGING"' EXIT
 
@@ -26,6 +38,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <dict>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
+    <key>CFBundleAllowMixedLocalizations</key>
+    <true/>
+    <key>CFBundleLocalizations</key>
+    <array>
+$LOCALIZATIONS_XML
+    </array>
     <key>CFBundleExecutable</key>
     <string>MacCalculator</string>
     <key>CFBundleIdentifier</key>

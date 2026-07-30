@@ -66,8 +66,8 @@ struct ScientificCalculatorView: View {
             .glassButtonStyle()
             .controlSize(.small)
             .disabled(model.isInError)
-            .help("角度单位（点按循环 DEG / RAD / GRAD）")
-            .accessibilityLabel("角度单位 \(model.angleLabel)")
+            .help(L10n.string("Mac_AngleUnitHelp"))
+            .accessibilityLabel(L10n.format("Mac_AngleUnit", model.angleLabel))
 
             Button {
                 model.isFToEChecked.toggle()
@@ -81,7 +81,7 @@ struct ScientificCalculatorView: View {
             .controlSize(.small)
             .tint(model.isFToEChecked ? Color.orange : nil)
             .disabled(model.isInError || !model.isFToEEnabled)
-            .accessibilityLabel("科学计数法切换")
+            .accessibilityLabel(L10n.string("Mac_SciNotationToggle"))
 
             Spacer(minLength: 0)
         }
@@ -95,20 +95,20 @@ struct ScientificCalculatorView: View {
             Menu {
                 trigItem("sin", .sin); trigItem("cos", .cos); trigItem("tan", .tan)
                 trigItem("sec", .sec); trigItem("csc", .csc); trigItem("cot", .cot)
-                Menu("反三角函数") {
+                Menu(L10n.string("Mac_InverseTrig")) {
                     trigItem("sin⁻¹", .asin); trigItem("cos⁻¹", .acos); trigItem("tan⁻¹", .atan)
                     trigItem("sec⁻¹", .asec); trigItem("csc⁻¹", .acsc); trigItem("cot⁻¹", .acot)
                 }
-                Menu("双曲函数") {
+                Menu(L10n.button("hypButton")) {
                     trigItem("sinh", .sinh); trigItem("cosh", .cosh); trigItem("tanh", .tanh)
                     trigItem("sech", .sech); trigItem("csch", .csch); trigItem("coth", .coth)
                 }
-                Menu("反双曲函数") {
+                Menu(L10n.string("Mac_InverseHyp")) {
                     trigItem("sinh⁻¹", .asinh); trigItem("cosh⁻¹", .acosh); trigItem("tanh⁻¹", .atanh)
                     trigItem("sech⁻¹", .asech); trigItem("csch⁻¹", .acsch); trigItem("coth⁻¹", .acoth)
                 }
             } label: {
-                Label("三角", systemImage: "angle")
+                Label(L10n.string("Mac_Trig"), systemImage: "angle")
             }
             .menuStyle(.button)
             .glassButtonStyle()
@@ -123,7 +123,7 @@ struct ScientificCalculatorView: View {
                 trigItem("dms", .dms)
                 trigItem("deg", .degrees)
             } label: {
-                Label("函数", systemImage: "f.cursive")
+                Label(L10n.string("funcButton.Text"), systemImage: "f.cursive")
             }
             .menuStyle(.button)
             .glassButtonStyle()
