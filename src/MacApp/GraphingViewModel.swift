@@ -148,6 +148,8 @@ final class GraphingViewModel: ObservableObject {
     func removeEquation(id: UUID) {
         equations.removeAll { $0.id == id }
         syncParameters()
+        // 对应原版 FunctionRemoved 播报。
+        AccessibilityAnnouncer.announce("函数已删除")
     }
 
     func updateEquation(id: UUID, text: String) {
@@ -306,6 +308,8 @@ final class GraphingViewModel: ObservableObject {
         yMin = newMin - margin
         yMax = newMax + margin
         isManualAdjustment = false
+        // 对应原版 GraphViewBestFitChanged 播报。
+        AccessibilityAnnouncer.announce("图形视图已调整为最佳拟合", highPriority: false)
     }
 
     // MARK: - 视窗操作

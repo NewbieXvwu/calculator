@@ -58,6 +58,9 @@ struct ScientificCalculatorView: View {
         .onChange(of: model.historyTogglePulse) {
             if showsHistoryButton { historyPopoverShown.toggle() }
         }
+        .onChange(of: historyPopoverShown) {
+            AccessibilityAnnouncer.announce(historyPopoverShown ? "历史记录面板已打开" : "历史记录面板已关闭", highPriority: false)
+        }
     }
 
     // MARK: - 角度 / F-E 栏

@@ -79,5 +79,7 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 420)
         .fixedSize(horizontal: false, vertical: true)
+        // 对应原版 SettingsPageOpened 播报。
+        .onAppear { AccessibilityAnnouncer.announce("已打开设置", highPriority: false) }
     }
 }

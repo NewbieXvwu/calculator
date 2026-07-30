@@ -69,6 +69,8 @@ struct MacCalculatorApp: App {
                         for window in NSApp.windows {
                             window.level = newValue ? .floating : .normal
                         }
+                        // 对应原版 AlwaysOnTop 播报。
+                        AccessibilityAnnouncer.announce(newValue ? "已进入置顶视图" : "已退出置顶视图")
                     }))
                     .keyboardShortcut(.upArrow, modifiers: [.option, .command])
             }

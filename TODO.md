@@ -153,12 +153,20 @@
       科学模式完整表达式中间操作数编辑（1+2×4 编辑 2→5 得 21）、等号后编辑（含负数小数 `-7.5`）、
       非法输入/越界拒绝——共 5 个新用例，`swift test` 83 项全绿
 
-### P3-3 无障碍播报（Narrator → VoiceOver）
+### P3-3 无障碍播报（Narrator → VoiceOver）✅
 规格：`src/CalcViewModel/Common/Automation/NarratorAnnouncement.cpp` 全部事件。
-- [ ] `NSAccessibility.post(.announcementRequested)` 等价封装
-- [ ] 事件逐条对齐：显示值更新（等号/清除后）、内存变更（MS/M+/M−/MC）、历史面板开合、
-      进制/字长/角度切换、错误提示、2nd 开关、绘图跟踪值
-- [ ] 真机 VoiceOver 过一遍（记录待人工项）
+- [x] `NSAccessibility.post(.announcementRequested)` 等价封装：新增 `AccessibilityAnnouncer`
+      （high↔ImportantMostRecent、medium↔MostRecent 优先级映射，向 mainWindow/NSApp 投递）
+- [x] 事件逐条对齐：显示值更新（等号/清除/退格 → DisplayUpdated；二元运算符 OnBinaryOperatorReceived；
+      MaxDigitsReached；NoParenthesisAdded；OpenParenthesisCountChanged）、
+      内存变更（MS 存储 / M+ M− MemoryItemChanged / MC 清除）、历史（清除/删项/面板开合）、
+      进制切换（HEX/DEC/OCT/BIN）、字长切换、角度切换（度/弧度/百分度）、移位类型（BitShiftRadioButtonContent）、
+      错误提示（isError 文本）、2nd 开关（ShiftButton）、复制（DisplayCopied）、
+      模式切换（含 GraphModeChanged）、置顶（AlwaysOnTop）、设置页打开（SettingsPageOpened）、
+      单位换算（CategoryNameChanged / UpdateCurrencyRates）、
+      绘图（FunctionRemoved / GraphViewBestFitChanged / 跟踪值坐标）
+- [x] 豁免记录：真机 VoiceOver 人工验证——需真实设备与人工听感，本环境无法自动化，**留待人工**
+      （代码路径已全部接线，等价原版事件全覆盖）
 
 ### P3-4 本地化接线
 现状：60 locale 的 xcstrings 已生成（`src/MacApp/Resources/`），但 UI 全部硬编码中文。

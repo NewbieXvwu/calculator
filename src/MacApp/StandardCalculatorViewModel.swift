@@ -22,6 +22,18 @@ enum CalculatorMode {
     /// 是否为引擎驱动的计算模式（日期计算/单位换算/绘图不使用 CalcManager）。
     var usesEngine: Bool { self == .standard || self == .scientific || self == .programmer }
 
+    /// VoiceOver 播报用的模式名称。
+    var announcementLabel: String {
+        switch self {
+        case .standard: return "标准"
+        case .scientific: return "科学"
+        case .programmer: return "程序员"
+        case .date: return "日期计算"
+        case .converter: return "单位换算"
+        case .graphing: return "绘图"
+        }
+    }
+
     var precision: Int {
         switch self {
         case .standard: return 16
@@ -203,7 +215,14 @@ final class StandardCalculatorViewModel: ObservableObject {
     @Published var isBitFlipChecked = false
 
     /// 当前移位类型（对应原版 BitShiftFlyout 单选，决定键盘行移位键）。
-    @Published var shiftMode: BitShiftMode = .arithmetic
+    @Published var shiftMode: BitShiftMode = .arithmetic {
+        didSet {
+            // 对应原版 BitShiftRadioButtonContent 播报。
+            if oldValue != shiftMode {
+                AccessibilityAnnouncer.announce(shiftMode.label, highPriority: false)
+            }
+        }
+    }
     /// 四个进制的转换显示（对应原版 Hex/Dec/Oct/BinaryDisplayValue）。
     @Published private(set) var hexDisplay = "0"
     @Published private(set) var decDisplay = "0"
@@ -217,6 +236,8 @@ final class StandardCalculatorViewModel: ObservableObject {
     @Published private(set) var flashedCommand: EngineCommand?
 
     private let bridge = CalcManagerBridge()
+    /// 下一次显示回调需向 VoiceOver 播报(对应原版 DisplayUpdated)。
+    private var announceNextDisplayChange = false
 
     var decimalSeparator: String {
         bridge.decimalSeparator()
@@ -260,9 +281,23 @@ final class StandardCalculatorViewModel: ObservableObject {
 
         if command == .deg || command == .rad || command == .grad {
             currentAngleType = command
+            AccessibilityAnnouncer.announce(angleAnnouncementLabel(command))
+        }
+
+        // 对应原版 DisplayUpdated 播报(等号/清除/退格后)。
+        if command == .equals || command == .clear || command == .clearEntry || command == .backspace {
+            announceNextDisplayChange = true
         }
 
         bridge.sendCommand(command.rawValue)
+    }
+
+    private func angleAnnouncementLabel(_ command: EngineCommand) -> String {
+        switch command {
+        case .rad: return "弧度"
+        case .grad: return "百分度"
+        default: return "度"
+        }
     }
 
     func digitPressed(_ digit: Int) {
@@ -282,6 +317,7 @@ final class StandardCalculatorViewModel: ObservableObject {
     /// 切换左侧函数列的 2nd 态（x²↔x³、√↔∛、log↔logₓ 等）。
     func toggleInv() {
         isInvChecked.toggle()
+        AccessibilityAnnouncer.announce(isInvChecked ? "已打开 2nd 功能" : "已关闭 2nd 功能", highPriority: false)
     }
 
     /// 按下 2nd 态函数键后自动复位 Shift（对应原版 ShiftButton_Uncheck）。
@@ -322,6 +358,16 @@ final class StandardCalculatorViewModel: ObservableObject {
         currentRadix = radix
         bridge.setRadix(radix.rawValue)
         updateProgrammerDisplay()
+        AccessibilityAnnouncer.announce(radixAnnouncementLabel(radix))
+    }
+
+    private func radixAnnouncementLabel(_ radix: RadixKind) -> String {
+        switch radix {
+        case .hex: return "十六进制"
+        case .dec: return "十进制"
+        case .oct: return "八进制"
+        case .bin: return "二进制"
+        }
     }
 
     /// 单击字长按钮循环 QWORD→DWORD→WORD→BYTE→QWORD（对应原版单个循环按钮）。
@@ -335,6 +381,7 @@ final class StandardCalculatorViewModel: ObservableObject {
         wordSize = newSize
         buttonPressed(newSize.command)
         updateProgrammerDisplay()
+        AccessibilityAnnouncer.announce(newSize.label)
     }
 
     /// 在整键盘 / 位翻转键盘之间切换（对应原版 IsBitFlipChecked）。
@@ -434,6 +481,8 @@ final class StandardCalculatorViewModel: ObservableObject {
 
         refreshHistory()
         refreshInputEmpty()
+        // 对应原版模式切换播报(含 GraphModeChanged)。
+        AccessibilityAnnouncer.announce("已切换到\(newMode.announcementLabel)", highPriority: false)
     }
 
     private func resetRadixAndUpdateMemory(resetRadix: Bool) {
@@ -446,6 +495,7 @@ final class StandardCalculatorViewModel: ObservableObject {
 
     func memorizeNumber() {
         bridge.memorizeNumber()
+        AccessibilityAnnouncer.announce("已存入内存", highPriority: false)
     }
 
     func memoryItemPressed(_ index: Int) {
@@ -470,6 +520,7 @@ final class StandardCalculatorViewModel: ObservableObject {
 
     func clearMemory() {
         bridge.memoryClearAll()
+        AccessibilityAnnouncer.announce("内存已清除")
     }
 
     // MARK: - History
@@ -477,12 +528,14 @@ final class StandardCalculatorViewModel: ObservableObject {
     func removeHistoryItem(_ index: Int) {
         if bridge.removeHistoryItem(UInt(index)) {
             refreshHistory()
+            AccessibilityAnnouncer.announce("历史记录项已删除")
         }
     }
 
     func clearHistory() {
         bridge.clearHistory()
         refreshHistory()
+        AccessibilityAnnouncer.announce("历史记录已清除", highPriority: false)
     }
 
     /// 历史面板开关（⌃H / 菜单栏）；程序员模式无历史。
@@ -526,11 +579,39 @@ final class StandardCalculatorViewModel: ObservableObject {
                 self.displayValue = text
                 self.isInError = isError
                 self.updateProgrammerDisplay()
+                // 对应原版 DisplayUpdated 播报;错误文本始终播报。
+                if isError {
+                    self.announceNextDisplayChange = false
+                    AccessibilityAnnouncer.announce(text)
+                } else if self.announceNextDisplayChange {
+                    self.announceNextDisplayChange = false
+                    AccessibilityAnnouncer.announce(text)
+                }
             }
         }
         bridge.onIsInErrorChanged = { [weak self] isError in
             Task { @MainActor in
                 self?.isInError = isError
+            }
+        }
+        // 对应原版 OnBinaryOperatorReceived → DisplayUpdated 播报。
+        bridge.onBinaryOperatorReceived = { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                AccessibilityAnnouncer.announce(self.displayValue)
+            }
+        }
+        // 对应原版 MaxDigitsReached 播报。
+        bridge.onMaxDigitsReached = { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                AccessibilityAnnouncer.announce("已达到最大位数 \(self.displayValue)")
+            }
+        }
+        // 对应原版 NoParenthesisAdded 播报。
+        bridge.onNoRightParenAdded = {
+            Task { @MainActor in
+                AccessibilityAnnouncer.announce("没有左括号可匹配，未添加右括号")
             }
         }
         bridge.onExpressionChanged = { [weak self] tokens in
@@ -542,7 +623,12 @@ final class StandardCalculatorViewModel: ObservableObject {
         }
         bridge.onParenthesisCountChanged = { [weak self] count in
             Task { @MainActor in
-                self?.openParenthesisCount = count
+                guard let self else { return }
+                // 对应原版 OpenParenthesisCountChanged 播报(仅计数变化时)。
+                if count != self.openParenthesisCount {
+                    AccessibilityAnnouncer.announce("打开的括号数 \(count)", highPriority: false)
+                }
+                self.openParenthesisCount = count
             }
         }
         bridge.onMemoryChanged = { [weak self] values in
@@ -550,6 +636,13 @@ final class StandardCalculatorViewModel: ObservableObject {
                 guard let self else { return }
                 self.memorizedNumbers = values.enumerated().map { MemorySlot(id: $0.offset, value: $0.element) }
                 self.isMemoryEmpty = self.memorizedNumbers.isEmpty
+            }
+        }
+        // 对应原版 MemoryItemChanged 播报(M+/M− 后)。
+        bridge.onMemoryItemChanged = { [weak self] index in
+            Task { @MainActor in
+                guard let self, Int(index) < self.memorizedNumbers.count else { return }
+                AccessibilityAnnouncer.announce("内存已更新为 \(self.memorizedNumbers[Int(index)].value)", highPriority: false)
             }
         }
         bridge.onHistoryItemAdded = { [weak self] _ in
@@ -851,6 +944,7 @@ final class StandardCalculatorViewModel: ObservableObject {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(displayValue, forType: .string)
+        AccessibilityAnnouncer.announce("结果已复制到剪贴板")
     }
 
     /// 粘贴入口（对应原版 OnPasteCommand）：按模式选择校验规则，

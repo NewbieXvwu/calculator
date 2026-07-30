@@ -79,8 +79,11 @@ final class UnitConverterViewModel: ObservableObject {
         currencyStatus = "正在刷新汇率…"
         if let rates = await CurrencyService.refreshFromNetwork() {
             applyRates(rates)
+            // 对应原版 UpdateCurrencyRates 播报。
+            AccessibilityAnnouncer.announce("汇率已更新", highPriority: false)
         } else {
             currencyStatus = "刷新失败（保留上次数据）"
+            AccessibilityAnnouncer.announce("汇率刷新失败", highPriority: false)
         }
     }
 
@@ -145,6 +148,8 @@ final class UnitConverterViewModel: ObservableObject {
         isFromActive = true
         inputBuffer = "0"
         recalculate()
+        // 对应原版 CategoryNameChanged 播报。
+        AccessibilityAnnouncer.announce(category.name, highPriority: false)
     }
 
     func selectFromUnit(_ unit: ConverterUnit) {

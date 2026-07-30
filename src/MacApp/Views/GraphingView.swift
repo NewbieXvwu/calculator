@@ -653,10 +653,22 @@ private struct GraphCanvas: View {
                 .contextMenu {
                     Button("复制图形") { copyGraphImage(size: size) }
                 }
+                .onChange(of: traceCursor) {
+                    announceTrace(size: size)
+                }
 
                 commandPanel(size: size)
             }
         }
+    }
+
+    /// 对应原版绘图跟踪值播报（GraphTrace）：吸附点坐标随光标移动播报。
+    private func announceTrace(size: CGSize) {
+        guard graph.isTracing, let cursor = traceCursor else { return }
+        let mathX = graph.xMin + Double(cursor.x) / Double(size.width) * graph.xSpan
+        let mathY = graph.yMin + Double(size.height - cursor.y) / Double(size.height) * graph.ySpan
+        guard let snap = graph.nearestCurvePoint(mathX: mathX, mathY: mathY) else { return }
+        AccessibilityAnnouncer.announce("x 等于 \(traceFmt(snap.x))，y 等于 \(traceFmt(snap.y))", highPriority: false)
     }
 
     // MARK: - 命令面板（跟踪/放大/缩小/图形视图）
