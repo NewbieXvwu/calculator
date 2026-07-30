@@ -40,8 +40,8 @@
 
 ## 三、UI 忠实度审查问题清单（2026-07-30）
 
-> 进度：P0-1/P0-2/P0-3/P1-1/P1-2/P1-3 已完成；剩余 P2-1（应用图标）、P2-2（菜单充实）、
-> P2-3（键盘监听守卫）、P2-4（排版校准）。
+> 进度：P0-1/P0-2/P0-3/P1-1/P1-2/P1-3/P2-1/P2-2/P2-3/P2-4 **全部已完成**（2026-07-30）。
+> 剩余仅"待人工真机确认"项（无头环境无法验证）——见文末清单。
 
 ### P0-1 本地化系统性失效（最严重）✅ 已完成（2026-07-30）
 现状：60 语言 xcstrings 只服务无障碍标签，可见 UI 是另一套硬编码中文。
@@ -94,22 +94,31 @@
   `square.and.arrow.up`/`gearshape`/`plus.magnifyingglass`/`minus.magnifyingglass`/`angle`/
   `f.cursive`/`arrow.clockwise`/`arrow.up.arrow.down`/键面 8 个数学符号
 
-### P2-1 应用图标缺失
-- [ ] 设计/生成 .icns，`package_app.sh` Info.plist 补 `CFBundleIconFile`（现在 Dock/访达是白纸图标）
+### P2-1 应用图标缺失 ✅ 已完成
+- [x] 程序化生成 macOS squircle 计算器图标（`Tools/make_appicon.swift` → `Tools/appicon/icon_1024.png`），
+      `iconutil` 打成 `Tools/AppIcon.icns`；`package_app.sh` 拷入 bundle 并补 `CFBundleIconFile=AppIcon`
+      （缺 icns 时告警不阻断）；iconset 中间产物已入 `.gitignore`
 
-### P2-2 菜单栏充实
+### P2-2 菜单栏充实 ✅ 已完成
 现状：菜单单薄（用户对照 Apple 计算器截图指出"缺乏真正可用的选项"）。
-- [ ] 结合 P0-1 本地化后补齐：关于窗口、设置入口（⌘, 已有 Settings scene，菜单可发现性确认）、
-      模式菜单并入 macOS 惯例的"显示"类菜单结构；评估千位分隔符开关等原版 Settings 项的菜单直达
-- [ ] 不照抄 Apple 计算器特有功能（RPN/数学笔记等非原版特性，不做）
+- [x] 模式菜单并入 macOS 惯例的"显示(View)"菜单（`Mac_Menu_View`，⌘1..⌘6）
+- [x] 自定义关于面板（应用菜单 `CommandGroup(.appInfo)` → `orderFrontStandardAboutPanel`），
+      附版权 + 第三方许可声明（Giac GPLv3 合规可见性）；设置入口 ⌘, 由 Settings scene 提供
+- [x] 不照抄 Apple 计算器特有功能（RPN/数学笔记，不做）
+- 千位分隔符菜单直达：评估后**暂缓**——引擎（CalcSession/CalcManager）分组由 locale 固定 `3;0`，
+  运行时开关需新增桥接方法并触发重排，且原版本身走 Settings 复选框而非菜单；待有需求再做
 
-### P2-3 键盘监听机制风险
-`NSEvent.addLocalMonitorForEvents`（`CalculatorChrome.swift:93`）全局截键，MathLive/WKWebView
+### P2-3 键盘监听机制风险 ✅ 已完成
+`NSEvent.addLocalMonitorForEvents`（`CalculatorChrome.swift`）全局截键，MathLive/WKWebView
 或文本框聚焦时可能吞键。
-- [ ] 评估迁移到 SwiftUI focus 体系或按第一响应者过滤；至少补"文本输入聚焦时放行"守卫并真机验证绘图输入
+- [x] 补"文本输入聚焦时放行"守卫：`KeyMonitor.isTextInputFocused` 检测第一响应者为
+      `NSText`（含 NSTextField field editor / NSTextView）或 WebKit 内容视图时原样返回事件
+      （待真机验证绘图 MathLive 输入——见文末清单）
 
-### P2-4 排版留白校准（次要）
-- [ ] 显示区/表达式行/键盘间距与原版 XAML 逐屏比对（用户截图观感：显示区与键盘偏挤）
+### P2-4 排版留白校准（次要）✅ 已完成
+- [x] 依原版 Calculator.xaml 行比（表达式 22* : 结果 72* : 内存 32* : 键盘 308*，结果行 MinHeight 20/42/54/72/108）
+      放宽共享 `DisplayArea`：表达式行 18→20、结果文本 `minHeight:56`、纵向留白 6→10
+      （Standard/Scientific/Programmer 共用，缓解"显示区偏挤"；最终观感待真机逐屏比对——见文末清单）
 
 ---
 

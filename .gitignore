@@ -303,3 +303,6 @@ third_party/giac/lib/
 
 .DS_Store
 **/.DS_Store
+
+# 应用图标中间产物：保留源 PNG 与最终 AppIcon.icns，忽略 iconutil 的临时 iconset。
+Tools/appicon/AppIcon.iconset/

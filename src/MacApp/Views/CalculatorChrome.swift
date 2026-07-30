@@ -51,6 +51,9 @@ private struct KeyMonitor: ViewModifier {
     private func install() {
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // 文本输入/网页视图聚焦时放行：MathLive(WKWebView)、日期/换算的 NSTextField
+            // 需要原样收到按键，否则计算器按键映射会吞掉输入。
+            if KeyMonitor.isTextInputFocused { return event }
             let flags = event.modifierFlags
             let consumed = model.handleKey(
                 chars: event.charactersIgnoringModifiers ?? "",
@@ -70,6 +73,16 @@ private struct KeyMonitor: ViewModifier {
             NSEvent.removeMonitor(keyMonitor)
             self.keyMonitor = nil
         }
+    }
+
+    /// 当前第一响应者是否为文本输入或网页内容视图（此时放行按键，不做计算器映射）。
+    static var isTextInputFocused: Bool {
+        guard let responder = NSApp.keyWindow?.firstResponder else { return false }
+        // NSText 覆盖 NSTextField 的 field editor 与 NSTextView。
+        if responder is NSText { return true }
+        // WKWebView 的内容视图为 WebKit 私有类（如 WKContentView / WKWebView）。
+        let className = NSStringFromClass(type(of: responder))
+        return className.hasPrefix("WK") || className.contains("WebKit")
     }
 }
 

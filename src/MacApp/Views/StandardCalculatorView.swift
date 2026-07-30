@@ -141,7 +141,7 @@ struct DisplayArea: View {
             }
             .defaultTrailingScrollAnchor()
             .frame(maxWidth: .infinity, alignment: .trailing)
-            .frame(height: 18)
+            .frame(height: 20)
             .accessibilityIdentifier("expressionDisplay")
             .accessibilityElement(children: .combine)
             .accessibilityLabel(L10n.string("Mac_Expression"))
@@ -151,7 +151,7 @@ struct DisplayArea: View {
                 .font(.system(size: 48, weight: .light))
                 .lineLimit(1)
                 .minimumScaleFactor(0.3)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+                .frame(maxWidth: .infinity, minHeight: 56, alignment: .trailing)
                 .contentTransition(.numericText())
                 .animation(.snappy(duration: 0.18), value: model.displayValue)
                 .accessibilityIdentifier("primaryDisplay")
@@ -160,7 +160,7 @@ struct DisplayArea: View {
                 .textSelection(.enabled)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 6)
+        .padding(.vertical, 10)
     }
 
     /// 对应原版表达式区可点击 token(SaveEditedCommand/UpdateOperand):操作数可点击弹出编辑。

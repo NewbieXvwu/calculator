@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+import AppKit
 import SwiftUI
 
 @main
@@ -19,8 +20,14 @@ struct MacCalculatorApp: App {
         .windowResizability(.contentSize)
         .defaultSize(width: 322, height: 500)
         .commands {
-            // 模式切换（对齐 Apple 计算器 ⌘1/2/3）。
-            CommandMenu(L10n.string("Mac_Menu_Mode")) {
+            // 关于面板（macOS 惯例：应用菜单内，展示版权/第三方声明——静态链 Giac 的 GPLv3 合规提示）。
+            CommandGroup(replacing: .appInfo) {
+                Button(L10n.format("Mac_Menu_About", L10n.string("AppName"))) {
+                    Self.showAboutPanel()
+                }
+            }
+            // 模式切换并入 macOS 惯例的"显示"菜单（对齐 Apple 计算器 ⌘1..⌘6）。
+            CommandMenu(L10n.string("Mac_Menu_View")) {
                 Button(L10n.string("StandardModeText")) { model.setCalculatorType(.standard) }
                     .keyboardShortcut("1", modifiers: .command)
                 Button(L10n.string("ScientificModeText")) { model.setCalculatorType(.scientific) }
@@ -82,6 +89,19 @@ struct MacCalculatorApp: App {
         Settings {
             SettingsView()
         }
+    }
+
+    /// 标准关于面板：版本自 Info.plist 自动填充，附版权与第三方许可声明（GPLv3 合规可见性）。
+    static func showAboutPanel() {
+        let creditsText = L10n.string("Mac_LicenseCopyright") + "\n\n" + L10n.string("Mac_ThirdParty")
+        let credits = NSAttributedString(
+            string: creditsText,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ])
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     }
 }
 

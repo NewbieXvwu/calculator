@@ -31,6 +31,14 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$PRODUCTS/MacCalculator" "$APP/Contents/MacOS/"
 cp -R "$PRODUCTS"/MacCalculator_*.bundle "$APP/Contents/Resources/"
 
+# 应用图标：由 Tools/make_appicon.swift 程序化生成、iconutil 打成的 AppIcon.icns。
+# 缺失时不阻断打包（仅回落白纸图标），并提示重新生成命令。
+if [ -f "$ROOT/Tools/AppIcon.icns" ]; then
+    cp "$ROOT/Tools/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+else
+    echo "warning: Tools/AppIcon.icns 缺失，Dock/访达将显示白纸图标（重生成：swift Tools/make_appicon.swift Tools/appicon/icon_1024.png 后转 icns）" >&2
+fi
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -46,6 +54,8 @@ $LOCALIZATIONS_XML
     </array>
     <key>CFBundleExecutable</key>
     <string>MacCalculator</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>io.github.newbiexvwu.calculator</string>
     <key>CFBundleInfoDictionaryVersion</key>
