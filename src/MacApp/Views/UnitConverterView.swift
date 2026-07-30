@@ -18,15 +18,11 @@ struct UnitConverterView: View {
     @ObservedObject var model: StandardCalculatorViewModel
     @StateObject private var converter = UnitConverterViewModel()
 
-    var showsHistoryButton: Bool = false
-    @State private var historyPopoverShown = false
-
     var body: some View {
         VStack(spacing: 0) {
-            CalculatorHeader(model: model, showsHistoryButton: showsHistoryButton, historyPopoverShown: $historyPopoverShown)
-
             categoryPicker
                 .padding(.horizontal, 16)
+                .padding(.top, 8)
                 .padding(.bottom, 8)
 
             if converter.currentCategory.id == UnitConverterViewModel.currencyCategoryID {

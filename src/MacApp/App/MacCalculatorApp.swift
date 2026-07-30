@@ -14,6 +14,8 @@ struct MacCalculatorApp: App {
             ContentView(model: model)
         }
         .windowStyle(.hiddenTitleBar)
+        // 工具栏收紧为 Apple 计算器同款紧凑高度（不显示窗口标题文本）。
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
         .windowResizability(.contentSize)
         .defaultSize(width: 322, height: 500)
         .commands {

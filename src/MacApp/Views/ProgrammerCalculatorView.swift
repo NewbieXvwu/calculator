@@ -17,13 +17,8 @@ import SwiftUI
 struct ProgrammerCalculatorView: View {
     @ObservedObject var model: StandardCalculatorViewModel
 
-    var showsHistoryButton: Bool = false
-
-    @State private var historyPopoverShown = false
-
     var body: some View {
         VStack(spacing: 0) {
-            CalculatorHeader(model: model, showsHistoryButton: showsHistoryButton, historyPopoverShown: $historyPopoverShown)
             DisplayArea(model: model)
             radixRows
                 .padding(.horizontal, 8)

@@ -18,10 +18,19 @@ struct HistoryMemoryPanel: View {
     @ObservedObject var model: StandardCalculatorViewModel
     @State private var tab: DockTab = .history
 
+    /// 程序员模式无历史（原版引擎该模式不持有 CalculatorHistory）。
+    private var availableTabs: [DockTab] {
+        model.mode == .programmer ? [.memory] : DockTab.allCases
+    }
+
+    private var effectiveTab: DockTab {
+        availableTabs.contains(tab) ? tab : .memory
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $tab) {
-                ForEach(DockTab.allCases) { tab in
+                ForEach(availableTabs) { tab in
                     Text(tab.rawValue).tag(tab)
                 }
             }
@@ -29,7 +38,7 @@ struct HistoryMemoryPanel: View {
             .labelsHidden()
             .padding(10)
 
-            switch tab {
+            switch effectiveTab {
             case .history:
                 HistoryListView(model: model)
             case .memory:

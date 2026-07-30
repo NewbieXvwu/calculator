@@ -1,75 +1,35 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-// 标准/科学模式共用的窗口 chrome：
-//   - 顶栏（历史圆钮 + 模式菜单，macOS 惯例，取代原版汉堡导航）
+// 各模式共用的窗口 chrome：
+//   - 原生工具栏内容（历史侧栏开关 leading + 模式菜单 trailing，Apple 计算器同款布局）
 //   - 物理键盘监听修饰符
-// 视觉统一走 Liquid Glass；排版职责仍归各具体 View。
+// 视觉统一走系统工具栏材质；排版职责仍归各具体 View。
 
 import AppKit
 import SwiftUI
 
-/// 顶栏：左历史圆钮（窄窗时），右模式菜单，均为系统玻璃按钮。
-struct CalculatorHeader: View {
+/// 工具栏模式菜单按钮（trailing 端，Apple 计算器惯例位置）。
+/// 按钮字形：SF 公共库无 `calculator`，先以 `circle.grid.3x3` 兜底（TODO P1-3 自绘 symbol）。
+struct ModeMenuButton: View {
     @ObservedObject var model: StandardCalculatorViewModel
-    var showsHistoryButton: Bool
-    @Binding var historyPopoverShown: Bool
 
     var body: some View {
-        HStack(spacing: 8) {
-            if showsHistoryButton {
-                Button {
-                    historyPopoverShown.toggle()
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
-                }
-                .glassButtonStyle()
-                .controlSize(.large)
-                .help("历史记录")
-                .accessibilityLabel("历史记录")
-                .popover(isPresented: $historyPopoverShown, arrowEdge: .bottom) {
-                    HistoryListView(model: model)
-                        .frame(width: 280, height: 320)
-                }
+        Menu {
+            Picker("模式", selection: modeBinding) {
+                Label("标准", systemImage: "plus.slash.minus").tag(CalculatorMode.standard)
+                Label("科学", systemImage: "function").tag(CalculatorMode.scientific)
+                Label("程序员", systemImage: "cpu").tag(CalculatorMode.programmer)
+                Label("日期计算", systemImage: "calendar").tag(CalculatorMode.date)
+                Label("单位换算", systemImage: "arrow.left.arrow.right").tag(CalculatorMode.converter)
+                Label("绘图", systemImage: "chart.xyaxis.line").tag(CalculatorMode.graphing)
             }
-
-            Spacer()
-
-            Menu {
-                Picker("模式", selection: modeBinding) {
-                    Label("标准", systemImage: "plusminus").tag(CalculatorMode.standard)
-                    Label("科学", systemImage: "function").tag(CalculatorMode.scientific)
-                    Label("程序员", systemImage: "chevron.left.forwardslash.chevron.right").tag(CalculatorMode.programmer)
-                    Label("日期计算", systemImage: "calendar").tag(CalculatorMode.date)
-                    Label("单位换算", systemImage: "arrow.left.arrow.right").tag(CalculatorMode.converter)
-                    Label("绘图", systemImage: "chart.xyaxis.line").tag(CalculatorMode.graphing)
-                }
-                .pickerStyle(.inline)
-            } label: {
-                Image(systemName: modeIcon)
-            }
-            .menuStyle(.button)
-            .glassButtonStyle()
-            .controlSize(.large)
-            .fixedSize()
-            .help("计算器模式")
-            .accessibilityLabel("计算器模式")
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: "circle.grid.3x3")
         }
-        .padding(.leading, 76) // 隐藏标题栏后为左上角红绿灯按钮留位
-        .padding(.trailing, 12)
-        .padding(.top, 8)
-        .padding(.bottom, 2)
-    }
-
-    private var modeIcon: String {
-        switch model.mode {
-        case .scientific: return "function"
-        case .programmer: return "chevron.left.forwardslash.chevron.right"
-        case .standard: return "square.grid.2x2"
-        case .date: return "calendar"
-        case .converter: return "arrow.left.arrow.right"
-        case .graphing: return "chart.xyaxis.line"
-        }
+        .help("计算器模式")
+        .accessibilityLabel("计算器模式")
     }
 
     private var modeBinding: Binding<CalculatorMode> {

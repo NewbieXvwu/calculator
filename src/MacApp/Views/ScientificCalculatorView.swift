@@ -23,10 +23,6 @@ import SwiftUI
 struct ScientificCalculatorView: View {
     @ObservedObject var model: StandardCalculatorViewModel
 
-    var showsHistoryButton: Bool = false
-
-    @State private var historyPopoverShown = false
-
     // 左侧函数列：(常规文字, 常规命令, 2nd 文字, 2nd 命令)，行 2-7 各一项。
     private let functionColumn: [(String, EngineCommand, String, EngineCommand)] = [
         ("x²", .sqr, "x³", .cube),
@@ -39,7 +35,6 @@ struct ScientificCalculatorView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            CalculatorHeader(model: model, showsHistoryButton: showsHistoryButton, historyPopoverShown: $historyPopoverShown)
             DisplayArea(model: model)
             MemoryBar(model: model)
                 .padding(.horizontal, 8)
@@ -55,12 +50,6 @@ struct ScientificCalculatorView: View {
                 .padding(.bottom, 8)
         }
         .calculatorKeyMonitor(model: model)
-        .onChangeCompat(of: model.historyTogglePulse) { _ in
-            if showsHistoryButton { historyPopoverShown.toggle() }
-        }
-        .onChangeCompat(of: historyPopoverShown) { _ in
-            AccessibilityAnnouncer.announce(historyPopoverShown ? "历史记录面板已打开" : "历史记录面板已关闭", highPriority: false)
-        }
     }
 
     // MARK: - 角度 / F-E 栏

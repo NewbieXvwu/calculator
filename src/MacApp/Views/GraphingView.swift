@@ -16,24 +16,18 @@ struct GraphingView: View {
     @ObservedObject var model: StandardCalculatorViewModel
     @StateObject private var graph = GraphingViewModel()
 
-    var showsHistoryButton: Bool = false
-    @State private var historyPopoverShown = false
     @State private var showAnalysis = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            CalculatorHeader(model: model, showsHistoryButton: showsHistoryButton, historyPopoverShown: $historyPopoverShown)
+        HStack(spacing: 0) {
+            GraphCanvas(graph: graph)
+                .frame(minWidth: 260)
+                .layoutPriority(2)
 
-            HStack(spacing: 0) {
-                GraphCanvas(graph: graph)
-                    .frame(minWidth: 260)
-                    .layoutPriority(2)
+            Divider()
 
-                Divider()
-
-                equationPanel
-                    .frame(width: 220)
-            }
+            equationPanel
+                .frame(width: 220)
         }
     }
 

@@ -20,14 +20,8 @@ import SwiftUI
 struct StandardCalculatorView: View {
     @ObservedObject var model: StandardCalculatorViewModel
 
-    /// 窗口过窄放不下停靠面板时，顶栏显示历史弹出按钮（对应原版 HistoryButton）。
-    var showsHistoryButton: Bool = false
-
-    @State private var historyPopoverShown = false
-
     var body: some View {
         VStack(spacing: 0) {
-            CalculatorHeader(model: model, showsHistoryButton: showsHistoryButton, historyPopoverShown: $historyPopoverShown)
             DisplayArea(model: model)
             MemoryBar(model: model)
                 .padding(.horizontal, 8)
@@ -37,12 +31,6 @@ struct StandardCalculatorView: View {
                 .padding(.bottom, 8)
         }
         .calculatorKeyMonitor(model: model)
-        .onChangeCompat(of: model.historyTogglePulse) { _ in
-            if showsHistoryButton { historyPopoverShown.toggle() }
-        }
-        .onChangeCompat(of: historyPopoverShown) { _ in
-            AccessibilityAnnouncer.announce(historyPopoverShown ? "历史记录面板已打开" : "历史记录面板已关闭", highPriority: false)
-        }
     }
 
     private var keypad: some View {

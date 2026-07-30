@@ -14,13 +14,8 @@ struct DateCalculatorView: View {
     @ObservedObject var model: StandardCalculatorViewModel
     @StateObject private var dateModel = DateCalculatorViewModel()
 
-    var showsHistoryButton: Bool = false
-    @State private var historyPopoverShown = false
-
     var body: some View {
         VStack(spacing: 0) {
-            CalculatorHeader(model: model, showsHistoryButton: showsHistoryButton, historyPopoverShown: $historyPopoverShown)
-
             Picker("", selection: $dateModel.isDateDiffMode) {
                 Text("日期差").tag(true)
                 Text("加减日期").tag(false)
