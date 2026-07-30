@@ -77,13 +77,14 @@ jobs:
             -destination 'platform=macOS,arch=arm64' \
             -derivedDataPath .dd
 
-      - name: Release 配置构建
+      - name: Release 配置构建（含 C/C++ 全量 LTO）
         run: |
           xcodebuild build \
             -configuration Release \
             -scheme MacCalculator \
             -destination 'platform=macOS,arch=arm64' \
-            -derivedDataPath .dd
+            -derivedDataPath .dd \
+            LLVM_LTO=YES
 
       - name: 打包 Release 产物（GPLv3）
         run: |
