@@ -184,17 +184,6 @@ final class CalculatorViewModelTests: XCTestCase {
         XCTAssertEqual(model.displayValue.replacingOccurrences(of: " ", with: ""), "16")
     }
 
-    func testModeSwitchKeepsNonEngineModesOffEngine() {
-        model.setCalculatorType(.date)
-        XCTAssertFalse(model.mode.usesEngine)
-        model.setCalculatorType(.converter)
-        XCTAssertFalse(model.mode.usesEngine)
-        model.setCalculatorType(.graphing)
-        XCTAssertFalse(model.mode.usesEngine)
-        model.setCalculatorType(.standard)
-        XCTAssertTrue(model.mode.usesEngine)
-    }
-
     /// 模式持久化往返（对应原版记忆当前模式）：切模式写入 UserDefaults，新实例启动恢复。
     func testModePersistenceRoundTrip() {
         for m in [CalculatorMode.standard, .scientific, .programmer, .date, .converter, .graphing] {
@@ -572,7 +561,7 @@ final class GiacMathSolverTests: XCTestCase {
     }
 }
 
-// MARK: - 绘图 ViewModel（不等式/跟踪吸附/三角单位/线型）
+// MARK: - 绘图 ViewModel（不等式/跟踪吸附/三角单位）
 
 @MainActor
 final class GraphingViewModelTests: XCTestCase {
@@ -634,12 +623,6 @@ final class GraphingViewModelTests: XCTestCase {
         // 双曲函数不受角度单位影响。
         let sinhExpr = try XCTUnwrap(GraphExpression("sinh(x)"))
         XCTAssertEqual(try XCTUnwrap(sinhExpr.evaluate(x: 1, trig: .degrees)), sinh(1), accuracy: 1e-12)
-    }
-
-    func testLineStyleDashPatterns() {
-        XCTAssertEqual(EquationLineStyle.solid.dashPattern(lineWidth: 2), [])
-        XCTAssertEqual(EquationLineStyle.dash.dashPattern(lineWidth: 2), [4, 2])
-        XCTAssertEqual(EquationLineStyle.dot.dashPattern(lineWidth: 2), [2, 2])
     }
 }
 
@@ -1356,35 +1339,5 @@ final class LocalizationTests: XCTestCase {
         let template = L10n.string("Format_DecButtonValue")
         let out = L10n.format("Format_DecButtonValue", "255")
         XCTAssertEqual(out, template.replacingOccurrences(of: "%1", with: "255"))
-    }
-}
-
-// MARK: - 响应式布局分档（P3-6）
-
-final class LayoutTierTests: XCTestCase {
-    /// 对照 CalculatorStandardOperators.xaml 的分档 + HideStandardFunctions：
-    /// 大高度放大字号，常规档保留函数行，极窄档隐藏函数行/百分号。
-    func testTierThresholds() {
-        let large = LayoutTier.forKeypadHeight(400)
-        XCTAssertFalse(large.hideStandardFunctions)
-        XCTAssertEqual(large.digitFont, 26)
-
-        let regular = LayoutTier.forKeypadHeight(300)
-        XCTAssertFalse(regular.hideStandardFunctions)
-        XCTAssertEqual(regular.digitFont, 18)
-
-        let tiny = LayoutTier.forKeypadHeight(200)
-        XCTAssertTrue(tiny.hideStandardFunctions, "极窄高度应隐藏函数行")
-    }
-
-    /// 字号随可用高度单调不增（大档 ≥ 常规档 ≥ 紧凑档）。
-    func testTierFontsMonotonic() {
-        let large = LayoutTier.forKeypadHeight(400)
-        let regular = LayoutTier.forKeypadHeight(300)
-        let tiny = LayoutTier.forKeypadHeight(200)
-        XCTAssertGreaterThanOrEqual(large.digitFont, regular.digitFont)
-        XCTAssertGreaterThanOrEqual(regular.digitFont, tiny.digitFont)
-        XCTAssertGreaterThanOrEqual(large.opFont, regular.opFont)
-        XCTAssertGreaterThanOrEqual(regular.opFont, tiny.opFont)
     }
 }

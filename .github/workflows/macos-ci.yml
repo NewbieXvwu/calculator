@@ -21,10 +21,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # giac 版本需与 Tools/build_giac.sh 默认值一致；连同脚本哈希作为缓存键。
-  GIAC_VERSION: "2.1.0"
-
 jobs:
   engine:
     name: C++ 引擎测试（不依赖 giac）
@@ -58,19 +54,17 @@ jobs:
         uses: actions/cache@v6
         with:
           path: third_party/giac
-          key: giac-${{ env.GIAC_VERSION }}-${{ runner.arch }}-${{ hashFiles('Tools/build_giac.sh') }}
+          # giac 版本的唯一事实来源是脚本默认值；升版本改脚本 → 哈希变 → 缓存自动失效。
+          key: giac-${{ runner.arch }}-${{ hashFiles('Tools/build_giac.sh') }}
 
       - name: 构建 giac（缓存未命中时）
         if: steps.giac-cache.outputs.cache-hit != 'true'
-        run: Tools/build_giac.sh "$GIAC_VERSION"
+        run: Tools/build_giac.sh
 
-      - name: 构建（部署目标 macOS 13，验证 #available 守卫）
-        run: swift build --product MacCalculator
-
-      - name: 逻辑测试（swift test，90 例）
-        run: swift test
-
-      - name: UI / 本地化测试（xcodebuild，编译 .xcstrings + 真玻璃分支）
+      # swift test 与 xcodebuild test 跑的是同一个 XCTest bundle（唯一测试 target），
+      # xcodebuild 是严格超集：额外经 xcstringstool 编译 .xcstrings，本地化 catalog
+      # 用例才真正断言而非跳过。故只保留一次测试构建，不再单独 swift build/swift test。
+      - name: 测试（xcodebuild：全部逻辑用例 + .xcstrings + 真玻璃分支）
         run: |
           xcodebuild test \
             -scheme MacCalculator-Package \
