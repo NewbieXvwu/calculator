@@ -157,55 +157,55 @@ struct ScientificCalculatorView: View {
             Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                 // 行 1：2nd | π | e | CE/C | ⌫
                 GridRow {
-                    CalcKey("2ⁿᵈ", style: model.isInvChecked ? .emphasized : .function, fontSize: 14, disabled: model.isInError, a11yLabel: "第二功能") {
+                    CalcKey("2ⁿᵈ", style: model.isInvChecked ? .emphasized : .function, fontSize: 14, disabled: model.isInError, a11yLabel: L10n.button("shiftButton", "第二功能")) {
                         model.toggleInv()
                     }
-                    CalcKey("π", style: .function, disabled: model.isInError, a11yLabel: "圆周率") { model.buttonPressed(.pi) }
-                    CalcKey("e", style: .function, disabled: model.isInError, a11yLabel: "自然常数 e") { model.buttonPressed(.euler) }
+                    CalcKey("π", style: .function, disabled: model.isInError, a11yLabel: L10n.button("piButton", "圆周率")) { model.buttonPressed(.pi) }
+                    CalcKey("e", style: .function, disabled: model.isInError, a11yLabel: L10n.button("eulerButton", "自然常数 e")) { model.buttonPressed(.euler) }
                     clearKey
-                    CalcKey(symbol: "delete.left", style: .function, a11yLabel: "退格") { model.buttonPressed(.backspace) }
+                    CalcKey(symbol: "delete.left", style: .function, a11yLabel: L10n.button("backSpaceButton", "退格")) { model.buttonPressed(.backspace) }
                 }
                 // 行 2：左列 | 1/x | |x| | exp | mod
                 GridRow {
                     functionColumnKey(row: 0)
-                    CalcKey("¹⁄ₓ", style: .function, disabled: model.isInError, a11yLabel: "倒数") { model.buttonPressed(.reciprocal) }
-                    CalcKey("|x|", style: .function, disabled: model.isInError, a11yLabel: "绝对值") { model.buttonPressed(.abs) }
-                    CalcKey("exp", style: .function, disabled: model.isInError, a11yLabel: "指数") { model.buttonPressed(.exp) }
-                    CalcKey("mod", style: .function, disabled: model.isInError, a11yLabel: "取模") { model.buttonPressed(.mod) }
+                    CalcKey("¹⁄ₓ", style: .function, disabled: model.isInError, a11yLabel: L10n.button("invertButton", "倒数")) { model.buttonPressed(.reciprocal) }
+                    CalcKey("|x|", style: .function, disabled: model.isInError, a11yLabel: L10n.button("absButton", "绝对值")) { model.buttonPressed(.abs) }
+                    CalcKey("exp", style: .function, disabled: model.isInError, a11yLabel: L10n.button("expButton", "指数")) { model.buttonPressed(.exp) }
+                    CalcKey("mod", style: .function, disabled: model.isInError, a11yLabel: L10n.button("modButton", "取模")) { model.buttonPressed(.mod) }
                 }
                 // 行 3：左列 | ( | ) | n! | ÷
                 GridRow {
                     functionColumnKey(row: 1)
-                    CalcKey("(", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: "左括号") { model.buttonPressed(.openParen) }
-                    CalcKey(")", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: "右括号") { model.buttonPressed(.closeParen) }
-                    CalcKey("n!", style: .function, disabled: model.isInError, a11yLabel: "阶乘") { model.buttonPressed(.factorial) }
-                    CalcKey(symbol: "divide", style: .operatorKey, disabled: model.isInError, a11yLabel: "除") { model.buttonPressed(.divide) }
+                    CalcKey("(", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("openParenthesisButton", "左括号")) { model.buttonPressed(.openParen) }
+                    CalcKey(")", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("closeParenthesisButton", "右括号")) { model.buttonPressed(.closeParen) }
+                    CalcKey("n!", style: .function, disabled: model.isInError, a11yLabel: L10n.button("factorialButton", "阶乘")) { model.buttonPressed(.factorial) }
+                    CalcKey(symbol: "divide", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("divideButton", "除")) { model.buttonPressed(.divide) }
                 }
                 // 行 4：左列 | 7 | 8 | 9 | ×
                 GridRow {
                     functionColumnKey(row: 2)
                     digitKey(7); digitKey(8); digitKey(9)
-                    CalcKey(symbol: "multiply", style: .operatorKey, disabled: model.isInError, a11yLabel: "乘") { model.buttonPressed(.multiply) }
+                    CalcKey(symbol: "multiply", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("multiplyButton", "乘")) { model.buttonPressed(.multiply) }
                 }
                 // 行 5：左列 | 4 | 5 | 6 | −
                 GridRow {
                     functionColumnKey(row: 3)
                     digitKey(4); digitKey(5); digitKey(6)
-                    CalcKey(symbol: "minus", style: .operatorKey, disabled: model.isInError, a11yLabel: "减") { model.buttonPressed(.subtract) }
+                    CalcKey(symbol: "minus", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("minusButton", "减")) { model.buttonPressed(.subtract) }
                 }
                 // 行 6：左列 | 1 | 2 | 3 | +
                 GridRow {
                     functionColumnKey(row: 4)
                     digitKey(1); digitKey(2); digitKey(3)
-                    CalcKey(symbol: "plus", style: .operatorKey, disabled: model.isInError, a11yLabel: "加") { model.buttonPressed(.add) }
+                    CalcKey(symbol: "plus", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("plusButton", "加")) { model.buttonPressed(.add) }
                 }
                 // 行 7：左列 | ± | 0 | . | =
                 GridRow {
                     functionColumnKey(row: 5)
-                    CalcKey(symbol: "plus.forwardslash.minus", style: .digit, disabled: model.isInError, a11yLabel: "正负号") { model.buttonPressed(.sign) }
+                    CalcKey(symbol: "plus.forwardslash.minus", style: .digit, disabled: model.isInError, a11yLabel: L10n.button("negateButton", "正负号")) { model.buttonPressed(.sign) }
                     digitKey(0)
-                    CalcKey(model.decimalSeparator, style: .digit, fontSize: 18, a11yLabel: "小数点") { model.buttonPressed(.point) }
-                    CalcKey(symbol: "equal", style: .operatorKey, a11yLabel: "等于") { model.buttonPressed(.equals) }
+                    CalcKey(model.decimalSeparator, style: .digit, fontSize: 18, a11yLabel: L10n.button("decimalSeparatorButton", "小数点")) { model.buttonPressed(.point) }
+                    CalcKey(symbol: "equal", style: .operatorKey, a11yLabel: L10n.button("equalButton", "等于")) { model.buttonPressed(.equals) }
                 }
             }
         }
@@ -215,9 +215,9 @@ struct ScientificCalculatorView: View {
     @ViewBuilder
     private var clearKey: some View {
         if model.isInputEmpty {
-            CalcKey("C", style: .function, fontSize: 14, a11yLabel: "清除") { model.buttonPressed(.clear) }
+            CalcKey("C", style: .function, fontSize: 14, a11yLabel: L10n.button("clearButton", "清除")) { model.buttonPressed(.clear) }
         } else {
-            CalcKey("CE", style: .function, fontSize: 14, a11yLabel: "清除输入") { model.buttonPressed(.clearEntry) }
+            CalcKey("CE", style: .function, fontSize: 14, a11yLabel: L10n.button("clearEntryButton", "清除输入")) { model.buttonPressed(.clearEntry) }
         }
     }
 
@@ -232,7 +232,7 @@ struct ScientificCalculatorView: View {
     }
 
     private func digitKey(_ digit: Int) -> some View {
-        CalcKey("\(digit)", style: .digit, fontSize: 18, a11yLabel: "\(digit)") {
+        CalcKey("\(digit)", style: .digit, fontSize: 18, a11yLabel: L10n.button("num\(digit)Button", "\(digit)")) {
             model.digitPressed(digit)
         }
     }

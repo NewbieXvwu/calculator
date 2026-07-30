@@ -716,6 +716,19 @@ final class UnitConverterDataTests: XCTestCase {
         XCTAssertEqual(vm.supplementaryResults.last!.abbreviation, "大象")
         XCTAssertEqual(vm.supplementaryResults.last!.value, "1")
     }
+
+    /// 换算显示走 Locale：千分位分组 + 本地化小数点（不依赖宿主语言）。
+    @MainActor
+    func testConverterDisplayUsesLocaleSeparators() {
+        let g = UnitConverterViewModel.localeGrouping
+        let d = UnitConverterViewModel.localeDecimal
+        XCTAssertEqual(UnitConverterViewModel.localizedDisplay("1234567"), "1\(g)234\(g)567")
+        XCTAssertEqual(UnitConverterViewModel.localizedDisplay("1234.5"), "1\(g)234\(d)5")
+        XCTAssertEqual(UnitConverterViewModel.localizedDisplay("-1000"), "-1\(g)000")
+        XCTAssertEqual(UnitConverterViewModel.localizedDisplay("42"), "42")
+        // 科学计数法只替换小数点，不分组。
+        XCTAssertEqual(UnitConverterViewModel.localizedDisplay("1.5e+20"), "1\(d)5e+20")
+    }
 }
 
 // MARK: - CopyPasteManager（迁移自 CalculatorUnitTests/CopyPasteManagerTest.cpp）
@@ -1288,5 +1301,39 @@ final class PasteFunctionalTests: XCTestCase {
         XCTAssertEqual(vm.fromDisplay, "123.5")
         vm.onPaste("42")
         XCTAssertEqual(vm.fromDisplay, "42")
+    }
+}
+
+// MARK: - 本地化管线（P3-4）
+
+final class LocalizationTests: XCTestCase {
+    /// 从指定 .lproj 直接取值,验证 en/zh-Hans 两语解析(不依赖宿主语言)。
+    /// SPM 会把 lproj 目录名小写化(zh-Hans → zh-hans),故大小写不敏感查找。
+    private func lookup(_ lang: String, _ key: String) -> String? {
+        for name in [lang, lang.lowercased()] {
+            if let url = Bundle.module.url(forResource: name, withExtension: "lproj"),
+               let bundle = Bundle(url: url) {
+                let sentinel = "__MISSING__"
+                let v = bundle.localizedString(forKey: key, value: sentinel, table: nil)
+                return v == sentinel ? nil : v
+            }
+        }
+        return nil
+    }
+
+    func testStringsCatalogResolvesBothLanguages() {
+        let clearKey = "clearButton.[using:Windows.UI.Xaml.Automation]AutomationProperties.Name"
+        XCTAssertEqual(lookup("en", clearKey), "Clear")
+        XCTAssertEqual(lookup("zh-Hans", clearKey), "清除")
+    }
+
+    func testL10nFallsBackWhenKeyMissing() {
+        XCTAssertEqual(L10n.string("__definitely_absent_key__", "回退值"), "回退值")
+    }
+
+    func testL10nFormatSubstitutesPositionalArgs() {
+        // Format_DecButtonValue = "Decimal %1" / "十进制 %1"
+        let out = L10n.format("Format_DecButtonValue", "十进制 %1", "255")
+        XCTAssertTrue(out.contains("255"), "格式化结果应含参数：\(out)")
     }
 }

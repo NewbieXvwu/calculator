@@ -293,11 +293,11 @@ final class UnitConverterViewModel: ObservableObject {
 
         // 活动框显示原始输入串（保留正在输入的小数点/负号），非活动框显示换算结果。
         if isFromActive {
-            fromDisplay = inputBuffer
-            toDisplay = convertedString
+            fromDisplay = Self.localizedDisplay(inputBuffer)
+            toDisplay = Self.localizedDisplay(convertedString)
         } else {
-            toDisplay = inputBuffer
-            fromDisplay = convertedString
+            toDisplay = Self.localizedDisplay(inputBuffer)
+            fromDisplay = Self.localizedDisplay(convertedString)
         }
 
         supplementaryResults = buildSupplementaryResults(inputValue: inputValue, activeUnit: activeUnit)
@@ -325,13 +325,13 @@ final class UnitConverterViewModel: ObservableObject {
         for entry in normal {
             let rounded = Self.roundSuggested(entry.value)
             if Double(rounded) != 0 || currentCategory.supportsNegative {
-                results.append(SupplementaryResult(id: entry.unit.id, value: rounded, abbreviation: entry.unit.abbreviation))
+                results.append(SupplementaryResult(id: entry.unit.id, value: Self.localizedDisplay(rounded), abbreviation: entry.unit.abbreviation))
             }
         }
         for entry in whimsical {
             let rounded = Self.roundSuggested(entry.value)
             if Double(rounded) != 0 {
-                results.append(SupplementaryResult(id: entry.unit.id, value: rounded, abbreviation: entry.unit.abbreviation))
+                results.append(SupplementaryResult(id: entry.unit.id, value: Self.localizedDisplay(rounded), abbreviation: entry.unit.abbreviation))
                 break
             }
         }
@@ -356,13 +356,58 @@ final class UnitConverterViewModel: ObservableObject {
         return s
     }
 
-    /// 把结果显示串标准化为可继续输入的缓冲（去掉分组符等）。
+    /// 把结果显示串标准化为可继续输入的缓冲（去掉分组符、本地化小数点还原为 "."）。
     private func normalizeForInput(_ display: String) -> String {
-        let cleaned = display.replacingOccurrences(of: ",", with: "")
+        var cleaned = display.replacingOccurrences(of: Self.localeGrouping, with: "")
+        cleaned = cleaned.replacingOccurrences(of: ",", with: "")
+        if Self.localeDecimal != "." {
+            cleaned = cleaned.replacingOccurrences(of: Self.localeDecimal, with: ".")
+        }
         return Double(cleaned) != nil ? cleaned : "0"
     }
 
     // MARK: - 结果格式化
+
+    /// 当前 Locale 的小数点与千分位分隔符（对应原版 LocalizationSettings）。
+    static var localeDecimal: String { Locale.current.decimalSeparator ?? "." }
+    static var localeGrouping: String { Locale.current.groupingSeparator ?? "," }
+
+    /// 把内部 "."-制数值串按当前 Locale 呈现：整数部分插入千分位，小数点本地化。
+    /// 科学计数法/非数字（如“溢出”）只做小数点替换，不分组。
+    static func localizedDisplay(_ internalValue: String) -> String {
+        if internalValue.contains("e") || internalValue.contains("E")
+            || Double(internalValue) == nil {
+            return localeDecimal == "." ? internalValue
+                : internalValue.replacingOccurrences(of: ".", with: localeDecimal)
+        }
+        var s = internalValue
+        var sign = ""
+        if s.hasPrefix("-") { sign = "-"; s.removeFirst() }
+        let hasTrailingDot = s.hasSuffix(".")
+        let parts = s.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
+        let intPart = parts.first.map(String.init) ?? ""
+        let fracPart = parts.count > 1 ? String(parts[1]) : ""
+        var result = sign + insertGrouping(intPart)
+        if !fracPart.isEmpty {
+            result += localeDecimal + fracPart
+        } else if hasTrailingDot {
+            result += localeDecimal
+        }
+        return result
+    }
+
+    /// 从右向左每 3 位插入千分位分隔符（对应原版数字分组）。
+    private static func insertGrouping(_ digits: String) -> String {
+        guard digits.count > 3 else { return digits }
+        var result = ""
+        var count = 0
+        for ch in digits.reversed() {
+            if count != 0 && count % 3 == 0 { result = localeGrouping + result }
+            result = String(ch) + result
+            count += 1
+        }
+        return result
+    }
 
     /// 有效数字格式化：整数直接显示，否则保留合理有效数字并去除末尾 0。
     static func format(_ value: Double) -> String {

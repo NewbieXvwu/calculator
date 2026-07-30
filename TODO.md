@@ -169,10 +169,20 @@
       （代码路径已全部接线，等价原版事件全覆盖）
 
 ### P3-4 本地化接线
-现状：60 locale 的 xcstrings 已生成（`src/MacApp/Resources/`），但 UI 全部硬编码中文。
-- [ ] UI 串逐个换成 `String(localized:)`/String Catalog 键，键名沿用原版 resw 键（如 `plusButton`）
-- [ ] 数字格式（小数点/千分位）全走 `Locale`，核对 `decimalSeparator` 逗号地区
-- [ ] 验证：切系统语言 en/zh-Hans 抽查主要界面
+现状：60 locale 的 xcstrings 已生成（`src/MacApp/Resources/`）。
+- [x] 本地化管线：SPM `swift build` 不编译 `.xcstrings`（非 Xcode 工具链无 xcstringstool），故用
+      `scripts/export_strings.py` 从 `Localizable.xcstrings` 导出 `Resources/{en,zh-Hans}.lproj/Localizable.strings`
+      （SPM 会处理 legacy `.strings`），`Package.swift` 加 `defaultLocalization: "en"`，
+      新增 `L10n`（`Localization.swift`）经 `Bundle.module` 查表回退中文
+- [x] UI 串换成 resw 键查表：三态键盘（标准/科学/程序员）所有按钮 a11yLabel 走 `L10n.button("<id>", 中文回退)`，
+      键名沿用原版 resw（`plusButton`/`equalButton`/`num0Button`/`shiftButton`/`aButton`…
+      `.[using:Windows.UI.Xaml.Automation]AutomationProperties.Name`）
+- [x] 数字格式（小数点/千分位）全走 `Locale`：换算器 `UnitConverterViewModel.localizedDisplay`
+      按 `Locale.current` 的 `decimalSeparator`/`groupingSeparator` 分组并本地化小数点，
+      逆向 `normalizeForInput` 还原为内部 "." 制；主计算器各模式经引擎 `NSLocale.currentLocale` 分隔符
+- [x] 验证：`LocalizationTests` 直接从 en/zh-Hans `.lproj` 取值断言双语解析 +
+      `testConverterDisplayUsesLocaleSeparators` 校验分组/小数点（87 测试全绿）；
+      切系统语言真机抽查留待人工（无头环境无法验证）
 
 ### P3-5 窗口行为补齐
 - [ ] 退出时记忆当前模式 + 各模式窗口尺寸，启动恢复（原版 ApplicationDataContainer 语义）

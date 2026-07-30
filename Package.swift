@@ -4,6 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "MacCalculator",
+    defaultLocalization: "en",
     platforms: [.macOS("26.0")],
     targets: [
         .target(
