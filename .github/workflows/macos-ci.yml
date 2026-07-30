@@ -1,0 +1,101 @@
+# macOS 移植的 CI。原微软 Windows/UWP 流水线（action-ci.yml）已删除——对本移植无意义。
+#
+# 约束：
+#   - 需 macOS 26 SDK / Xcode 26：编译 Liquid Glass 的 #available(macOS 26) 分支，
+#     并让 xcodebuild 经 xcstringstool 编译 .xcstrings（纯 swift build 不跑它）。
+#   - libgiac.a（31MB）不入库，由 Tools/build_giac.sh 现场构建并经 actions/cache 缓存。
+#   - 引擎测试（C++）不依赖 giac，单列一个快 job 并行跑。
+#   - Release 产物静态链 giac → 整体 GPLv3；且纯 SPM 可执行无 .app 包装，
+#     artifact 为「可执行 + 资源 bundle（含编译好的本地化）」的 zip。
+
+name: macOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # giac 版本需与 Tools/build_giac.sh 默认值一致；连同脚本哈希作为缓存键。
+  GIAC_VERSION: "2.1.0"
+
+jobs:
+  engine:
+    name: C++ 引擎测试（不依赖 giac）
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: 工具链版本
+        run: swift --version && xcodebuild -version
+      - name: 引擎单元测试（原版 CalcManager 70 例）
+        run: swift run engine-tests
+      - name: 冒烟测试
+        run: swift run calc-smoke
+
+  app:
+    name: App 构建 / 测试 / Release 产物
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 工具链版本
+        run: swift --version && xcodebuild -version
+
+      # giac 链接期需要 gmp/mpfr/gettext 的 dylib（即使命中缓存也要装）。
+      - name: 安装 giac 链接依赖
+        run: brew install gmp mpfr gettext
+
+      - name: 缓存 libgiac.a
+        id: giac-cache
+        uses: actions/cache@v4
+        with:
+          path: third_party/giac
+          key: giac-${{ env.GIAC_VERSION }}-${{ runner.arch }}-${{ hashFiles('Tools/build_giac.sh') }}
+
+      - name: 构建 giac（缓存未命中时）
+        if: steps.giac-cache.outputs.cache-hit != 'true'
+        run: Tools/build_giac.sh "$GIAC_VERSION"
+
+      - name: 构建（部署目标 macOS 13，验证 #available 守卫）
+        run: swift build --product MacCalculator
+
+      - name: 逻辑测试（swift test，90 例）
+        run: swift test
+
+      - name: UI / 本地化测试（xcodebuild，编译 .xcstrings + 真玻璃分支）
+        run: |
+          xcodebuild test \
+            -scheme MacCalculator-Package \
+            -destination 'platform=macOS,arch=arm64' \
+            -derivedDataPath .dd
+
+      - name: Release 配置构建
+        run: |
+          xcodebuild build \
+            -configuration Release \
+            -scheme MacCalculator \
+            -destination 'platform=macOS,arch=arm64' \
+            -derivedDataPath .dd
+
+      - name: 打包 Release 产物（GPLv3）
+        run: |
+          PRODUCTS=".dd/Build/Products/Release"
+          cp third_party/giac/COPYING "$PRODUCTS/COPYING.GPLv3"
+          cd "$PRODUCTS"
+          zip -r -y "$GITHUB_WORKSPACE/MacCalculator-release.zip" \
+            MacCalculator MacCalculator_*.bundle COPYING.GPLv3
+
+      - name: 上传 Release 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: MacCalculator-release-${{ github.sha }}
+          path: MacCalculator-release.zip
+          if-no-files-found: error
