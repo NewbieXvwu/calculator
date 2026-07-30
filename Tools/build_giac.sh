@@ -2,6 +2,7 @@
 # 编译 Giac 为 macOS arm64 静态库并安装到 third_party/giac/。
 # 用法：Tools/build_giac.sh [版本号，默认 2.1.0]
 # 依赖：Homebrew 的 gmp、mpfr、gettext（libintl）。
+# 前缀：默认取 $HOMEBREW_PREFIX，其次 `brew --prefix`，再退回 /opt/homebrew（Intel 用 /usr/local）。
 # 产物：third_party/giac/lib/libgiac.a + third_party/giac/COPYING（GPLv3）。
 # 注意：链接了 libgiac.a 的产物整体受 GPLv3 约束。
 set -euo pipefail
@@ -10,6 +11,7 @@ VERSION="${1:-2.1.0}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$ROOT/.build-giac"
 PREFIX="$ROOT/third_party/giac"
+BREW="${HOMEBREW_PREFIX:-$(brew --prefix 2>/dev/null || echo /opt/homebrew)}"
 TARBALL="giac-$VERSION.tar.gz"
 URL="https://www-fourier.univ-grenoble-alpes.fr/~parisse/giac/$TARBALL"
 
@@ -30,8 +32,8 @@ fi
 
 cd "giac-$VERSION"
 if [ ! -f config.h ]; then
-    CPPFLAGS="-I/opt/homebrew/include" \
-    LDFLAGS="-L/opt/homebrew/lib" \
+    CPPFLAGS="-I$BREW/include" \
+    LDFLAGS="-L$BREW/lib" \
     CXXFLAGS="-O2 -std=gnu++17" \
     ./configure --disable-shared --enable-static \
         --disable-fltk --disable-gui --disable-ntl --disable-pari \

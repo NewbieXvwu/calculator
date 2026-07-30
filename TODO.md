@@ -16,6 +16,13 @@
   `CalcManagerCore`（原版 C++ 引擎，零改动复用）→ `CalcManagerBridge`（ObjC++，`src/MacBridge`）
   → `MacCalculator`（SwiftUI，`src/MacApp`）；`GiacBridge`（`src/MacGiacBridge`，静态链 `third_party/giac/lib/libgiac.a`，
   由 `Tools/build_giac.sh` 构建）；测试 `calc-smoke` / `engine-tests` / `MacAppTests`。
+- `src/MacApp` 分层目录：`App/`（入口 `@main`+AppDelegate）、`Models/`（值类型/枚举）、
+  `ViewModels/`（4 个 ObservableObject）、`Views/`（SwiftUI 界面）、`Services/`（CAS/网络/图形算法：
+  Giac、Currency、GraphAnalyzer、MarchingSquares）、`Support/`（本地化/剪贴板/无障碍横切设施）；
+  `Resources/`（xcstrings）与 `MathLiveAssets/` 位置固定（Package.swift 按路径引用，勿移动）。
+- giac/Homebrew 链接路径不再硬编码：Package.swift 顶部经 `Context.packageDirectory` 解析 giac 绝对路径
+  （构建不再要求 cwd==仓库根），`GIAC_LIB_DIR` / `HOMEBREW_PREFIX` 可覆盖（CI/Intel `/usr/local`）；
+  `build_giac.sh` 同步取 `$HOMEBREW_PREFIX`→`brew --prefix`→`/opt/homebrew`。
 - 验证命令：`swift build --product MacCalculator`；`swift test`（逻辑）；`swift run calc-smoke`；`swift run engine-tests`。
   UI 文案/本地化与可分发构建走 xcodebuild：`xcodebuild build -scheme MacCalculator -destination 'platform=macOS,arch=arm64'`、
   `xcodebuild test -scheme MacCalculator-Package -destination 'platform=macOS,arch=arm64'`（此路径才编译 .xcstrings）。

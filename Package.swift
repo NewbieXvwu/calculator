@@ -2,6 +2,13 @@
 // SPM package exposing the CalcManager C++ engine to Swift on macOS.
 import PackageDescription
 
+// giac 静态库与 Homebrew 依赖路径：默认适配 Apple Silicon + 仓库内产物，
+// 可用环境变量覆盖（CI / Intel `/usr/local` / 自定义前缀）。
+// giac 路径解析为绝对路径（根于包目录），构建不再要求 cwd == 仓库根。
+let giacLibDir = Context.environment["GIAC_LIB_DIR"]
+    ?? "\(Context.packageDirectory)/third_party/giac/lib"
+let homebrewPrefix = Context.environment["HOMEBREW_PREFIX"] ?? "/opt/homebrew"
+
 let package = Package(
     name: "MacCalculator",
     defaultLocalization: "en",
@@ -39,8 +46,9 @@ let package = Package(
             publicHeadersPath: "include",
             linkerSettings: [
                 // libgiac.a 由 Tools/build_giac.sh 产出到 third_party/giac/lib，
-                // 依赖 Homebrew 的 gmp/mpfr/gettext；-L 相对路径要求在仓库根执行 swift build。
-                .unsafeFlags(["-Lthird_party/giac/lib", "-L/opt/homebrew/lib"]),
+                // 依赖 Homebrew 的 gmp/mpfr/gettext。路径见文件顶部：giac 已解析为
+                // 绝对路径，Homebrew 前缀可经 HOMEBREW_PREFIX 覆盖，不再绑定仓库根/Apple Silicon。
+                .unsafeFlags(["-L\(giacLibDir)", "-L\(homebrewPrefix)/lib"]),
                 .linkedLibrary("giac"),
                 .linkedLibrary("mpfr"),
                 .linkedLibrary("gmp"),
