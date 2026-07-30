@@ -300,3 +300,6 @@ src/CalcViewModel/DataLoaders/DataLoaderConstants.h
 .build/
 .build-giac/
 third_party/giac/lib/
+
+.DS_Store
+**/.DS_Store

@@ -2,30 +2,35 @@
 // Licensed under the MIT License.
 
 // 本地化查表：键名沿用原版 Resources.resw（如 clearButton 的 AutomationProperties.Name）。
-// SPM `swift build` 不编译 .xcstrings,故 Resources/{en,zh-Hans}.lproj/Localizable.strings
-// 由 xcstrings 导出(scripts/export_strings.py),经 Bundle.module 解析。
+// 唯一真相源是 Resources/Localizable.xcstrings（60 语言，从原版 resw 转换而来）。
+// xcodebuild 构建时经 xcstringstool 原生编译为各语言 .lproj/Localizable.strings 进 bundle,
+// 由 Bundle.module 解析。没有手写回退——键查不到时原样返回键名（暴露缺失,不静默吞掉）。
+// 纯 `swift build`（不跑 xcstringstool）下所有键都会退化成键名,故 UI 文案验证走 xcodebuild。
 
 import Foundation
 
 enum L10n {
-    /// 按 resw 键取当前语言字符串;缺失时回退到 `fallback`(通常为原中文硬编码)。
-    static func string(_ key: String, _ fallback: String) -> String {
+    /// 按 resw 键取当前语言字符串;查不到时返回键名本身（便于定位缺失,不掩盖 bug）。
+    static func string(_ key: String) -> String {
         let value = Bundle.module.localizedString(forKey: key, value: sentinel, table: nil)
-        return value == sentinel ? fallback : value
+        return value == sentinel ? key : value
     }
 
     /// 带位置参数的本地化(对应原版 Format_* 键,占位符 %1/%2…)。
-    static func format(_ key: String, _ fallback: String, _ args: String...) -> String {
-        var result = string(key, fallback)
+    static func format(_ key: String, _ args: String...) -> String {
+        var result = string(key)
         for (index, arg) in args.enumerated() {
             result = result.replacingOccurrences(of: "%\(index + 1)", with: arg)
         }
         return result
     }
 
-    /// 按钮无障碍名:沿用原版 resw 的 `<id>.AutomationProperties.Name` 键。
-    static func button(_ id: String, _ fallback: String) -> String {
-        string("\(id).\(automationNameSuffix)", fallback)
+    /// 按钮无障碍名:沿用原版 resw 的 `<id>.AutomationProperties.Name` 键;
+    /// 查不到时返回可读的 id 叶子（如 "plusButton"）而非整条 WinRT 键。
+    static func button(_ id: String) -> String {
+        let key = "\(id).\(automationNameSuffix)"
+        let value = Bundle.module.localizedString(forKey: key, value: sentinel, table: nil)
+        return value == sentinel ? id : value
     }
 
     private static let automationNameSuffix =

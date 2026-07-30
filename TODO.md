@@ -16,7 +16,9 @@
   `CalcManagerCore`（原版 C++ 引擎，零改动复用）→ `CalcManagerBridge`（ObjC++，`src/MacBridge`）
   → `MacCalculator`（SwiftUI，`src/MacApp`）；`GiacBridge`（`src/MacGiacBridge`，静态链 `third_party/giac/lib/libgiac.a`，
   由 `Tools/build_giac.sh` 构建）；测试 `calc-smoke` / `engine-tests` / `MacAppTests`。
-- 验证命令：`swift build --product MacCalculator`；`swift test`；`swift run calc-smoke`；`swift run engine-tests`。
+- 验证命令：`swift build --product MacCalculator`；`swift test`（逻辑）；`swift run calc-smoke`；`swift run engine-tests`。
+  UI 文案/本地化与可分发构建走 xcodebuild：`xcodebuild build -scheme MacCalculator -destination 'platform=macOS,arch=arm64'`、
+  `xcodebuild test -scheme MacCalculator-Package -destination 'platform=macOS,arch=arm64'`（此路径才编译 .xcstrings）。
 - 排版规格书 = 原版 XAML（`src/Calculator/Views/`）；行为规格书 = 原版 ViewModel（`src/CalcViewModel/`）。
 
 ## 二、仍然有效的已定决策
@@ -169,19 +171,23 @@
       （代码路径已全部接线，等价原版事件全覆盖）
 
 ### P3-4 本地化接线
-现状：60 locale 的 xcstrings 已生成（`src/MacApp/Resources/`）。
-- [x] 本地化管线：SPM `swift build` 不编译 `.xcstrings`（非 Xcode 工具链无 xcstringstool），故用
-      `scripts/export_strings.py` 从 `Localizable.xcstrings` 导出 `Resources/{en,zh-Hans}.lproj/Localizable.strings`
-      （SPM 会处理 legacy `.strings`），`Package.swift` 加 `defaultLocalization: "en"`，
-      新增 `L10n`（`Localization.swift`）经 `Bundle.module` 查表回退中文
-- [x] UI 串换成 resw 键查表：三态键盘（标准/科学/程序员）所有按钮 a11yLabel 走 `L10n.button("<id>", 中文回退)`，
+现状：60 locale 的 xcstrings 是唯一翻译真相源（`src/MacApp/Resources/Localizable.xcstrings` +
+`CEngineStrings.xcstrings`，均从原版 resw 转换）。
+- [x] 本地化管线：改用 xcodebuild 构建——它经 `xcstringstool` 原生把 `.xcstrings` 编译成全部
+      **60 语言**的 `.lproj/Localizable.strings` 进 bundle（已验证 bundle 内 60 个 `.lproj`）。
+      `Package.swift` 保留 `defaultLocalization: "en"`；`L10n`（`Localization.swift`）经 `Bundle.module` 查表。
+      **无手写回退、无双真相源**：删除了 `scripts/export_strings.py` 与手动导出的 `{en,zh-Hans}.lproj`；
+      查不到的键原样返回键名（暴露缺失，不静默吞中文）。纯 `swift build` 不编译 catalog，文案退化为键名，
+      故 UI 文案验证一律走 xcodebuild。
+- [x] UI 串换成 resw 键查表：三态键盘（标准/科学/程序员）所有按钮 a11yLabel 走 `L10n.button("<id>")`（单参数、无回退），
       键名沿用原版 resw（`plusButton`/`equalButton`/`num0Button`/`shiftButton`/`aButton`…
       `.[using:Windows.UI.Xaml.Automation]AutomationProperties.Name`）
 - [x] 数字格式（小数点/千分位）全走 `Locale`：换算器 `UnitConverterViewModel.localizedDisplay`
       按 `Locale.current` 的 `decimalSeparator`/`groupingSeparator` 分组并本地化小数点，
       逆向 `normalizeForInput` 还原为内部 "." 制；主计算器各模式经引擎 `NSLocale.currentLocale` 分隔符
-- [x] 验证：`LocalizationTests` 直接从 en/zh-Hans `.lproj` 取值断言双语解析 +
-      `testConverterDisplayUsesLocaleSeparators` 校验分组/小数点（87 测试全绿）；
+- [x] 验证：`LocalizationTests` 从编译后的 `.lproj` 断言 en/zh-Hans 双语解析（`swift test` 下 catalog 未编译时
+      `XCTSkipIf` 跳过，`xcodebuild test` 下真实解析 "Clear"/"清除" 并通过）+
+      `testConverterDisplayUsesLocaleSeparators` 校验分组/小数点（`swift test` 与 `xcodebuild test` 均 90 测试全绿）；
       切系统语言真机抽查留待人工（无头环境无法验证）
 
 ### P3-5 窗口行为补齐
@@ -206,7 +212,7 @@
       标准模式最小窗高降到 360 使紧凑档可触发（默认 500 仍是常规档）；
       `LayoutTierTests` 覆盖阈值与字号单调性（真机逐档视觉比对留待人工）
 
-### 豁免清单（已定，不再讨论）
+### 豁免清单（我提出的建议，待用户确认；已确认可接受）
 | 原版特性 | 豁免理由 |
 |---|---|
 | 按键声效 AuditoryFeedback | Windows 特有反馈通道；macOS 无此惯例 |

@@ -182,35 +182,35 @@ struct ProgrammerCalculatorView: View {
                     CalcKey(model.shiftMode.leftKey.label, style: .function, fontSize: model.shiftMode.leftKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: "左移（\(model.shiftMode.label)）") { model.buttonPressed(model.shiftMode.leftKey.command) }
                     CalcKey(model.shiftMode.rightKey.label, style: .function, fontSize: model.shiftMode.rightKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: "右移（\(model.shiftMode.label)）") { model.buttonPressed(model.shiftMode.rightKey.command) }
                     clearKey
-                    CalcKey(symbol: "delete.left", style: .function, a11yLabel: L10n.button("backSpaceButton", "退格")) { model.buttonPressed(.backspace) }
+                    CalcKey(symbol: "delete.left", style: .function, a11yLabel: L10n.button("backSpaceButton")) { model.buttonPressed(.backspace) }
                 }
                 GridRow {
                     hexKey("B", .digitB)
-                    CalcKey("(", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("openParenthesisButton", "左括号")) { model.buttonPressed(.openParen) }
-                    CalcKey(")", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("closeParenthesisButton", "右括号")) { model.buttonPressed(.closeParen) }
-                    CalcKey("%", style: .function, disabled: model.isInError, a11yLabel: L10n.button("modButton", "取模")) { model.buttonPressed(.mod) }
-                    CalcKey(symbol: "divide", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("divideButton", "除")) { model.buttonPressed(.divide) }
+                    CalcKey("(", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("openParenthesisButton")) { model.buttonPressed(.openParen) }
+                    CalcKey(")", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("closeParenthesisButton")) { model.buttonPressed(.closeParen) }
+                    CalcKey("%", style: .function, disabled: model.isInError, a11yLabel: L10n.button("modButton")) { model.buttonPressed(.mod) }
+                    CalcKey(symbol: "divide", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("divideButton")) { model.buttonPressed(.divide) }
                 }
                 GridRow {
                     hexKey("C", .digitC)
                     digitKey(7); digitKey(8); digitKey(9)
-                    CalcKey(symbol: "multiply", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("multiplyButton", "乘")) { model.buttonPressed(.multiply) }
+                    CalcKey(symbol: "multiply", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("multiplyButton")) { model.buttonPressed(.multiply) }
                 }
                 GridRow {
                     hexKey("D", .digitD)
                     digitKey(4); digitKey(5); digitKey(6)
-                    CalcKey(symbol: "minus", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("minusButton", "减")) { model.buttonPressed(.subtract) }
+                    CalcKey(symbol: "minus", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("minusButton")) { model.buttonPressed(.subtract) }
                 }
                 GridRow {
                     hexKey("E", .digitE)
                     digitKey(1); digitKey(2); digitKey(3)
-                    CalcKey(symbol: "plus", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("plusButton", "加")) { model.buttonPressed(.add) }
+                    CalcKey(symbol: "plus", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("plusButton")) { model.buttonPressed(.add) }
                 }
                 GridRow {
                     hexKey("F", .digitF)
-                    CalcKey(symbol: "plus.forwardslash.minus", style: .digit, disabled: model.isInError, a11yLabel: L10n.button("negateButton", "正负号")) { model.buttonPressed(.sign) }
+                    CalcKey(symbol: "plus.forwardslash.minus", style: .digit, disabled: model.isInError, a11yLabel: L10n.button("negateButton")) { model.buttonPressed(.sign) }
                     digitKey(0)
-                    CalcKey(symbol: "equal", style: .operatorKey, a11yLabel: L10n.button("equalButton", "等于")) { model.buttonPressed(.equals) }
+                    CalcKey(symbol: "equal", style: .operatorKey, a11yLabel: L10n.button("equalButton")) { model.buttonPressed(.equals) }
                         .gridCellColumns(2)
                 }
             }
@@ -221,22 +221,22 @@ struct ProgrammerCalculatorView: View {
     @ViewBuilder
     private var clearKey: some View {
         if model.isInputEmpty {
-            CalcKey("C", style: .function, fontSize: 14, a11yLabel: L10n.button("clearButton", "清除")) { model.buttonPressed(.clear) }
+            CalcKey("C", style: .function, fontSize: 14, a11yLabel: L10n.button("clearButton")) { model.buttonPressed(.clear) }
         } else {
-            CalcKey("CE", style: .function, fontSize: 14, a11yLabel: L10n.button("clearEntryButton", "清除输入")) { model.buttonPressed(.clearEntry) }
+            CalcKey("CE", style: .function, fontSize: 14, a11yLabel: L10n.button("clearEntryButton")) { model.buttonPressed(.clearEntry) }
         }
     }
 
     /// A–F 十六进制键：仅 HEX 进制下可用（对应 AreHEXButtonsEnabled）。
     private func hexKey(_ label: String, _ command: EngineCommand) -> some View {
-        CalcKey(label, style: .function, fontSize: 16, disabled: model.isInError || !model.areHexButtonsEnabled, a11yLabel: L10n.button("\(label.lowercased())Button", label)) {
+        CalcKey(label, style: .function, fontSize: 16, disabled: model.isInError || !model.areHexButtonsEnabled, a11yLabel: L10n.button("\(label.lowercased())Button")) {
             model.buttonPressed(command)
         }
     }
 
     /// 0–9 数字键：按当前进制启用/禁用。
     private func digitKey(_ digit: Int) -> some View {
-        CalcKey("\(digit)", style: .digit, fontSize: 18, disabled: model.isInError || !model.isDigitAllowed(digit), a11yLabel: L10n.button("num\(digit)Button", "\(digit)")) {
+        CalcKey("\(digit)", style: .digit, fontSize: 18, disabled: model.isInError || !model.isDigitAllowed(digit), a11yLabel: L10n.button("num\(digit)Button")) {
             model.digitPressed(digit)
         }
     }
