@@ -23,7 +23,7 @@ struct CalculatorHeader: View {
                 } label: {
                     Image(systemName: "clock.arrow.circlepath")
                 }
-                .buttonStyle(.glass)
+                .glassButtonStyle()
                 .controlSize(.large)
                 .help("历史记录")
                 .accessibilityLabel("历史记录")
@@ -49,7 +49,7 @@ struct CalculatorHeader: View {
                 Image(systemName: modeIcon)
             }
             .menuStyle(.button)
-            .buttonStyle(.glass)
+            .glassButtonStyle()
             .controlSize(.large)
             .fixedSize()
             .help("计算器模式")

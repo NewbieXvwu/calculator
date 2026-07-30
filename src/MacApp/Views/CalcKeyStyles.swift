@@ -118,7 +118,7 @@ struct CalcKey: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(foreground)
-        .glassEffect(glass, in: keyShape)
+        .modifier(CalcKeyGlass(style: style, disabled: disabled))
         // 物理键盘命中时的瞬时闪动高亮。
         .overlay {
             if flashing {
@@ -149,28 +149,51 @@ struct CalcKey: View {
         return ""
     }
 
-    private var glass: Glass {
-        var glass: Glass
-        switch style {
-        case .digit:
-            glass = .regular.tint(.calcDigitKey)
-        case .function:
-            glass = .regular.tint(.calcFunctionKey)
-        case .operatorKey:
-            glass = .regular.tint(disabled ? Color.orange.opacity(0.4) : Color.orange)
-        case .emphasized:
-            glass = .regular.tint(Color.orange.opacity(0.25))
-        }
-        if !disabled {
-            glass = glass.interactive()
-        }
-        return glass
-    }
-
     private var foreground: Color {
         if disabled {
             return Color.primary.opacity(0.25)
         }
         return style == .operatorKey ? .white : .primary
+    }
+}
+
+/// 按键玻璃皮肤：26 用真 Liquid Glass（语义 tint + 按压弹性），
+/// 13–15 回退到 `.regularMaterial` 底 + 同色语义 tint 叠加（丢失折射/弹性，视觉近似）。
+private struct CalcKeyGlass: ViewModifier {
+    let style: CalcKeyStyle
+    let disabled: Bool
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            content.glassEffect(glass, in: keyShape)
+        } else {
+            content.background {
+                keyShape.fill(.regularMaterial)
+                keyShape.fill(tint)
+            }
+        }
+    }
+
+    /// 语义 tint 颜色（玻璃与回退共用）。
+    private var tint: Color {
+        switch style {
+        case .digit:
+            return .calcDigitKey
+        case .function:
+            return .calcFunctionKey
+        case .operatorKey:
+            return disabled ? Color.orange.opacity(0.4) : Color.orange
+        case .emphasized:
+            return Color.orange.opacity(0.25)
+        }
+    }
+
+    @available(macOS 26, *)
+    private var glass: Glass {
+        var glass = Glass.regular.tint(tint)
+        if !disabled {
+            glass = glass.interactive()
+        }
+        return glass
     }
 }

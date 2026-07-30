@@ -37,10 +37,10 @@ struct StandardCalculatorView: View {
                 .padding(.bottom, 8)
         }
         .calculatorKeyMonitor(model: model)
-        .onChange(of: model.historyTogglePulse) {
+        .onChangeCompat(of: model.historyTogglePulse) { _ in
             if showsHistoryButton { historyPopoverShown.toggle() }
         }
-        .onChange(of: historyPopoverShown) {
+        .onChangeCompat(of: historyPopoverShown) { _ in
             AccessibilityAnnouncer.announce(historyPopoverShown ? "历史记录面板已打开" : "历史记录面板已关闭", highPriority: false)
         }
     }
@@ -51,7 +51,7 @@ struct StandardCalculatorView: View {
         // 窄高度隐藏「函数行(¹⁄ₓ x² ²√x)+百分号」并保留全部运算符。
         GeometryReader { geo in
             let tier = LayoutTier.forKeypadHeight(geo.size.height)
-            GlassEffectContainer(spacing: 6) {
+            GlassKeypadContainer(spacing: 6) {
                 Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                     if tier.hideStandardFunctions {
                         // 紧凑：CE C ⌫ ÷ 顶起，去掉 % 与函数行。
@@ -151,7 +151,7 @@ struct DisplayArea: View {
                     }
                 }
             }
-            .defaultScrollAnchor(.trailing)
+            .defaultTrailingScrollAnchor()
             .frame(maxWidth: .infinity, alignment: .trailing)
             .frame(height: 18)
             .accessibilityIdentifier("expressionDisplay")

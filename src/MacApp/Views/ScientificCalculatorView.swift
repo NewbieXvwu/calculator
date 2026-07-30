@@ -55,10 +55,10 @@ struct ScientificCalculatorView: View {
                 .padding(.bottom, 8)
         }
         .calculatorKeyMonitor(model: model)
-        .onChange(of: model.historyTogglePulse) {
+        .onChangeCompat(of: model.historyTogglePulse) { _ in
             if showsHistoryButton { historyPopoverShown.toggle() }
         }
-        .onChange(of: historyPopoverShown) {
+        .onChangeCompat(of: historyPopoverShown) { _ in
             AccessibilityAnnouncer.announce(historyPopoverShown ? "历史记录面板已打开" : "历史记录面板已关闭", highPriority: false)
         }
     }
@@ -74,7 +74,7 @@ struct ScientificCalculatorView: View {
                     .font(.system(size: 12, weight: .medium))
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.glass)
+            .glassButtonStyle()
             .controlSize(.small)
             .disabled(model.isInError)
             .help("角度单位（点按循环 DEG / RAD / GRAD）")
@@ -88,7 +88,7 @@ struct ScientificCalculatorView: View {
                     .font(.system(size: 12, weight: .medium))
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.glass)
+            .glassButtonStyle()
             .controlSize(.small)
             .tint(model.isFToEChecked ? Color.orange : nil)
             .disabled(model.isInError || !model.isFToEEnabled)
@@ -122,7 +122,7 @@ struct ScientificCalculatorView: View {
                 Label("三角", systemImage: "angle")
             }
             .menuStyle(.button)
-            .buttonStyle(.glass)
+            .glassButtonStyle()
             .controlSize(.regular)
             .disabled(model.isInError)
 
@@ -137,7 +137,7 @@ struct ScientificCalculatorView: View {
                 Label("函数", systemImage: "f.cursive")
             }
             .menuStyle(.button)
-            .buttonStyle(.glass)
+            .glassButtonStyle()
             .controlSize(.regular)
             .disabled(model.isInError)
 
@@ -153,7 +153,7 @@ struct ScientificCalculatorView: View {
     // MARK: - 科学键盘
 
     private var keypad: some View {
-        GlassEffectContainer(spacing: 6) {
+        GlassKeypadContainer(spacing: 6) {
             Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                 // 行 1：2nd | π | e | CE/C | ⌫
                 GridRow {

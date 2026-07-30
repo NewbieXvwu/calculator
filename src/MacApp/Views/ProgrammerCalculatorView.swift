@@ -111,7 +111,7 @@ struct ProgrammerCalculatorView: View {
                     .font(.system(size: 12, weight: .medium))
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.glass)
+            .glassButtonStyle()
             .controlSize(.small)
             .help("字长（点按循环 QWORD / DWORD / WORD / BYTE）")
             .accessibilityLabel("字长 \(model.wordSize.label)")
@@ -136,7 +136,7 @@ struct ProgrammerCalculatorView: View {
                 Label("位运算", systemImage: "logo.playstation")
             }
             .menuStyle(.button)
-            .buttonStyle(.glass)
+            .glassButtonStyle()
             .controlSize(.regular)
             .disabled(model.isInError)
 
@@ -152,7 +152,7 @@ struct ProgrammerCalculatorView: View {
                 Label("移位", systemImage: "arrow.left.arrow.right")
             }
             .menuStyle(.button)
-            .buttonStyle(.glass)
+            .glassButtonStyle()
             .controlSize(.regular)
             .disabled(model.isInError)
 
@@ -175,7 +175,7 @@ struct ProgrammerCalculatorView: View {
     //   F |  ±  |  0  |     =(跨列)
 
     private var keypad: some View {
-        GlassEffectContainer(spacing: 6) {
+        GlassKeypadContainer(spacing: 6) {
             Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                 GridRow {
                     hexKey("A", .digitA)

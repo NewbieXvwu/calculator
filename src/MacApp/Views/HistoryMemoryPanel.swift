@@ -45,8 +45,8 @@ struct HistoryListView: View {
     var body: some View {
         VStack(spacing: 0) {
             if model.historyItems.isEmpty {
-                ContentUnavailableView(
-                    "尚无历史记录",
+                CalcEmptyState(
+                    title: "尚无历史记录",
                     systemImage: "clock.arrow.circlepath",
                     description: Text("你的计算结果会显示在这里。")
                 )
@@ -62,7 +62,7 @@ struct HistoryListView: View {
                     }
                     .padding(.horizontal, 6)
                 }
-                .scrollEdgeEffectStyle(.soft, for: .top)
+                .softTopScrollEdge()
                 HStack {
                     Spacer()
                     Button {
@@ -118,8 +118,8 @@ struct MemoryListView: View {
     var body: some View {
         VStack(spacing: 0) {
             if model.memorizedNumbers.isEmpty {
-                ContentUnavailableView(
-                    "内存中没有内容",
+                CalcEmptyState(
+                    title: "内存中没有内容",
                     systemImage: "memorychip",
                     description: Text("使用 MS 键存入数值。")
                 )
@@ -132,7 +132,7 @@ struct MemoryListView: View {
                     }
                     .padding(.horizontal, 6)
                 }
-                .scrollEdgeEffectStyle(.soft, for: .top)
+                .softTopScrollEdge()
                 HStack {
                     Spacer()
                     Button {

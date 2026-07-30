@@ -155,7 +155,7 @@ struct UnitConverterView: View {
             Image(systemName: "arrow.up.arrow.down")
                 .font(.system(size: 13, weight: .semibold))
         }
-        .buttonStyle(.glass)
+        .glassButtonStyle()
         .controlSize(.small)
         .help("交换单位")
         .accessibilityLabel("交换单位")
@@ -193,7 +193,7 @@ struct UnitConverterView: View {
     // MARK: - 数字键盘
 
     private var keypad: some View {
-        GlassEffectContainer(spacing: 6) {
+        GlassKeypadContainer(spacing: 6) {
             Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                 GridRow {
                     digitKey(7)

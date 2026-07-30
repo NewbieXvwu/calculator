@@ -12,7 +12,7 @@
 
 ## 一、架构现状（速查）
 
-- SPM 包（根 `Package.swift`，cxx20，macOS 26）。Targets：
+- SPM 包（根 `Package.swift`，cxx20，**部署目标 macOS 13**）。Targets：
   `CalcManagerCore`（原版 C++ 引擎，零改动复用）→ `CalcManagerBridge`（ObjC++，`src/MacBridge`）
   → `MacCalculator`（SwiftUI，`src/MacApp`）；`GiacBridge`（`src/MacGiacBridge`，静态链 `third_party/giac/lib/libgiac.a`，
   由 `Tools/build_giac.sh` 构建）；测试 `calc-smoke` / `engine-tests` / `MacAppTests`。
@@ -26,6 +26,12 @@
 - 验证命令：`swift build --product MacCalculator`；`swift test`（逻辑）；`swift run calc-smoke`；`swift run engine-tests`。
   UI 文案/本地化与可分发构建走 xcodebuild：`xcodebuild build -scheme MacCalculator -destination 'platform=macOS,arch=arm64'`、
   `xcodebuild test -scheme MacCalculator-Package -destination 'platform=macOS,arch=arm64'`（此路径才编译 .xcstrings）。
+- **版本兼容（部署目标 13）**：显式 Liquid Glass 及其它 macOS 26/14-only API 全部收进 `src/MacApp/Support/PlatformCompat.swift`
+  的 `#available` 封装——26 上走真玻璃（`.glassEffect`/`GlassEffectContainer`/`.buttonStyle(.glass)`/`.scrollEdgeEffectStyle`），
+  13–15 回退等价材质/旧样式。封装：`glassButtonStyle()`、`GlassKeypadContainer`、`softTopScrollEdge()`、
+  `onChangeCompat`、`defaultTrailingScrollAnchor()`、`arrowKeyNavigation`（`ArrowKey`）、`CalcEmptyState`；
+  按键玻璃回退在 `CalcKeyStyles.swift` 的 `CalcKeyGlass`。原则：标准系统控件的玻璃由框架自动套用，
+  仅显式玻璃 API 需手动守卫（`.buttonStyle(.glass)` **不会**自动退化）。13 上缺失项：方向键跟踪、表达式尾部锚定（可接受降级）。
 - 排版规格书 = 原版 XAML（`src/Calculator/Views/`）；行为规格书 = 原版 ViewModel（`src/CalcViewModel/`）。
 
 ## 二、仍然有效的已定决策

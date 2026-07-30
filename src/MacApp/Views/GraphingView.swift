@@ -647,13 +647,13 @@ private struct GraphCanvas: View {
                 }
                 .focusable(graph.isTracing)
                 .focused($canvasFocused)
-                .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow], phases: [.down, .repeat]) { press in
-                    moveTraceCursor(press, size: size)
+                .arrowKeyNavigation { key, fine in
+                    moveTraceCursor(key, fine: fine, size: size)
                 }
                 .contextMenu {
                     Button("复制图形") { copyGraphImage(size: size) }
                 }
-                .onChange(of: traceCursor) {
+                .onChangeCompat(of: traceCursor) { _ in
                     announceTrace(size: size)
                 }
 
@@ -736,18 +736,18 @@ private struct GraphCanvas: View {
     }
 
     /// 方向键移动跟踪光标：5pt / 按住 ⇧ 1pt（原版 delta 5 / accelerator 1）。
-    private func moveTraceCursor(_ press: KeyPress, size: CGSize) -> KeyPress.Result {
-        guard graph.isTracing, var cursor = traceCursor else { return .ignored }
-        let delta: CGFloat = press.modifiers.contains(.shift) ? 1 : 5
-        switch press.key {
-        case .leftArrow: cursor.x = max(0, cursor.x - delta)
-        case .rightArrow: cursor.x = min(size.width, cursor.x + delta)
-        case .upArrow: cursor.y = max(0, cursor.y - delta)
-        case .downArrow: cursor.y = min(size.height, cursor.y + delta)
-        default: return .ignored
+    @discardableResult
+    private func moveTraceCursor(_ key: ArrowKey, fine: Bool, size: CGSize) -> Bool {
+        guard graph.isTracing, var cursor = traceCursor else { return false }
+        let delta: CGFloat = fine ? 1 : 5
+        switch key {
+        case .left: cursor.x = max(0, cursor.x - delta)
+        case .right: cursor.x = min(size.width, cursor.x + delta)
+        case .up: cursor.y = max(0, cursor.y - delta)
+        case .down: cursor.y = min(size.height, cursor.y + delta)
         }
         traceCursor = cursor
-        return .handled
+        return true
     }
 
     // MARK: - 分享/导出（原版 Share contract：图 + 方程列表）
