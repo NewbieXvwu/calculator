@@ -1354,3 +1354,33 @@ final class LocalizationTests: XCTestCase {
         XCTAssertTrue(out.contains("255"), "格式化结果应含参数：\(out)")
     }
 }
+
+// MARK: - 响应式布局分档（P3-6）
+
+final class LayoutTierTests: XCTestCase {
+    /// 对照 CalculatorStandardOperators.xaml 的分档 + HideStandardFunctions：
+    /// 大高度放大字号，常规档保留函数行，极窄档隐藏函数行/百分号。
+    func testTierThresholds() {
+        let large = LayoutTier.forKeypadHeight(400)
+        XCTAssertFalse(large.hideStandardFunctions)
+        XCTAssertEqual(large.digitFont, 26)
+
+        let regular = LayoutTier.forKeypadHeight(300)
+        XCTAssertFalse(regular.hideStandardFunctions)
+        XCTAssertEqual(regular.digitFont, 18)
+
+        let tiny = LayoutTier.forKeypadHeight(200)
+        XCTAssertTrue(tiny.hideStandardFunctions, "极窄高度应隐藏函数行")
+    }
+
+    /// 字号随可用高度单调不增（大档 ≥ 常规档 ≥ 紧凑档）。
+    func testTierFontsMonotonic() {
+        let large = LayoutTier.forKeypadHeight(400)
+        let regular = LayoutTier.forKeypadHeight(300)
+        let tiny = LayoutTier.forKeypadHeight(200)
+        XCTAssertGreaterThanOrEqual(large.digitFont, regular.digitFont)
+        XCTAssertGreaterThanOrEqual(regular.digitFont, tiny.digitFont)
+        XCTAssertGreaterThanOrEqual(large.opFont, regular.opFont)
+        XCTAssertGreaterThanOrEqual(regular.opFont, tiny.opFont)
+    }
+}

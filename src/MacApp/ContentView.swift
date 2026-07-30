@@ -76,7 +76,8 @@ struct ContentView: View {
         case .date: return 460
         case .converter: return 520
         case .graphing: return 520
-        case .standard: return 480
+        // 允许收缩到触发紧凑档（HideStandardFunctions）；默认 500 仍是常规档。
+        case .standard: return 360
         }
     }
 }

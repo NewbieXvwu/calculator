@@ -199,7 +199,12 @@
 
 ### P3-6 响应式布局
 规格：`CalculatorStandardOperators.xaml:52-170` 等的 Large/Medium/Small/Tiny 四档字号 + 窄窗隐藏功能行。
-- [ ] SwiftUI 按窗口尺寸做等价分档（至少 2 档：常规/紧凑），窄高度时标准模式隐藏函数行（对应 HideStandardFunctions）
+- [x] SwiftUI 按窗口尺寸做等价分档：`StandardCalculatorView` 键盘用 `GeometryReader` 读可用高度，
+      `LayoutTier.forKeypadHeight` 分三档（大/常规/紧凑）调数字/运算符/函数/清除键字号；
+      紧凑档（高度 < 260）触发 HideStandardFunctions——隐藏「函数行 ¹⁄ₓ x² ²√x + 百分号」、
+      `CE C ⌫ ÷` 顶起并保留全部运算符（对应原版 R1 折叠 + PercentButton 隐藏）；
+      标准模式最小窗高降到 360 使紧凑档可触发（默认 500 仍是常规档）；
+      `LayoutTierTests` 覆盖阈值与字号单调性（真机逐档视觉比对留待人工）
 
 ### 豁免清单（已定，不再讨论）
 | 原版特性 | 豁免理由 |

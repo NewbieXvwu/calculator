@@ -46,56 +46,94 @@ struct StandardCalculatorView: View {
     }
 
     private var keypad: some View {
-        GlassEffectContainer(spacing: 6) {
-            Grid(horizontalSpacing: 6, verticalSpacing: 6) {
-                GridRow {
-                    CalcKey(symbol: "percent", style: .function, disabled: model.isInError, flashing: flashing(.percent), a11yLabel: L10n.button("percentButton", "百分比")) { model.buttonPressed(.percent) }
-                    CalcKey("CE", style: .function, fontSize: 14, flashing: flashing(.clearEntry), a11yLabel: L10n.button("clearEntryButton", "清除输入")) { model.buttonPressed(.clearEntry) }
-                    CalcKey("C", style: .function, fontSize: 14, flashing: flashing(.clear), a11yLabel: L10n.button("clearButton", "清除")) { model.buttonPressed(.clear) }
-                    CalcKey(symbol: "delete.left", style: .function, flashing: flashing(.backspace), a11yLabel: L10n.button("backSpaceButton", "退格")) { model.buttonPressed(.backspace) }
-                }
-                GridRow {
-                    CalcKey("¹⁄ₓ", style: .function, disabled: model.isInError, flashing: flashing(.reciprocal), a11yLabel: L10n.button("invertButton", "倒数")) { model.buttonPressed(.reciprocal) }
-                    CalcKey("x²", style: .function, disabled: model.isInError, flashing: flashing(.sqr), a11yLabel: L10n.button("xpower2Button", "平方")) { model.buttonPressed(.sqr) }
-                    CalcKey("²√x", style: .function, disabled: model.isInError, flashing: flashing(.sqrt), a11yLabel: L10n.button("squareRootButton", "平方根")) { model.buttonPressed(.sqrt) }
-                    CalcKey(symbol: "divide", style: .operatorKey, disabled: model.isInError, flashing: flashing(.divide), a11yLabel: L10n.button("divideButton", "除")) { model.buttonPressed(.divide) }
-                }
-                GridRow {
-                    digitKey(7)
-                    digitKey(8)
-                    digitKey(9)
-                    CalcKey(symbol: "multiply", style: .operatorKey, disabled: model.isInError, flashing: flashing(.multiply), a11yLabel: L10n.button("multiplyButton", "乘")) { model.buttonPressed(.multiply) }
-                }
-                GridRow {
-                    digitKey(4)
-                    digitKey(5)
-                    digitKey(6)
-                    CalcKey(symbol: "minus", style: .operatorKey, disabled: model.isInError, flashing: flashing(.subtract), a11yLabel: L10n.button("minusButton", "减")) { model.buttonPressed(.subtract) }
-                }
-                GridRow {
-                    digitKey(1)
-                    digitKey(2)
-                    digitKey(3)
-                    CalcKey(symbol: "plus", style: .operatorKey, disabled: model.isInError, flashing: flashing(.add), a11yLabel: L10n.button("plusButton", "加")) { model.buttonPressed(.add) }
-                }
-                GridRow {
-                    CalcKey(symbol: "plus.forwardslash.minus", style: .digit, disabled: model.isInError, flashing: flashing(.sign), a11yLabel: L10n.button("negateButton", "正负号")) { model.buttonPressed(.sign) }
-                    digitKey(0)
-                    CalcKey(model.decimalSeparator, style: .digit, fontSize: 18, flashing: flashing(.point), a11yLabel: L10n.button("decimalSeparatorButton", "小数点")) { model.buttonPressed(.point) }
-                    CalcKey(symbol: "equal", style: .operatorKey, flashing: flashing(.equals), a11yLabel: L10n.button("equalButton", "等于")) { model.buttonPressed(.equals) }
+        // 对照 CalculatorStandardOperators.xaml 的 Large/Medium/Small/Tiny 分档与
+        // ShowStandardFunctions/HideStandardFunctions：按键盘可用高度选字号档，
+        // 窄高度隐藏「函数行(¹⁄ₓ x² ²√x)+百分号」并保留全部运算符。
+        GeometryReader { geo in
+            let tier = LayoutTier.forKeypadHeight(geo.size.height)
+            GlassEffectContainer(spacing: 6) {
+                Grid(horizontalSpacing: 6, verticalSpacing: 6) {
+                    if tier.hideStandardFunctions {
+                        // 紧凑：CE C ⌫ ÷ 顶起，去掉 % 与函数行。
+                        GridRow {
+                            CalcKey("CE", style: .function, fontSize: tier.clearFont, flashing: flashing(.clearEntry), a11yLabel: L10n.button("clearEntryButton", "清除输入")) { model.buttonPressed(.clearEntry) }
+                            CalcKey("C", style: .function, fontSize: tier.clearFont, flashing: flashing(.clear), a11yLabel: L10n.button("clearButton", "清除")) { model.buttonPressed(.clear) }
+                            CalcKey(symbol: "delete.left", style: .function, fontSize: tier.funcFont, flashing: flashing(.backspace), a11yLabel: L10n.button("backSpaceButton", "退格")) { model.buttonPressed(.backspace) }
+                            CalcKey(symbol: "divide", style: .operatorKey, fontSize: tier.opFont, disabled: model.isInError, flashing: flashing(.divide), a11yLabel: L10n.button("divideButton", "除")) { model.buttonPressed(.divide) }
+                        }
+                    } else {
+                        GridRow {
+                            CalcKey(symbol: "percent", style: .function, fontSize: tier.funcFont, disabled: model.isInError, flashing: flashing(.percent), a11yLabel: L10n.button("percentButton", "百分比")) { model.buttonPressed(.percent) }
+                            CalcKey("CE", style: .function, fontSize: tier.clearFont, flashing: flashing(.clearEntry), a11yLabel: L10n.button("clearEntryButton", "清除输入")) { model.buttonPressed(.clearEntry) }
+                            CalcKey("C", style: .function, fontSize: tier.clearFont, flashing: flashing(.clear), a11yLabel: L10n.button("clearButton", "清除")) { model.buttonPressed(.clear) }
+                            CalcKey(symbol: "delete.left", style: .function, fontSize: tier.funcFont, flashing: flashing(.backspace), a11yLabel: L10n.button("backSpaceButton", "退格")) { model.buttonPressed(.backspace) }
+                        }
+                        GridRow {
+                            CalcKey("¹⁄ₓ", style: .function, fontSize: tier.funcFont, disabled: model.isInError, flashing: flashing(.reciprocal), a11yLabel: L10n.button("invertButton", "倒数")) { model.buttonPressed(.reciprocal) }
+                            CalcKey("x²", style: .function, fontSize: tier.funcFont, disabled: model.isInError, flashing: flashing(.sqr), a11yLabel: L10n.button("xpower2Button", "平方")) { model.buttonPressed(.sqr) }
+                            CalcKey("²√x", style: .function, fontSize: tier.funcFont, disabled: model.isInError, flashing: flashing(.sqrt), a11yLabel: L10n.button("squareRootButton", "平方根")) { model.buttonPressed(.sqrt) }
+                            CalcKey(symbol: "divide", style: .operatorKey, fontSize: tier.opFont, disabled: model.isInError, flashing: flashing(.divide), a11yLabel: L10n.button("divideButton", "除")) { model.buttonPressed(.divide) }
+                        }
+                    }
+                    GridRow {
+                        digitKey(7, tier)
+                        digitKey(8, tier)
+                        digitKey(9, tier)
+                        CalcKey(symbol: "multiply", style: .operatorKey, fontSize: tier.opFont, disabled: model.isInError, flashing: flashing(.multiply), a11yLabel: L10n.button("multiplyButton", "乘")) { model.buttonPressed(.multiply) }
+                    }
+                    GridRow {
+                        digitKey(4, tier)
+                        digitKey(5, tier)
+                        digitKey(6, tier)
+                        CalcKey(symbol: "minus", style: .operatorKey, fontSize: tier.opFont, disabled: model.isInError, flashing: flashing(.subtract), a11yLabel: L10n.button("minusButton", "减")) { model.buttonPressed(.subtract) }
+                    }
+                    GridRow {
+                        digitKey(1, tier)
+                        digitKey(2, tier)
+                        digitKey(3, tier)
+                        CalcKey(symbol: "plus", style: .operatorKey, fontSize: tier.opFont, disabled: model.isInError, flashing: flashing(.add), a11yLabel: L10n.button("plusButton", "加")) { model.buttonPressed(.add) }
+                    }
+                    GridRow {
+                        CalcKey(symbol: "plus.forwardslash.minus", style: .digit, fontSize: tier.digitFont, disabled: model.isInError, flashing: flashing(.sign), a11yLabel: L10n.button("negateButton", "正负号")) { model.buttonPressed(.sign) }
+                        digitKey(0, tier)
+                        CalcKey(model.decimalSeparator, style: .digit, fontSize: tier.digitFont, flashing: flashing(.point), a11yLabel: L10n.button("decimalSeparatorButton", "小数点")) { model.buttonPressed(.point) }
+                        CalcKey(symbol: "equal", style: .operatorKey, fontSize: tier.opFont, flashing: flashing(.equals), a11yLabel: L10n.button("equalButton", "等于")) { model.buttonPressed(.equals) }
+                    }
                 }
             }
         }
     }
 
-    private func digitKey(_ digit: Int) -> some View {
-        CalcKey("\(digit)", style: .digit, fontSize: 18, flashing: flashing(.digit(digit)), a11yLabel: L10n.button("num\(digit)Button", "\(digit)")) {
+    private func digitKey(_ digit: Int, _ tier: LayoutTier) -> some View {
+        CalcKey("\(digit)", style: .digit, fontSize: tier.digitFont, flashing: flashing(.digit(digit)), a11yLabel: L10n.button("num\(digit)Button", "\(digit)")) {
             model.digitPressed(digit)
         }
     }
 
     private func flashing(_ command: EngineCommand) -> Bool {
         model.flashedCommand == command
+    }
+}
+
+/// 响应式字号分档，对照原版 CalculatorStandardOperators.xaml 的 Large/Medium/Small/Tiny +
+/// HideStandardFunctions（窄高度隐藏函数行/百分号）。阈值按 macOS 版较小窗体等比收敛。
+struct LayoutTier {
+    let digitFont: CGFloat
+    let opFont: CGFloat
+    let funcFont: CGFloat
+    let clearFont: CGFloat
+    let hideStandardFunctions: Bool
+
+    static func forKeypadHeight(_ height: CGFloat) -> LayoutTier {
+        switch height {
+        case 360...:
+            return LayoutTier(digitFont: 26, opFont: 24, funcFont: 18, clearFont: 16, hideStandardFunctions: false)
+        case 260..<360:
+            return LayoutTier(digitFont: 18, opFont: 16, funcFont: 14, clearFont: 14, hideStandardFunctions: false)
+        default:
+            // 极窄：隐藏函数行/百分号并进一步缩字（对应 Tiny + HideStandardFunctions）。
+            return LayoutTier(digitFont: 16, opFont: 15, funcFont: 13, clearFont: 13, hideStandardFunctions: true)
+        }
     }
 }
 
