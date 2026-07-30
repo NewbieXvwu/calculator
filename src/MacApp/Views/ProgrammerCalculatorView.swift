@@ -97,7 +97,7 @@ struct ProgrammerCalculatorView: View {
         HStack(spacing: 6) {
             Picker("", selection: keypadModeBinding) {
                 Image(systemName: "square.grid.3x3").tag(false)
-                Image(systemName: "switch.2").tag(true)
+                Image(systemName: "01.square").tag(true)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -133,7 +133,7 @@ struct ProgrammerCalculatorView: View {
                 opItem("AND", .and); opItem("OR", .or); opItem("XOR", .xor)
                 opItem("NOT", .not); opItem("NAND", .nand); opItem("NOR", .nor)
             } label: {
-                Label("位运算", systemImage: "logo.playstation")
+                Label("位运算", systemImage: "point.3.filled.connected.trianglepath.dotted")
             }
             .menuStyle(.button)
             .glassButtonStyle()
@@ -149,7 +149,7 @@ struct ProgrammerCalculatorView: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
             } label: {
-                Label("移位", systemImage: "arrow.left.arrow.right")
+                Label("移位", systemImage: "chevron.right.2")
             }
             .menuStyle(.button)
             .glassButtonStyle()

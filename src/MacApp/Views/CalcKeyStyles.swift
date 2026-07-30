@@ -48,6 +48,51 @@ struct WindowConfigurator: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
+/// 挂载期间关闭 `isMovableByWindowBackground`（背景拖拽会抢走绘图画布的平移手势），
+/// 卸载（切走模式）时还原；可选接收滚轮事件（绘图画布滚轮缩放）。
+struct WindowBackgroundDragDisabler: NSViewRepresentable {
+    var onScroll: ((CGFloat) -> Void)?
+
+    final class Coordinator {
+        weak var window: NSWindow?
+    }
+
+    private final class InteractionView: NSView {
+        var onScroll: ((CGFloat) -> Void)?
+
+        override var mouseDownCanMoveWindow: Bool { false }
+
+        override func scrollWheel(with event: NSEvent) {
+            if let onScroll {
+                onScroll(event.scrollingDeltaY)
+            } else {
+                super.scrollWheel(with: event)
+            }
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = InteractionView()
+        view.onScroll = onScroll
+        DispatchQueue.main.async {
+            guard let window = view.window else { return }
+            context.coordinator.window = window
+            window.isMovableByWindowBackground = false
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? InteractionView)?.onScroll = onScroll
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.window?.isMovableByWindowBackground = true
+    }
+}
+
 enum CalcKeyStyle {
     case digit       // 数字键：最亮一层灰阶（对应原版 NumericButtonStyle）
     case function    // 运算/函数键：深一层灰阶（对应原版 OperatorButtonStyle）

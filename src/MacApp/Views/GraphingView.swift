@@ -48,7 +48,7 @@ struct GraphingView: View {
                 Button {
                     showAnalysis.toggle()
                 } label: {
-                    Image(systemName: showAnalysis ? "chart.bar.doc.horizontal.fill" : "chart.bar.doc.horizontal")
+                    Image(systemName: showAnalysis ? "list.bullet.rectangle.fill" : "list.bullet.rectangle")
                 }
                 .buttonStyle(.borderless)
                 .help("函数分析")
@@ -636,6 +636,11 @@ private struct GraphCanvas: View {
                     }
                 }
                 .background(Color(nsColor: .textBackgroundColor))
+                // 画布平移手势优先于窗口背景拖拽（P0-2：拖窗曾抢走 DragGesture）；
+                // 同层接收滚轮事件做缩放（对齐"像地图一样"的浏览交互）。
+                .background(WindowBackgroundDragDisabler(onScroll: { deltaY in
+                    graph.zoom(factor: pow(1.0015, -deltaY))
+                }))
                 .contentShape(Rectangle())
                 .gesture(dragGesture(size: size))
                 .gesture(magnifyGesture)
@@ -716,10 +721,11 @@ private struct GraphCanvas: View {
             Button {
                 graph.autoFitView()
             } label: {
-                Image(systemName: graph.isManualAdjustment ? "arrow.up.left.and.arrow.down.right" : "sparkle.magnifyingglass")
+                Image(systemName: "arrow.up.left.and.down.right.magnifyingglass")
+                    .foregroundStyle(graph.isManualAdjustment ? Color.accentColor : Color.primary)
             }
-            .help("自动刷新视图 (⌃0)")
-            .accessibilityLabel("图形视图")
+            .help(graph.isManualAdjustment ? "恢复自动适应视图 (⌃0)" : "自动适应视图 (⌃0)")
+            .accessibilityLabel("自动适应视图")
             .keyboardShortcut("0", modifiers: .control)
             .background(
                 // 原版 Ctrl+Home 和弦同样触发 graphViewButton。
