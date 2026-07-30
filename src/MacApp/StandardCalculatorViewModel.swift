@@ -55,6 +55,30 @@ enum CalculatorMode {
         case .graphing: return .modeBasic
         }
     }
+
+    /// 跨启动持久化的稳定标识（对应原版 ApplicationDataContainer 记忆当前模式）。
+    var persistenceKey: String {
+        switch self {
+        case .standard: return "standard"
+        case .scientific: return "scientific"
+        case .programmer: return "programmer"
+        case .date: return "date"
+        case .converter: return "converter"
+        case .graphing: return "graphing"
+        }
+    }
+
+    init?(persistenceKey: String) {
+        switch persistenceKey {
+        case "standard": self = .standard
+        case "scientific": self = .scientific
+        case "programmer": self = .programmer
+        case "date": self = .date
+        case "converter": self = .converter
+        case "graphing": self = .graphing
+        default: return nil
+        }
+    }
 }
 
 /// 程序员模式的进制（对应原版 NumberBase / RadixType）。
@@ -245,8 +269,14 @@ final class StandardCalculatorViewModel: ObservableObject {
 
     init() {
         wireCallbacks()
-        setCalculatorType(.standard)
+        // 恢复上次退出时的模式（对应原版记忆当前模式）；无记录则默认标准。
+        let savedMode = UserDefaults.standard.string(forKey: Self.lastModeKey)
+            .flatMap(CalculatorMode.init(persistenceKey:)) ?? .standard
+        setCalculatorType(savedMode)
     }
+
+    /// 记忆当前模式的 UserDefaults 键。
+    private static let lastModeKey = "LastCalculatorMode"
 
     // MARK: - Button dispatch (mirrors OnButtonPressed)
 
@@ -448,6 +478,8 @@ final class StandardCalculatorViewModel: ObservableObject {
             isInvChecked = false
         }
         mode = newMode
+        // 记忆当前模式，供下次启动恢复（原版 ApplicationDataContainer 语义）。
+        UserDefaults.standard.set(newMode.persistenceKey, forKey: Self.lastModeKey)
 
         switch newMode {
         case .standard:

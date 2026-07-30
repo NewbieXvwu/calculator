@@ -16,6 +16,8 @@ final class CalculatorViewModelTests: XCTestCase {
     private var model: StandardCalculatorViewModel!
 
     override func setUp() async throws {
+        // 清除记忆的模式，保证每个用例都从默认标准模式起步（隔离宿主 UserDefaults）。
+        UserDefaults.standard.removeObject(forKey: "LastCalculatorMode")
         model = StandardCalculatorViewModel()
         await drain()
     }
@@ -191,6 +193,19 @@ final class CalculatorViewModelTests: XCTestCase {
         XCTAssertFalse(model.mode.usesEngine)
         model.setCalculatorType(.standard)
         XCTAssertTrue(model.mode.usesEngine)
+    }
+
+    /// 模式持久化往返（对应原版记忆当前模式）：切模式写入 UserDefaults，新实例启动恢复。
+    func testModePersistenceRoundTrip() {
+        for m in [CalculatorMode.standard, .scientific, .programmer, .date, .converter, .graphing] {
+            XCTAssertEqual(CalculatorMode(persistenceKey: m.persistenceKey), m)
+        }
+        model.setCalculatorType(.scientific)
+        XCTAssertEqual(UserDefaults.standard.string(forKey: "LastCalculatorMode"), "scientific")
+        let restored = StandardCalculatorViewModel()
+        XCTAssertEqual(restored.mode, .scientific)
+        // 复位，避免污染其它用例的宿主默认值。
+        model.setCalculatorType(.standard)
     }
 
     func testDivideByZeroShowsError() async {
@@ -1245,6 +1260,8 @@ final class PasteFunctionalTests: XCTestCase {
     private var model: StandardCalculatorViewModel!
 
     override func setUp() async throws {
+        // 清除记忆的模式，保证每个用例都从默认标准模式起步（隔离宿主 UserDefaults）。
+        UserDefaults.standard.removeObject(forKey: "LastCalculatorMode")
         model = StandardCalculatorViewModel()
         await drain()
     }

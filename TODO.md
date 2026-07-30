@@ -185,10 +185,17 @@
       切系统语言真机抽查留待人工（无头环境无法验证）
 
 ### P3-5 窗口行为补齐
-- [ ] 退出时记忆当前模式 + 各模式窗口尺寸，启动恢复（原版 ApplicationDataContainer 语义）
-- [ ] 置顶时切换紧凑布局（原版 CompactOverlay 进入迷你标准键盘并记忆恢复尺寸）——评估后或豁免为
-      「仅置顶不改布局」，结论写回本文档
-- [ ] 历史条数上限对照原版（`CalculatorManager` `m_maxHistorySize`=20/模式）核实并对齐
+- [x] 退出时记忆当前模式 + 各模式窗口尺寸，启动恢复（原版 ApplicationDataContainer 语义）：
+      `CalculatorMode.persistenceKey`/`init(persistenceKey:)` + `UserDefaults` 键 `LastCalculatorMode`，
+      `setCalculatorType` 写入、VM `init` 读取恢复；各模式窗口尺寸由 `.windowResizability(.contentSize)`
+      随内容确定（每模式内容固有尺寸唯一，恢复模式即恢复尺寸，无需另存任意用户尺寸）；
+      `testModePersistenceRoundTrip` 覆盖
+- [x] 置顶时切换紧凑布局——**豁免为「仅置顶不改布局」**：原版 CompactOverlay（迷你标准键盘 + 记忆恢复尺寸）
+      是 Windows 特有的 ApplicationView 覆盖态；macOS 惯例的置顶是提升 `NSWindow.level = .floating`
+      （已实现于 `MacCalculatorApp` 窗口置顶命令），不改变键盘布局。结论：不移植迷你键盘覆盖态
+- [x] 历史条数上限对照原版：引擎 `CalculatorManager.cpp` `MAX_HISTORY_ITEMS=20`，
+      std/sci 各持有一个 `CalculatorHistory(20)`、程序员无历史（`nullptr`），与原版
+      `m_maxHistorySize`=20/模式完全一致，无需改动（已核实）
 
 ### P3-6 响应式布局
 规格：`CalculatorStandardOperators.xaml:52-170` 等的 Large/Medium/Small/Tiny 四档字号 + 窄窗隐藏功能行。
