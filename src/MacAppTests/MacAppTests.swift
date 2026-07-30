@@ -77,6 +77,71 @@ final class CalculatorViewModelTests: XCTestCase {
         XCTAssertEqual(model.historyItems.first?.result, "3")
     }
 
+    // MARK: 表达式 token 编辑（对应原版 UpdateOperand + Recalculate，P3-2）
+
+    func testExpressionTokenOperandEditingMidExpression() async {
+        // 标准模式无优先级:1 + 2 + 会折叠为 "3 +"(原版行为),编辑该操作数。
+        model.digitPressed(1)
+        model.buttonPressed(.add)
+        model.digitPressed(2)
+        model.buttonPressed(.add)
+        await drain()
+        XCTAssertTrue(model.isOperandTokenEditable(0))
+        XCTAssertFalse(model.isOperandTokenEditable(2))
+        XCTAssertTrue(model.updateOperand(tokenIndex: 0, newText: "5"))
+        await drain()
+        XCTAssertEqual(model.expressionTokens.map(\.text).joined().filter { !$0.isWhitespace }, "5+")
+        model.digitPressed(3)
+        model.buttonPressed(.equals)
+        await drain()
+        XCTAssertEqual(model.displayValue, "8")
+    }
+
+    func testExpressionTokenOperandEditingScientificKeepsFullExpression() async {
+        // 科学模式有优先级,表达式完整保留:编辑中间操作数 2 → 5,1 + 5 × 4 = 21。
+        model.setCalculatorType(.scientific)
+        model.digitPressed(1)
+        model.buttonPressed(.add)
+        model.digitPressed(2)
+        model.buttonPressed(.multiply)
+        await drain()
+        guard let index = model.expressionTokens.firstIndex(where: { $0.text.trimmingCharacters(in: .whitespaces) == "2" }) else {
+            return XCTFail("找不到操作数 token 2：\(model.expressionTokens.map(\.text))")
+        }
+        XCTAssertTrue(model.isOperandTokenEditable(index))
+        XCTAssertTrue(model.updateOperand(tokenIndex: index, newText: "5"))
+        await drain()
+        model.digitPressed(4)
+        model.buttonPressed(.equals)
+        await drain()
+        XCTAssertEqual(model.displayValue, "21")
+    }
+
+    func testExpressionTokenEditingAfterEquals() async {
+        model.digitPressed(1)
+        model.buttonPressed(.add)
+        model.digitPressed(2)
+        model.buttonPressed(.equals)
+        await drain()
+        guard let index = model.expressionTokens.lastIndex(where: { $0.text.trimmingCharacters(in: .whitespaces) == "2" }) else {
+            return XCTFail("找不到操作数 token 2：\(model.expressionTokens.map(\.text))")
+        }
+        XCTAssertTrue(model.updateOperand(tokenIndex: index, newText: "-7.5"))
+        model.buttonPressed(.equals)
+        await drain()
+        XCTAssertEqual(model.displayValue, "-6.5")
+    }
+
+    func testExpressionTokenEditRejectsInvalidInput() async {
+        model.digitPressed(1)
+        model.buttonPressed(.add)
+        model.digitPressed(2)
+        await drain()
+        XCTAssertFalse(model.updateOperand(tokenIndex: 0, newText: "abc"))
+        XCTAssertFalse(model.updateOperand(tokenIndex: 99, newText: "3"))
+        XCTAssertFalse(model.isOperandTokenEditable(99))
+    }
+
     func testScientificSquare() async {
         model.setCalculatorType(.scientific)
         model.digitPressed(9)

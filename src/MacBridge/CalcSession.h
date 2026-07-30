@@ -84,6 +84,10 @@ namespace MacCalc
         bool RemoveHistoryItem(unsigned int index);
         void ClearHistory();
 
+        // Expression token editing (mirrors StandardCalculatorViewModel::UpdateOperand + Recalculate).
+        bool IsTokenEditableOperand(unsigned int tokenPosition) const;
+        bool UpdateOperandAtToken(unsigned int tokenPosition, const std::wstring& newText, bool scientificMode, bool fToEChecked);
+
     private:
         class Impl;
         std::unique_ptr<Impl> m_impl;

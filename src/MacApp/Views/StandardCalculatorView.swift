@@ -98,18 +98,25 @@ struct StandardCalculatorView: View {
 
 struct DisplayArea: View {
     @ObservedObject var model: StandardCalculatorViewModel
+    @State private var editingTokenID: Int?
+    @State private var editingText = ""
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(model.expressionTokens.map(\.text).joined())
-                .font(.system(size: 13))
-                .monospacedDigit()
-                .lineLimit(1)
-                .truncationMode(.head)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .foregroundStyle(.secondary)
-                .frame(height: 18)
-                .accessibilityIdentifier("expressionDisplay")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(model.expressionTokens) { token in
+                        tokenView(token)
+                    }
+                }
+            }
+            .defaultScrollAnchor(.trailing)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .frame(height: 18)
+            .accessibilityIdentifier("expressionDisplay")
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("表达式")
+            .accessibilityValue(model.expressionTokens.map(\.text).joined())
 
             Text(model.displayValue)
                 .font(.system(size: 48, weight: .light))
@@ -125,6 +132,58 @@ struct DisplayArea: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
+    }
+
+    /// 对应原版表达式区可点击 token(SaveEditedCommand/UpdateOperand):操作数可点击弹出编辑。
+    @ViewBuilder
+    private func tokenView(_ token: ExpressionToken) -> some View {
+        if !model.isInError, model.mode != .programmer, model.isOperandTokenEditable(token.id) {
+            Button {
+                editingText = token.text
+                editingTokenID = token.id
+            } label: {
+                Text(token.text)
+                    .font(.system(size: 13))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .underline(editingTokenID == token.id)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("编辑操作数 \(token.text)")
+            .popover(isPresented: Binding(
+                get: { editingTokenID == token.id },
+                set: { if !$0 { editingTokenID = nil } }
+            )) {
+                operandEditor
+            }
+        } else {
+            Text(token.text)
+                .font(.system(size: 13))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var operandEditor: some View {
+        VStack(spacing: 8) {
+            TextField("操作数", text: $editingText)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 140)
+                .onSubmit(commitOperandEdit)
+            HStack {
+                Button("取消") { editingTokenID = nil }
+                Button("确定", action: commitOperandEdit)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(12)
+    }
+
+    private func commitOperandEdit() {
+        if let id = editingTokenID {
+            model.updateOperand(tokenIndex: id, newText: editingText)
+        }
+        editingTokenID = nil
     }
 }
 

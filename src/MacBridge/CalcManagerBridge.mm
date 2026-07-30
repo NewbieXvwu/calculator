@@ -321,4 +321,17 @@ namespace
     _session->ClearHistory();
 }
 
+- (BOOL)isOperandTokenAt:(NSUInteger)tokenPosition
+{
+    return _session->IsTokenEditableOperand(static_cast<unsigned int>(tokenPosition)) ? YES : NO;
+}
+
+- (BOOL)updateOperandAtToken:(NSUInteger)tokenPosition
+                        text:(NSString*)text
+                  scientific:(BOOL)scientific
+                 fToEChecked:(BOOL)fToEChecked
+{
+    return _session->UpdateOperandAtToken(static_cast<unsigned int>(tokenPosition), ToWString(text), scientific == YES, fToEChecked == YES) ? YES : NO;
+}
+
 @end

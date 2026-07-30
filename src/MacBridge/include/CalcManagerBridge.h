@@ -70,6 +70,15 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)removeHistoryItem:(NSUInteger)index;
 - (void)clearHistory;
 
+/// YES when the token at this position maps to an editable operand command.
+- (BOOL)isOperandTokenAt:(NSUInteger)tokenPosition;
+/// Replaces the operand text and replays the whole expression through the engine.
+/// Returns NO (and restores the previous expression) when the edit is invalid.
+- (BOOL)updateOperandAtToken:(NSUInteger)tokenPosition
+                        text:(NSString *)text
+                  scientific:(BOOL)scientific
+                fToEChecked:(BOOL)fToEChecked;
+
 @end
 
 NS_ASSUME_NONNULL_END

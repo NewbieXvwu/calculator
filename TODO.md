@@ -140,11 +140,18 @@
       数字/运算符按键不进菜单（对齐 Apple 计算器惯例）
 - [x] 豁免记录：EULA/微软服务协议/隐私声明/反馈 Hub 链接——微软法务文书，**豁免**，以本项目许可声明替代
 
-### P3-2 表达式 token 点击编辑
-现状：表达式行只读展示。规格：原版 `CalculationResult`/表达式区支持点击历史 token 修改操作数并重算
+### P3-2 表达式 token 点击编辑 ✅
+规格：原版 `CalculationResult`/表达式区支持点击历史 token 修改操作数并重算
 （`StandardCalculatorViewModel.cpp` 的 `SaveEditedCommand`/`HandleUpdatedOperandData`）。
-- [ ] 表达式行 token 化为可点击元素，选中操作数弹出编辑，提交后 `SetHistoryExpressionDisplay` 等价重放
-- [ ] 桥接层补 `PDATA`/命令重放接口；测试：编辑中间操作数后结果与原版一致
+- [x] 表达式行 token 化为可点击元素（`DisplayArea` 横向滚动 token 行），操作数 token 点击弹出
+      Popover 编辑框，提交后引擎命令整体重放（对应 `UpdateOperand` + `Recalculate`）
+- [x] 桥接层补命令重放接口：`CalcSession` 保留 `SetExpressionDisplay` 的 tokens/commands 共享指针，
+      新增 `IsTokenEditableOperand`/`UpdateOperandAtToken`（字符→命令映射 '.'→PNT、'e'→EXP、
+      首位 '-'→ToggleSign、数字→IDC_0+d；重放含度模式/科学模式/F-E、`IsNegative` 注入 SIGN、
+      出错恢复原表达式），ObjC 层 `isOperandTokenAt:`/`updateOperandAtToken:...`
+- [x] 测试：标准模式折叠操作数编辑（原版标准模式 `1+2+` 折叠为 `3 +`，编辑 3→5 得 8）、
+      科学模式完整表达式中间操作数编辑（1+2×4 编辑 2→5 得 21）、等号后编辑（含负数小数 `-7.5`）、
+      非法输入/越界拒绝——共 5 个新用例，`swift test` 83 项全绿
 
 ### P3-3 无障碍播报（Narrator → VoiceOver）
 规格：`src/CalcViewModel/Common/Automation/NarratorAnnouncement.cpp` 全部事件。

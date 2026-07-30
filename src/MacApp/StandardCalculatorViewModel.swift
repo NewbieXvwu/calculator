@@ -497,6 +497,26 @@ final class StandardCalculatorViewModel: ObservableObject {
         }
     }
 
+    // MARK: - 表达式 token 编辑(对应原版 UpdateOperand + Recalculate)
+
+    func isOperandTokenEditable(_ tokenIndex: Int) -> Bool {
+        tokenIndex >= 0 && bridge.isOperandToken(at: UInt(tokenIndex))
+    }
+
+    /// 编辑表达式中的操作数并整体重放引擎命令;失败时引擎恢复原表达式。
+    @discardableResult
+    func updateOperand(tokenIndex: Int, newText: String) -> Bool {
+        guard mode != .programmer, tokenIndex >= 0 else { return false }
+        let englishText = newText
+            .trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: decimalSeparator, with: ".")
+        return bridge.updateOperand(
+            atToken: UInt(tokenIndex),
+            text: englishText,
+            scientific: mode == .scientific,
+            fToEChecked: isFToEChecked)
+    }
+
     // MARK: - Engine callbacks
 
     private func wireCallbacks() {
