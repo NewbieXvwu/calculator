@@ -38,6 +38,27 @@ struct MacCalculatorApp: App {
                 Button("粘贴") { model.pasteFromPasteboard() }
                     .keyboardShortcut("v", modifiers: .command)
             }
+            // 历史（⌃H/⇧⌃D 和弦的菜单栏可发现性入口）。
+            CommandGroup(after: .sidebar) {
+                Divider()
+                Button("历史记录") { model.toggleHistoryPanel() }
+                    .keyboardShortcut("h", modifiers: .control)
+                Button("清除历史记录") { model.clearHistory() }
+                    .keyboardShortcut("d", modifiers: [.control, .shift])
+            }
+            // 记忆（对应原版 MC/MR/M+/M−/MS 的 Ctrl 和弦）。
+            CommandMenu("记忆") {
+                Button("记忆存储 (MS)") { model.memorizeNumber() }
+                    .keyboardShortcut("m", modifiers: .control)
+                Button("记忆调用 (MR)") { model.memoryItemPressed(0) }
+                    .keyboardShortcut("r", modifiers: .control)
+                Button("记忆加 (M+)") { model.memoryAdd(0) }
+                    .keyboardShortcut("p", modifiers: .control)
+                Button("记忆减 (M−)") { model.memorySubtract(0) }
+                    .keyboardShortcut("q", modifiers: .control)
+                Button("清除记忆 (MC)") { model.clearMemory() }
+                    .keyboardShortcut("l", modifiers: .control)
+            }
             // 窗口置顶（对应原版 Always-on-Top，Windows 快捷键 Alt+Up 映射为 ⌥⌘↑）。
             CommandGroup(after: .windowArrangement) {
                 Toggle("窗口置顶", isOn: Binding(
@@ -52,6 +73,11 @@ struct MacCalculatorApp: App {
                     .keyboardShortcut(.upArrow, modifiers: [.option, .command])
             }
         }
+
+        // 设置/关于（Settings.xaml 对应物，⌘, 打开）。
+        Settings {
+            SettingsView()
+        }
     }
 }
 
@@ -61,6 +87,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        // 恢复外观主题偏好（Settings.xaml ThemeRadioButtons 的持久化语义）。
+        NSApp.appearance = AppAppearance.current.nsAppearance
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

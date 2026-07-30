@@ -127,14 +127,18 @@
 - [x] 测试：跟踪吸附取值、周期通解（n·π）、不等式编译/区域采样/错误输入、三角单位求值、
       线型 dash 模式、KGF 全字段（值域/单调性/斜渐近线）——`MacAppTests` 79 例全绿
 
-### P3-1 设置/关于页（当前完全缺失）
+### P3-1 设置/关于页 ✅
 规格：`src/Calculator/Views/Settings.xaml`。
-- [ ] macOS `Settings` scene（⌘,）：外观三选——浅色/深色/跟随系统（`NSApp.appearance`，UserDefaults 持久化；
-      对应 ThemeRadioButtons）
-- [ ] 关于区：应用名 + 版本号（对应 AboutBuildVersion）、版权行、许可声明
-      （本移植二进制 GPLv3 + 上游 MIT + 第三方：Giac GPLv3 / MathLive MIT / GMP·MPFR LGPL）、
+- [x] macOS `Settings` scene（⌘,，`SettingsView.swift`）：外观三选浅色/深色/跟随系统
+      （radioGroup 对应 ThemeRadioButtons；`NSApp.appearance` 即时生效，UserDefaults
+      `AppAppearance` 持久化，启动时 AppDelegate 恢复）
+- [x] 关于区：应用名 + 版本号（CFBundleShortVersionString，SPM 直跑显示"开发构建"）、版权行、
+      许可声明（二进制 GPLv3 + 上游 MIT + Giac GPLv3 / MathLive MIT / GMP·MPFR LGPL）、
       GitHub 贡献链接（对应 AboutContribute）
-- [ ] 豁免记录：EULA/微软服务协议/隐私声明/反馈 Hub 链接——微软法务文书，**豁免**，以本项目许可声明替代
+- [x] 菜单栏可发现性（P1-1 顺延项）：视图菜单增"历史记录 ⌃H/清除历史记录 ⇧⌃D"、新增"记忆"菜单
+      （MS ⌃M/MR ⌃R/M+ ⌃P/M− ⌃Q/MC ⌃L），与键盘和弦共用 VM 入口（`toggleHistoryPanel` 等）；
+      数字/运算符按键不进菜单（对齐 Apple 计算器惯例）
+- [x] 豁免记录：EULA/微软服务协议/隐私声明/反馈 Hub 链接——微软法务文书，**豁免**，以本项目许可声明替代
 
 ### P3-2 表达式 token 点击编辑
 现状：表达式行只读展示。规格：原版 `CalculationResult`/表达式区支持点击历史 token 修改操作数并重算

@@ -485,6 +485,12 @@ final class StandardCalculatorViewModel: ObservableObject {
         refreshHistory()
     }
 
+    /// 历史面板开关（⌃H / 菜单栏）；程序员模式无历史。
+    func toggleHistoryPanel() {
+        guard mode != .programmer else { return }
+        historyTogglePulse += 1
+    }
+
     private func refreshHistory() {
         historyItems = bridge.historyEntries().enumerated().map { index, entry in
             HistoryItem(id: index, expression: entry.expression, result: entry.result)
@@ -726,7 +732,7 @@ final class StandardCalculatorViewModel: ObservableObject {
         case "M": memorizeNumber(); return true                    // MS
         case "H":
             guard mode != .programmer else { return false }        // 程序员模式无历史
-            historyTogglePulse += 1
+            toggleHistoryPanel()
             return true
         default: break
         }
