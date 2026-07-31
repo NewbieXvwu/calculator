@@ -943,8 +943,8 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 #### 回填任务
 
 - [x] 改用共享层规格表（键盘 / 单位 / 快捷键 / 色板 / 模式元数据）（2026-07-31 全部完成）：模式元数据 / `LayoutTier` 分档 / 图标语义名 / 14 色方程色板 / 单位换算表此前已由各自镜像表消费（见 §S6 验收）；本次补齐**最后一张**——键盘布局。新增 `KeyboardLayout.swift`（Swift 镜像五元组表 + `KeypadRenderer` 解析 + `KeypadGrid` 数据驱动渲染循环），四套键盘（标准/科学/程序员/换算）视图内 57 处 `CalcKey(` 手写调用全部退化为消费 `KeyboardLayout.{standard,scientific,programmer,converter}` 的单一渲染循环。严格零回归保真：标准模式字号仍由 `LayoutTier` 驱动（含 `compactFirstRow` 紧凑首行交换）、科学/程序员/换算字号为镜像常量、移位键字号按标签长度动态、`emphasized` 态随 `isInvChecked`、闪动仅标准模式、全部 disabled 谓词逐键映射 JSON 规则；`ScientificCalculatorView.functionColumn` 改为从 `KeyboardLayout.scientific` 派生（单一真相源）。`SpecTableTests.testKeyboardLayoutMirrorMatchesSpec` 双向锁定镜像表 ⇄ `spec/keyboard-layout.json`（kind/style/command/a11y/disabled/colSpan/invPair/行跨度守恒/紧凑首行）。零回归：`swift test` 126/126（含新增镜像测试）、engine-tests 全绿
-- [ ] **平价测试退役**（与 Swift 首发实现退役绑定，D6 纪律）：`MarchingSquares.swift`（对拍 oracle）、`GraphingView`/`GraphingViewModel` 内残留 Swift 公式实现删除时，`GraphGeometryTests` 12 项平价断言同步处理——有独立行为价值的（`y=1/x` 断裂/抬笔、鞍点消歧、不等式三值覆盖、auto-fit 退化）翻译为 C 层直接行为断言，其余随实现删除
-- [ ] **C 层直接测试缺口**（承接上条）：Swift oracle 退役后 C 层行为回归网不得留白——`graph_sample_curve` 断裂、`graph_marching_squares` 鞍点、`graph_inequality_regions` 三值输出需有**独立期望**的直接测试，不再依赖与 Swift 对拍；`GraphGeometryTests` 文件名与结构可随之改名（如 `GraphGeometryCApiTests`）
+- [x] **平价测试退役**（2026-08-01，D6 纪律）：`MarchingSquares.swift`（对拍 oracle）已删除；`GraphingViewModel.nearestCurvePoint`/`autoFitView` 残留 Swift 公式已改为委托 `graph_trace_snap`/`graph_auto_fit_y`（候选采集/采样留在 VM——表达式求值属 VM 职责）；`InequalityRelation.satisfied` 死代码删除（关系判定以 C `graph_relation_satisfied` 为单一真相源）。12 项平价断言同步处理：`y=1/x` 断裂/抬笔（`testSampleCurveBreaksAtUndefinedAndAsymptote`）、不等式三值覆盖（`testInequalityRegions*` 5 项）本就是独立期望保留；鞍点消歧改为独立期望（`testMarchingSquaresSaddleDisambiguationQuadrants`：xy=1 单格网格四角 +,−,+,− → 两条线段必须分别整段落在 Q1/Q3，错误配对会横穿原点）；auto-fit 退化保留（`testAutoFitPercentileDegenerateAndDelegation`：全常数 ±1+10% 边距）；其余（两例 Swift 对拍、`satisfied` 表对拍）随实现删除
+- [x] **C 层直接测试缺口**（承接上条，2026-08-01）：`GraphGeometryTests` → `GraphGeometryCApiTests`（23 例全绿）。C 层行为回归网全部独立期望：`graph_sample_curve` 断裂（401 列独立镜像枚举 move 断言）、`graph_marching_squares` 鞍点（象限聚合 + 端点落线 + 远离原点）、三值输出（certain/uncertain 分渠断言 5 项）、`graph_trace_snap` 直接表（NaN 跳过/全 NaN −1/归一距离）、`graph_auto_fit_y` 退化 + 空输入。MacAppTests 旧 `MarchingSquaresTests` 3 例（圆/竖线/双曲线端点落线）平移为 C 层直接断言；VM 交互测试改委托锁。零回归：`swift test` 125/125、engine-tests 全绿
 - [x] 改用 C ABI 门面（2026-07-31）：`CalcManagerBridge.mm` 不再直接持有 `std::unique_ptr<MacCalc::CalcSession>`，改持 `calc_session_t*` 并全程委托 `calc_c_api`——ctor 用 `calc_grouping_format` + `calc_locale_t`（UTF-8）注入区域，`calc_callbacks_t` 装配 11 个 C thunk（`user_data` 为未持有的 bridge，无保留环）转发回 ObjC block，33 个方法逐一改调 `calc_*`（返回 `char*` 经 `calc_string_free` 释放）。至此 `calc_c_api` 成为 CalcSession 的**唯一**包装，跨平台 C 契约由 macOS 生产路径实际消费验证（消灭 mm 与 c_api 两套平行门面的重复）。零回归：`swift test` 126/126、engine-tests、calc-smoke（经 C ABI 显示/历史/进制端到端）全绿
 - [x] 图形几何改调共享层（2026-07-31）：生产路径的坐标变换（`toScreenX/Y`→`graph_to_screen_x/y`）、刻度步长（`niceStep`→`graph_nice_step`）、网格刻度枚举（`drawGrid`→`graph_ticks`）、显式曲线采样（`drawCurve`→`graph_sample_curve`）、隐式等值线追踪（`drawImplicit`→`graph_marching_squares`）、视窗平移/缩放/范围（`pan/zoom/zoom_at/applyRange`→对应 C ABI）全部改调 `graph_geometry.h`。`MarchingSquares.swift` 降级为对拍 oracle（`GraphGeometryTests`/`MacAppTests` 锁 C↔Swift 等价）。零回归：`swift test` 126/126、engine-tests、calc-smoke 全绿
 - [x] `@Observable` 迁移（2026-07-31，S11：部署目标 13→14，4 个 ViewModel + 全部视图层，126 测试全绿）
@@ -1346,7 +1346,7 @@ Web 是唯一必须自己做设计决策的平台（Windows 有 XAML、Apple 有
 | 129 快捷键 | ✅ | ✅原版 | 🚧部分 | 🚧部分 | ⬜ | ⬜ | 🚧受限 |
 | 60 语言 | ✅ | ✅原版 | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 无障碍播报 | ✅ | ✅原版 | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 自绘区无障碍 | ⬜ | ✅原版 | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 自绘区无障碍 | ✅ | ✅原版 | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 汇率 | ✅ | ❌端点 | ⬜ | ⬜ | ⬜ | ⚠️见下 | ⬜ |
 
 ---
