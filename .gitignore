@@ -301,6 +301,7 @@ src/CalcViewModel/DataLoaders/DataLoaderConstants.h
 .build-giac/
 .build-portable/
 third_party/giac/lib/
+third_party/giac-win/
 
 # SwiftPM 本地用户配置（随用户的工具链/Xcode 变化）
 .swiftpm/
