@@ -655,6 +655,10 @@ private struct GraphCanvas: View {
                 .onChangeCompat(of: traceCursor) { _ in
                     announceTrace(size: size)
                 }
+                // S13：语义树 → 隐形无障碍元素 overlay（spec/graph-accessibility.json apple 机制）。
+                .overlay(alignment: .topLeading) {
+                    accessibilityOverlay(size: size)
+                }
 
                 commandPanel(size: size)
             }
@@ -668,6 +672,33 @@ private struct GraphCanvas: View {
         let mathY = graph.yMin + Double(size.height - cursor.y) / Double(size.height) * graph.ySpan
         guard let snap = graph.nearestCurvePoint(mathX: mathX, mathY: mathY) else { return }
         AccessibilityAnnouncer.announce(L10n.format("Mac_TracePoint", traceFmt(snap.x), traceFmt(snap.y)), highPriority: false)
+    }
+
+    // MARK: - 无障碍语义树（S13）
+
+    private func accessibilityOverlay(size: CGSize) -> some View {
+        let root = GraphSemanticTree.build(
+            graph: graph, width: size.width, height: size.height, trace: currentTraceSnap(size: size))
+        return GraphAccessibilityOverlay(root: root, size: size) { action, stableId in
+            switch action {
+            case .zoomIn: graph.zoom(factor: 0.8)
+            case .zoomOut: graph.zoom(factor: 1.25)
+            case .resetView: graph.resetView()
+            case .autoFit: graph.autoFitView()
+            case .toggleVisibility:
+                if let index = Int(stableId.dropFirst("eq:".count)), graph.equations.indices.contains(index) {
+                    graph.toggleVisibility(id: graph.equations[index].id)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func currentTraceSnap(size: CGSize) -> GraphingViewModel.TraceResult? {
+        guard graph.isTracing, let cursor = traceCursor, size.width > 0, size.height > 0 else { return nil }
+        let mathX = graph.xMin + Double(cursor.x) / Double(size.width) * graph.xSpan
+        let mathY = graph.yMin + Double(size.height - cursor.y) / Double(size.height) * graph.ySpan
+        return graph.nearestCurvePoint(mathX: mathX, mathY: mathY)
     }
 
     // MARK: - 命令面板（跟踪/放大/缩小/图形视图）
@@ -1052,5 +1083,53 @@ private struct GraphCanvas: View {
             ? StrokeStyle(lineWidth: stroke.lineWidth, dash: [2 * stroke.lineWidth, stroke.lineWidth])
             : stroke
         drawImplicit(expr, color: color, stroke: boundaryStroke, context: context, size: size)
+    }
+}
+
+/// S13 无障碍 overlay：语义树先序展开为定位的隐形元素（spec traversalOrder），
+/// 不拦截指针事件；actions 映射为 VoiceOver 自定义动作。
+private struct GraphAccessibilityOverlay: View {
+    let root: GraphSemanticNode
+    let size: CGSize
+    let onAction: (GraphSemanticAction, String) -> Void
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(root.flattened(), id: \.stableId) { node in
+                element(node)
+            }
+        }
+        .frame(width: size.width, height: size.height, alignment: .topLeading)
+    }
+
+    private func element(_ node: GraphSemanticNode) -> some View {
+        let rect = node.bounds ?? CGRect(origin: .zero, size: size)
+        var view = AnyView(
+            Color.clear
+                .frame(width: max(rect.width, 1), height: max(rect.height, 1))
+                .offset(x: rect.minX, y: rect.minY)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(node.resolvedLabel)
+                .accessibilityValue(node.value ?? ""))
+        if node.states.contains(.selected) {
+            view = AnyView(view.accessibilityAddTraits(.isSelected))
+        }
+        for action in node.actions {
+            view = AnyView(view.accessibilityAction(named: actionName(action, node: node)) {
+                onAction(action, node.stableId)
+            })
+        }
+        return view
+    }
+
+    private func actionName(_ action: GraphSemanticAction, node: GraphSemanticNode) -> String {
+        switch action {
+        case .zoomIn: return L10n.button("zoomInButton")
+        case .zoomOut: return L10n.button("zoomOutButton")
+        case .resetView: return L10n.string("Mac_A11y_ResetView")
+        case .autoFit: return L10n.string("Mac_AutoFitViewLabel")
+        case .toggleVisibility:
+            return L10n.string(node.states.contains(.hidden) ? "Mac_ShowFunction" : "Mac_HideFunction")
+        }
     }
 }

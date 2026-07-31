@@ -1,0 +1,75 @@
+{
+  "$comment": "S13 自绘绘图区无障碍统一抽象。语义树驱动绘制（而非从像素反推）：平台把 SemanticNode 树映射进各自的无障碍树。macOS 首实现：GraphSemantics.swift（GraphSemanticTree.build）+ GraphingView 画布 overlay 接线；防漂移测试 GraphSemanticsTests 锁角色/动作/状态词表与本表逐项一致、announcements 键真实存在于 String Catalog。labelKey/labelArgs 沿用 Localizable.xcstrings 词条（%1/%2 位置占位），value 为已按 locale 格式化的文本，各平台用自己的 l10n 重建。",
+  "semanticNode": {
+    "fields": {
+      "stableId": "会话内稳定的节点标识（如 viewport、eq:0、eq:0/zeros、trace）；平台虚拟节点 id 由它派生",
+      "role": "roles 词表之一",
+      "labelKey": "l10n 键（Localizable.xcstrings）",
+      "labelArgs": "labelKey 的 %1/%2… 位置参数（字符串数组，可空）",
+      "value": "节点值文本（已格式化，可空）",
+      "states": "states 词表子集",
+      "bounds": "屏幕像素坐标 {x,y,width,height}；空 = 占满整个绘图区（无定位语义）",
+      "actions": "actions 词表子集，平台映射为无障碍自定义动作",
+      "children": "子节点数组"
+    },
+    "traversalOrder": "先序遍历，children 数组序即朗读序；不设显式 traversalOrder 字段"
+  },
+  "roles": {
+    "graphArea": {
+      "labelKey": "graphAutomationName",
+      "labelArgs": ["xMin", "xMax", "yMin", "yMax", "可见已编译方程数"],
+      "children": ["viewport", "equationList", "tracePoint?"],
+      "notes": "根节点。跟踪激活时带 tracing 状态。"
+    },
+    "viewport": {
+      "labelKey": "Mac_GridRange",
+      "value": "x ∈ [xMin, xMax], y ∈ [yMin, yMax]（%g 格式）",
+      "actions": ["zoomIn", "zoomOut", "resetView", "autoFit"],
+      "notes": "视窗范围 + 缩放动作宿主。bounds 占满绘图区。"
+    },
+    "equationList": {
+      "labelKey": "EquationInputList.[using:Windows.UI.Xaml.Automation]AutomationProperties.Name",
+      "children": ["equation*"]
+    },
+    "equation": {
+      "labelKey": "Mac_A11y_Equation",
+      "labelArgs": ["序号（1 起）"],
+      "value": "表达式文本",
+      "states": ["visible|hidden", "error?", "selected?（跟踪吸附所在曲线）"],
+      "actions": ["toggleVisibility"],
+      "children": ["featureGroup*"],
+      "notes": "stableId eq:<index>；无 bounds（曲线遍布画布，不可框定）。"
+    },
+    "featureGroup": {
+      "labelKey": "Mac_Zeros | Maxima | Minima",
+      "value": "特征值串（零点逗号连接；极值 (x, y) 空格连接，同分析面板）",
+      "notes": "stableId eq:<index>/zeros|maxima|minima；仅在注入 KGF 分析结果时生成。giac 结果是符号串（如 x = π），无法定位像素 → 无 bounds，属诚实建模而非缺失。"
+    },
+    "tracePoint": {
+      "labelKey": "Mac_TracePoint",
+      "labelArgs": ["x 值", "y 值"],
+      "states": ["tracing"],
+      "notes": "stableId trace；bounds 为吸附点屏幕坐标 12×12 方框。仅跟踪激活且有吸附点时存在。"
+    }
+  },
+  "actions": ["zoomIn", "zoomOut", "resetView", "autoFit", "toggleVisibility"],
+  "states": ["visible", "hidden", "error", "selected", "tracing"],
+  "requiredExposures": {
+    "viewportRange": { "via": ["graphArea", "viewport"] },
+    "cursorCoordinates": { "via": ["tracePoint"], "announcement": "tracePoint" },
+    "extremaAndZeros": { "via": ["featureGroup"] },
+    "selectedCurve": { "via": ["equation"], "how": "跟踪吸附曲线带 selected 状态" },
+    "zoomResult": { "via": ["viewport"], "announcement": "bestFit" }
+  },
+  "announcements": {
+    "functionRemoved": "Mac_Ann_FunctionRemoved",
+    "bestFit": "Mac_Ann_BestFit",
+    "tracePoint": "Mac_TracePoint"
+  },
+  "platformMechanisms": {
+    "web": "Canvas bitmap 不进入无障碍树 → 与绘制场景同源渲染语义 DOM 覆盖层（role=img 根 + aria 子元素，bounds 转 CSS 定位），announcements 走 aria-live",
+    "android": "自绘 View + ExploreByTouchHelper 暴露虚拟节点（stableId 哈希为 virtualViewId，bounds 转 onPopulateNodeForVirtualView），announcements 走 announceForAccessibility",
+    "ohos": "accessibilityVirtualNode(builder)（API 11+）构建虚拟节点树，announcements 走 OH_ArkUI_AccessibilityEventSetTextAnnouncedForAccessibility",
+    "apple": "macOS: SwiftUI 隐形 overlay 元素（首实现，见 GraphingView）或 NSAccessibilityElement；iOS: UIAccessibilityElement 数组；announcements 走 NSAccessibility.post/UIAccessibility.post"
+  }
+}

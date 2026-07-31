@@ -809,7 +809,7 @@ Android/鸿蒙/Linux 的保留集合含"系统截图/工作区"等非和弦描�
 
 ---
 
-### S13 · 自绘区无障碍统一抽象 🟡 P2
+### S13 · 自绘区无障碍统一抽象 ✅ 已完成（2026-07-31）
 
 绘图区自绘 → 对屏幕阅读器**完全不可见**。这是**三平台共同问题**：
 
@@ -832,6 +832,25 @@ SemanticNode {
 绘图区应暴露：当前视窗范围、光标坐标、极值 / 零点、选中曲线、缩放结果。
 
 **成本**：1 人周（抽象层）+ 各平台 2–3 人日
+
+**验收记录（2026-07-31）**：落地 `spec/graph-accessibility.json`（SemanticNode
+字段表、6 角色 / 5 动作 / 5 状态词表、先序遍历规则、TODO 要求的五项暴露
+requiredExposures、3 项事件播报 → String Catalog 键、四平台机制表）+ macOS
+首实现 `GraphSemantics.swift`（GraphSemanticTree.build：视窗节点带缩放四动作、
+方程节点带可见/错误/选中状态与 KGF featureGroup 子节点、跟踪节点带屏幕定位
+bounds）+ `GraphingView` 画布接线（语义树先序展开为隐形 overlay 元素，
+VoiceOver 可达，actions 映射为自定义动作，不拦截指针事件）。新增 l10n 键
+`Mac_A11y_Equation`/`Mac_A11y_ResetView`（en+zh-Hans），根/视窗/跟踪节点复用
+原版 `graphAutomationName`/`Mac_GridRange`/`Mac_TracePoint`。测试
+GraphSemanticsTests 5 项：词表 spec⇄Swift 枚举逐项一致、spec 引用的全部
+l10n 键真实存在于 String Catalog、默认树结构与 labelArgs、隐藏/错误/选中
+状态 + 跟踪节点 (1,1)→(220,135) 定位、featureGroup 与先序遍历唯一性。
+诚实记录：① featureGroup 无 bounds——giac 结果是符号串（如 x = π）无法
+定位像素，属诚实建模；② macOS 画布接线传空 analyses（KGF 数据已由分析
+面板文本行呈现，画布内重复注入属平台期决策）；③ hidden/error 状态在
+macOS overlay 仅经动作名（显示/隐藏函数）间接可感知，SwiftUI 无对应
+trait，Android/Web 虚拟节点有原生对应物；④ VoiceOver 端到端行为未做
+自动化验证（需真机 AX inspector），结构正确性由单元测试锁定。
 
 ---
 
