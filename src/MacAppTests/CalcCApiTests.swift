@@ -120,6 +120,53 @@ final class CalcCApiTests: XCTestCase {
         XCTAssertEqual(box.display, "1,5")
     }
 
+    func testGroupingFormat() {
+        // S8：分组结构 → 引擎 sGrouping 字符串的唯一换算点。
+        func fmt(_ g: calc_grouping_t) -> String {
+            var g = g
+            var buf = [CChar](repeating: 0, count: 16)
+            let n = withUnsafePointer(to: &g) { calc_grouping_format($0, &buf, buf.count) }
+            XCTAssertLessThan(Int(n), buf.count)
+            return String(cString: buf)
+        }
+        XCTAssertEqual(fmt(calc_grouping_t(primary: 3, secondary: 0, repeat_secondary: true, minimum_grouping_digits: 1)), "3;0")
+        XCTAssertEqual(fmt(calc_grouping_t(primary: 3, secondary: 2, repeat_secondary: true, minimum_grouping_digits: 1)), "3;2;0")  // 印度拉克/克若尔
+        XCTAssertEqual(fmt(calc_grouping_t(primary: 3, secondary: 3, repeat_secondary: true, minimum_grouping_digits: 1)), "3;0")    // 次级等于主级 → 折叠
+        XCTAssertEqual(fmt(calc_grouping_t(primary: 3, secondary: 0, repeat_secondary: false, minimum_grouping_digits: 1)), "3")     // 不重复
+        XCTAssertEqual(fmt(calc_grouping_t(primary: 0, secondary: 0, repeat_secondary: true, minimum_grouping_digits: 1)), "")       // 不分组
+
+        // snprintf 语义：cap 不足时截断但返回全长；NULL 输入安全。
+        var g = calc_grouping_t(primary: 3, secondary: 2, repeat_secondary: true, minimum_grouping_digits: 1)
+        var tiny = [CChar](repeating: 0, count: 3)
+        XCTAssertEqual(withUnsafePointer(to: &g) { calc_grouping_format($0, &tiny, tiny.count) }, 5)
+        XCTAssertEqual(String(cString: tiny), "3;")
+        XCTAssertEqual(calc_grouping_format(nil, nil, 0), 0)
+    }
+
+    func testIndianGroupingDrivesEngineDisplay() {
+        // 分组模式经 locale 注入后引擎显示 12,34,567（而非 1,234,567）。
+        var g = calc_grouping_t(primary: 3, secondary: 2, repeat_secondary: true, minimum_grouping_digits: 1)
+        var buf = [CChar](repeating: 0, count: 16)
+        _ = withUnsafePointer(to: &g) { calc_grouping_format($0, &buf, buf.count) }
+
+        let box = CApiBox()
+        let locale = calc_locale_t(
+            decimal_separator: strdup("."),
+            thousand_separator: strdup(","),
+            grouping: strdup(String(cString: buf)))
+        defer {
+            free(UnsafeMutablePointer(mutating: locale.decimal_separator))
+            free(UnsafeMutablePointer(mutating: locale.thousand_separator))
+            free(UnsafeMutablePointer(mutating: locale.grouping))
+        }
+        let session = makeSession(box, locale: locale)
+        defer { calc_session_destroy(session) }
+
+        for d in [1, 2, 3, 4, 5, 6, 7] { _ = calc_send_digit(session, Int32(d)) }
+        _ = calc_send_command(session, cmdEquals)
+        XCTAssertEqual(box.display, "12,34,567")
+    }
+
     func testProgrammerRadix() {
         let box = CApiBox()
         let session = makeSession(box)

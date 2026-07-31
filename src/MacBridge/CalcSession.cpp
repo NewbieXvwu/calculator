@@ -13,6 +13,26 @@
 
 namespace MacCalc
 {
+    std::wstring Grouping::EngineString() const
+    {
+        // 引擎解析（DigitGroupingStringToGroupingVector）：分号分隔、右起分组、
+        // 尾随 0 = 末组无限重复、>15 的组被忽略。
+        if (primary <= 0)
+        {
+            return L"";  // 不分组
+        }
+        std::wstring result = std::to_wstring(primary);
+        if (secondary > 0 && secondary != primary)
+        {
+            result += L";" + std::to_wstring(secondary);
+        }
+        if (repeatSecondary)
+        {
+            result += L";0";
+        }
+        return result;
+    }
+
     namespace
     {
         class SessionResourceProvider final : public CalculationManager::IResourceProvider

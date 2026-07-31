@@ -559,7 +559,7 @@ applyRange/auto-fit（5%–95% 分位）、逐像素列采样（未定义列抬�
 
 ---
 
-### S8 · Locale 分隔符注入加固 🟠 P1
+### S8 · Locale 分隔符注入加固 ✅ 完成（2026-07-31）
 
 **实测证据**（OHOS aarch64 / qemu）：
 
@@ -615,6 +615,23 @@ struct Grouping {
 **纠正**：现代 CLDR 中文是**三位**分组，不是四位。
 
 **成本**：3–5 人日
+
+**验收记录（2026-07-31）**：
+- 分组结构落地：`MacCalc::Grouping{primary, secondary, repeatSecondary,
+  minimumGroupingDigits}`（CalcSession.h）+ `EngineString()` 为唯一的
+  sGrouping 换算点；C ABI 暴露 `calc_grouping_t` + `calc_grouping_format`
+  （snprintf 语义），各平台从结构生成，不再手拼字符串。
+- 原 bug 修复：CalcManagerBridge.mm 此前只注分隔符、sGrouping 恒为 "3;0"；
+  现经 NSNumberFormatter `groupingSize`+`secondaryGroupingSize` 推导注入
+  （印度 → "3;2;0"）。行为验证：`testIndianGroupingDrivesEngineDisplay`
+  断言引擎实际输出 `12,34,567`。
+- CI 禁用清单：`LocaleBanTests` 随 swift test 扫描 src/CalcManager +
+  src/MacBridge 全部 C/C++/ObjC++ 源，禁 localeconv/setlocale/std::locale("")/
+  wcstod_l/strtod_l/std::wcout/std::wcerr/wstring_convert/codecvt_utf8
+  （smoketest 开发 harness 豁免）。
+- 如实记录的未消费项：`minimumGroupingDigits` 结构已承载但引擎 GroupDigits
+  暂不支持（西语 1234 仍会分组），属引擎侧后续项；单位换算器的 Swift 侧
+  分组仍固定三位（UnitConverterViewModel），随规格表消费方迁移一并处理。
 
 ---
 
@@ -1247,7 +1264,7 @@ grep -rn "long double\|LDBL_\|%Lf\|strtold\|powl\|sqrtl\|sinl" src/CalcManager/
   S5  C ABI 门面                           ← ✅ 完成（2026-07-31）
   S6  规格表下沉                           ← ✅ 完成（2026-07-31）
   S7  图形几何下沉                         ← ✅ 完成（2026-07-31）
-  S8  Locale 注入加固 + 分组模式修复       ← 3–5 人日
+  S8  Locale 注入加固 + 分组模式修复       ← ✅ 完成（2026-07-31）
   S11 @Observable 迁移                     ← 2–3 人日
   S4  区间算术                             ← 1–2 人周（可延后到首个绘图平台前）
        ↓

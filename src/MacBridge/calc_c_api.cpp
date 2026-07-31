@@ -12,6 +12,7 @@
 
 #include "CalcSession.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
@@ -552,6 +553,31 @@ bool calc_update_operand(
 void calc_string_free(char* s)
 {
     std::free(s);
+}
+
+size_t calc_grouping_format(const calc_grouping_t* grouping, char* out, size_t cap)
+{
+    if (grouping == nullptr)
+    {
+        if (out != nullptr && cap > 0)
+        {
+            out[0] = '\0';
+        }
+        return 0;
+    }
+    MacCalc::Grouping g;
+    g.primary = grouping->primary;
+    g.secondary = grouping->secondary;
+    g.repeatSecondary = grouping->repeat_secondary;
+    g.minimumGroupingDigits = grouping->minimum_grouping_digits;
+    const std::string utf8 = WideToUtf8(g.EngineString());
+    if (out != nullptr && cap > 0)
+    {
+        const size_t n = std::min(cap - 1, utf8.size());
+        std::memcpy(out, utf8.data(), n);
+        out[n] = '\0';
+    }
+    return utf8.size();
 }
 
 } // extern "C"

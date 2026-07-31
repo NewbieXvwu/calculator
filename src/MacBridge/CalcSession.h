@@ -15,6 +15,21 @@
 
 namespace MacCalc
 {
+    // 分组模式结构（S8）：存结构而非字符串，避免各平台手拼 "3;0" 漂移。
+    // 印度拉克/克若尔制 = {3, 2, true}；西语 minimumGroupingDigits=2 之类
+    // 引擎暂不消费（GroupDigits 无此概念），先如实承载，消费方迁移见 TODO S8。
+    struct Grouping
+    {
+        int primary = 3;
+        int secondary = 0;  // 0 = 与 primary 相同（无独立次级组）
+        bool repeatSecondary = true;
+        int minimumGroupingDigits = 1;
+
+        // 引擎 sGrouping 字符串（CCalcEngine::DigitGroupingStringToGroupingVector
+        // 的输入）：尾随 ";0" 表示末组无限重复。"3;0"、"3;2;0"、"3"、""（不分组）。
+        std::wstring EngineString() const;
+    };
+
     struct LocaleStrings
     {
         std::wstring decimalSeparator = L".";

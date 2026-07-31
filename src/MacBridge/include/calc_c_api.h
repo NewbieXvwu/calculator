@@ -44,6 +44,23 @@ typedef struct calc_locale {
     const char* grouping;
 } calc_locale_t;
 
+/// Digit grouping pattern (S8): platforms fill this from their locale APIs
+/// (ICU getGroupingSize/getSecondaryGroupingSize, NSNumberFormatter
+/// groupingSize/secondaryGroupingSize, ...) instead of hand-writing engine
+/// grouping strings. minimum_grouping_digits is carried for consumers that
+/// support it; the engine's GroupDigits currently ignores it.
+typedef struct calc_grouping {
+    int32_t primary;                  /* 3; <= 0 disables grouping           */
+    int32_t secondary;                /* 2 for Indian lakh/crore; 0 = none   */
+    bool repeat_secondary;            /* true: last group repeats infinitely */
+    int32_t minimum_grouping_digits;  /* CLDR minimumGroupingDigits, >= 1    */
+} calc_grouping_t;
+
+/// Formats `grouping` as the engine's sGrouping string ("3;0", "3;2;0", ...).
+/// Writes at most cap bytes (NUL-terminated when cap > 0) and returns the
+/// full length excluding the NUL, snprintf style.
+size_t calc_grouping_format(const calc_grouping_t* grouping, char* out, size_t cap);
+
 typedef enum calc_mode {
     CALC_MODE_STANDARD = 0,
     CALC_MODE_SCIENTIFIC = 1,

@@ -78,6 +78,23 @@ namespace
         locale.decimalSeparator = ToWString(currentLocale.decimalSeparator ?: @".");
         locale.thousandSeparator = ToWString(currentLocale.groupingSeparator ?: @",");
 
+        // S8：分组模式从结构推导，不再硬编码 "3;0"。
+        // 只读 groupingSize 会破坏印度拉克/克若尔制（3;2;0），必须连读 secondary。
+        NSNumberFormatter* formatter = [[NSNumberFormatter alloc] init];
+        formatter.locale = currentLocale;
+        formatter.numberStyle = NSNumberFormatterDecimalStyle;
+        MacCalc::Grouping grouping;
+        if (formatter.usesGroupingSeparator && formatter.groupingSize > 0)
+        {
+            grouping.primary = static_cast<int>(formatter.groupingSize);
+            grouping.secondary = static_cast<int>(formatter.secondaryGroupingSize);
+        }
+        else
+        {
+            grouping.primary = 0;
+        }
+        locale.grouping = grouping.EngineString();
+
         _session = std::make_unique<MacCalc::CalcSession>(locale);
 
         __weak CalcManagerBridge* weakSelf = self;
