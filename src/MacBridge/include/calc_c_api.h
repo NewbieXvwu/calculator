@@ -121,6 +121,13 @@ calc_error_t calc_set_mode(calc_session_t* session, calc_mode_t mode);
 
 bool calc_is_engine_recording(calc_session_t* session);
 bool calc_is_input_empty(calc_session_t* session);
+
+/// S10 Ratpack size gate (M4): sticky flag set when an exact rational exceeded
+/// kMaxRationalDigits and was force-truncated to display precision. Engine-global
+/// (shared across sessions). UI must surface it — never silently show an
+/// approximation as exact. Clear explicitly when a new expression starts.
+bool calc_precision_limited(void);
+void calc_clear_precision_limited(void);
 /// Current decimal separator as a Unicode code point.
 uint32_t calc_decimal_separator(calc_session_t* session);
 calc_error_t calc_set_precision(calc_session_t* session, int32_t precision);

@@ -261,6 +261,16 @@ namespace
     return _session->IsInputEmpty() ? YES : NO;
 }
 
+- (BOOL)precisionLimited
+{
+    return MacCalc::CalcSession::PrecisionLimited() ? YES : NO;
+}
+
+- (void)clearPrecisionLimited
+{
+    MacCalc::CalcSession::ClearPrecisionLimited();
+}
+
 - (NSString*)decimalSeparator
 {
     std::wstring separator(1, _session->DecimalSeparator());

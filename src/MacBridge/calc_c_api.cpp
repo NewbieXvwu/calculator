@@ -393,6 +393,16 @@ bool calc_is_input_empty(calc_session_t* session)
     }
 }
 
+bool calc_precision_limited(void)
+{
+    return MacCalc::CalcSession::PrecisionLimited();
+}
+
+void calc_clear_precision_limited(void)
+{
+    MacCalc::CalcSession::ClearPrecisionLimited();
+}
+
 uint32_t calc_decimal_separator(calc_session_t* session)
 {
     try

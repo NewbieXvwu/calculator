@@ -178,6 +178,8 @@ struct MemorySlot: Identifiable, Equatable {
 final class StandardCalculatorViewModel: ObservableObject {
     @Published private(set) var displayValue = "0"
     @Published private(set) var isInError = false
+    /// S10 精度闸门（M4）：结果谱系中发生过有理数强制截断 → 显示为近似值提示。
+    @Published private(set) var isPrecisionLimited = false
     @Published private(set) var expressionTokens: [ExpressionToken] = []
     @Published private(set) var openParenthesisCount: UInt = 0
     @Published private(set) var isInputEmpty = true
@@ -267,6 +269,9 @@ final class StandardCalculatorViewModel: ObservableObject {
             if isFToEChecked {
                 isFToEChecked = false
             }
+            // S10 精度闸门：新算式开始，清掉引擎的粘滞截断标志。
+            bridge.clearPrecisionLimited()
+            isPrecisionLimited = false
         }
 
         if command == .deg || command == .rad || command == .grad {
@@ -280,6 +285,18 @@ final class StandardCalculatorViewModel: ObservableObject {
         }
 
         bridge.sendCommand(command.rawValue)
+        refreshPrecisionLimited()
+    }
+
+    /// S10（M4）：读取引擎粘滞标志——有理数超限被截断后 UI 必须如实标注近似。
+    private func refreshPrecisionLimited() {
+        let limited = bridge.precisionLimited()
+        if limited != isPrecisionLimited {
+            isPrecisionLimited = limited
+            if limited {
+                AccessibilityAnnouncer.announce(L10n.string("Mac_PrecisionLimited"))
+            }
+        }
     }
 
     private func angleAnnouncementLabel(_ command: EngineCommand) -> String {

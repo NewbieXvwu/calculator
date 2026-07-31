@@ -9,6 +9,7 @@
 #include "CalculatorManager.h"
 #include "CalculatorResource.h"
 #include "ExpressionCommandInterface.h"
+#include "Ratpack/ratpak.h" // S10 闸门标志 rat_precision_limited()
 #include "EngineStringsData.g.h"
 
 namespace MacCalc
@@ -225,6 +226,16 @@ namespace MacCalc
     bool CalcSession::IsInputEmpty()
     {
         return m_impl->m_manager.IsInputEmpty();
+    }
+
+    bool CalcSession::PrecisionLimited()
+    {
+        return rat_precision_limited();
+    }
+
+    void CalcSession::ClearPrecisionLimited()
+    {
+        rat_clear_precision_limited();
     }
 
     wchar_t CalcSession::DecimalSeparator()

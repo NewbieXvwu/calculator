@@ -712,7 +712,7 @@ x^2-2  1/x  sin(x)  tan(x)  x^3-2x  abs(x)  sqrt(x)  x+1/x
 
 ---
 
-### S10 · 黄金测试与标量一致性 🟡 P2
+### S10 · 黄金测试与标量一致性 ✅ 已完成（2026-07-31）
 
 配合 D9：
 
@@ -741,6 +741,38 @@ constexpr size_t kMaxRationalDigits = 10000;   // 超限切浮点并置标志位
 并把"已切换到浮点"状态**暴露给 UI**——不要在用户以为是精确值时悄悄给近似值（M4）。
 
 **成本**：3–5 人日
+
+**验收记录（2026-07-31）**：
+- **D9 标量收敛**：新增 `src/CalcManager/CalcScalar.h`（`calc_float` = double 默认，
+  `CALC_USE_EXTENDED_FLOAT` 下切 boost `cpp_bin_float_double_extended`，
+  `static_assert(sizeof(double)==8)`）；`ratpak.h` 引入。`grep -rn "long double" src/`
+  （豁免 CalcScalar.h 自身）已并入 `Tools/check_engine_cxx17.sh`，CI 每次跑。
+- **黄金向量**：`tests/golden/scalar_vectors.txt` 45 条——E 记录走完整引擎命令流
+  （超越函数边界 sqrt(4)/sin(π)/ln(e)/e、灾难性抵消 (1-cos x)/x² 与
+  sqrt(x+1)-sqrt(x)、100! 极值、上下溢、程序员模式分组、7 个鸿蒙失败输入），
+  R 记录进制转换往返，D 记录 IEEE 正确舍入运算（+−×÷/sqrt/strtod）的 %a 十六进制
+  逐位断言。跑器 `src/MacEngineTests/GoldenScalarTests.cpp`（3 个用例）随
+  `swift run engine-tests` 自动执行，74 例全绿。
+- **跨架构 CI**：新增 `Tools/build_engine_tests_portable.sh`（纯 clang++，不经 SPM）
+  + CI `engine-x64` job（ubuntu-latest，x86-64 Linux）——与 macos-26 arm64 的
+  engine job 跑同一份向量，逐位一致才过。脚本本地仅在 arm64 macOS 验证通过
+  （无 Linux 环境），glibc 差异以 CI 首跑为准。
+- **Ratpack 闸门**：`trimit()`（mulrat/divrat/addrat/泰勒级数的公共汇点）加界：
+  `g_ratio·cdigit > kMaxRationalDigits(10000)` 时对 pp/pq 做 TRIMTOP 式低位截断
+  （低位并入 exp，保幅值），置粘滞标志。原版 trim 用 min(pp,pq)，q=1 整数链
+  永不触发——10^12000 实测 cdigit 无界增长，闸门后 ≤8。标志经
+  `rat_precision_limited()` → CalcSession → C ABI（`calc_precision_limited`）→
+  ObjC 桥 → ViewModel `isPrecisionLimited` → 主显示"≈"角标 +
+  VoiceOver 播报（`Mac_PrecisionLimited`，en/zh-Hans），Clear 时复位（M4）。
+  单测：10^12000 触发 + 显示不变（1.e+12000）；7^100 不误触发。
+- **诚实未消费项**：① D 段有意排除 libm 超越函数（sin/exp 等 1-ulp 平台差异，
+  IEEE 不要求正确舍入）——超越一致性由 E 段经 Ratpack 纯整数泰勒级数保证，
+  理由写在向量文件头；② WASM CI 腿未建（无 Emscripten 工装，待 Web 平台任务）；
+  aarch64-Linux 腿未建（GitHub 免费 runner 无，arm64 已由 macos-26 覆盖）；
+  ③ `CALC_USE_EXTENDED_FLOAT` 双构建 job 未建——boost 未 vendor 进仓，逃生通道
+  目前只有 typedef 本体 + static_assert，"防腐烂"的 CI 消费待真实需要 80-bit
+  的平台出现时补；④ 粘滞标志是引擎全局（Ratpack 无会话上下文），多会话场景
+  （目前不存在）需重审；⑤ "≈"角标经单元/逻辑链路验证，无自动化 UI 截图比对。
 
 ---
 

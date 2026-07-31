@@ -56,6 +56,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (BOOL)isEngineRecording;
 - (BOOL)isInputEmpty;
+/// S10 精度闸门（M4）：有理数超限被强制截断后的粘滞标志（引擎全局）。
+- (BOOL)precisionLimited;
+- (void)clearPrecisionLimited;
 - (NSString *)decimalSeparator;
 - (void)setPrecision:(NSInteger)precision;
 - (void)updateMaxIntDigits;

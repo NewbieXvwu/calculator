@@ -79,6 +79,12 @@ namespace MacCalc
 
         bool IsEngineRecording();
         bool IsInputEmpty();
+
+        // S10 精度闸门（M4）：Ratpack 有理数超限被强制截断后的粘滞标志。
+        // 引擎全局（跨会话共享），读后需显式清除。
+        static bool PrecisionLimited();
+        static void ClearPrecisionLimited();
+
         wchar_t DecimalSeparator();
         void SetPrecision(int precision);
         void UpdateMaxIntDigits();

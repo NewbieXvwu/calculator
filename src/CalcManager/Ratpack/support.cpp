@@ -76,6 +76,21 @@ bool g_ftrueinfinite = false; // Set to true if you don't want
                               // chopping internally
                               // precision used internally
 
+// S10 闸门状态：trimit 强制截断过任一有理数后置位，粘滞直到显式清除。
+static bool s_ratPrecisionLimited = false;
+
+// 只保留最高 keep 个 BASEX 位，低位并入 exp（保幅值弃低位，同 TRIMTOP 手法）。
+static void _chopnum(_Inout_ PNUMBER x, int32_t keep)
+{
+    const int32_t trim = x->cdigit - keep;
+    if (trim > 0)
+    {
+        memmove(x->mant, &(x->mant[trim]), sizeof(MANTTYPE) * (x->cdigit - trim));
+        x->cdigit -= trim;
+        x->exp += trim;
+    }
+}
+
 PNUMBER num_one = nullptr;
 PNUMBER num_two = nullptr;
 PNUMBER num_five = nullptr;
@@ -712,5 +727,27 @@ void trimit(_Inout_ PRAT* px, int32_t precision)
         trim = min(pp->exp, pq->exp);
         pp->exp -= trim;
         pq->exp -= trim;
+
+        // S10 闸门：上面的裁剪以 min(p,q) 为基准，q=1 的整数链永远不触发，
+        // 连续运算（按住等号/滑块联动）下 cdigit 会无界膨胀导致卡顿。任一侧
+        // 存储位数折算十进制超过 kMaxRationalDigits 时，把两侧各自截到显示
+        // 精度量级（低位并入 exp，保幅值弃低位），并置粘滞标志供 UI 如实展示。
+        if (g_ratio * pp->cdigit > kMaxRationalDigits || g_ratio * pq->cdigit > kMaxRationalDigits)
+        {
+            const int32_t keep = max<int32_t>(precision / g_ratio + 2, 2);
+            _chopnum(pp, keep);
+            _chopnum(pq, keep);
+            s_ratPrecisionLimited = true;
+        }
     }
+}
+
+bool rat_precision_limited()
+{
+    return s_ratPrecisionLimited;
+}
+
+void rat_clear_precision_limited()
+{
+    s_ratPrecisionLimited = false;
 }

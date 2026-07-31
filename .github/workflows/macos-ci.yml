@@ -37,6 +37,20 @@ jobs:
       - name: 冒烟测试
         run: swift run calc-smoke
 
+  # S10 跨架构逐位一致性：同一份 tests/golden/scalar_vectors.txt 在 x86-64 Linux
+  # 上必须与 arm64 macOS（上面的 engine job）逐位一致。不用 SPM——纯 clang++ 编译，
+  # 排除任何 Xcode/Apple 工具链因素。
+  engine-x64:
+    name: 引擎黄金测试（x86-64 Linux，跨架构逐位一致）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: 工具链版本
+        run: clang++ --version
+      - name: 可移植构建 + 黄金向量测试
+        run: Tools/build_engine_tests_portable.sh
+
   app:
     name: App 构建 / 测试 / Release 产物
     runs-on: macos-26

@@ -160,6 +160,17 @@ struct DisplayArea: View {
                 .accessibilityLabel(L10n.string("Mac_Display"))
                 .accessibilityValue(model.displayValue)
                 .textSelection(.enabled)
+                .overlay(alignment: .leading) {
+                    // S10 精度闸门（M4）：截断过就明示近似，不装精确。
+                    if model.isPrecisionLimited {
+                        Text("≈")
+                            .font(.system(size: 20, weight: .regular))
+                            .foregroundStyle(.secondary)
+                            .help(L10n.string("Mac_PrecisionLimited"))
+                            .accessibilityLabel(L10n.string("Mac_PrecisionLimited"))
+                            .accessibilityIdentifier("precisionLimitedBadge")
+                    }
+                }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

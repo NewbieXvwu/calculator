@@ -22,6 +22,7 @@
 #include "CalcErr.h"
 #include <cstring>              // for memmove
 #include "sal_cross_platform.h" // for SAL
+#include "../CalcScalar.h"      // D9：binary64 static_assert 随引擎全平台编译
 
 static constexpr uint32_t BASEXPWR = 31L;     // Internal log2(BASEX)
 static constexpr uint32_t BASEX = 0x80000000; // Internal radix used in calculations, hope to raise
@@ -489,6 +490,13 @@ extern void inbetween(_In_ PRAT* px, _In_ PRAT range, int32_t precision);
 extern void trimit(_Inout_ PRAT* px, int32_t precision);
 extern void _dumprawrat(_In_ const wchar_t* varname, _In_ PRAT rat, std::wostream& out);
 extern void _dumprawnum(_In_ const wchar_t* varname, _In_ PNUMBER num, std::wostream& out);
+
+// S10 · Ratpack 闸门：精确有理数在连续运算下分子分母膨胀（尤其整数链，
+// trimit 的 min() 逻辑对 q=1 不裁剪）。任一侧十进制位数超限即强制截断到
+// 显示精度量级并置粘滞标志——必须暴露给 UI（M4：不许在用户以为精确时静默近似）。
+constexpr int32_t kMaxRationalDigits = 10000; // 十进制位数上限，超限截断并置标志
+extern bool rat_precision_limited();          // 读粘滞标志（自上次清除后是否截断过）
+extern void rat_clear_precision_limited();    // 清除标志（新算式开始时）
 
 // if |pr| is magnitude smaller than |a| or |b| beyond precision, snap pr to 0
 extern void _snaprat(_Inout_ PRAT* pr, _In_ PRAT a, _In_opt_ PRAT b, int32_t precision);
