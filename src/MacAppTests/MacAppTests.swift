@@ -407,29 +407,6 @@ final class GraphExpressionTests: XCTestCase {
     }
 }
 
-// MARK: - 数值函数分析
-
-final class GraphAnalyzerTests: XCTestCase {
-    func testParabola() throws {
-        let expr = try XCTUnwrap(GraphExpression("x^2-4"))
-        let a = GraphAnalyzer.analyze(expr, xMin: -10, xMax: 10)
-        XCTAssertEqual(a.zeros.count, 2)
-        XCTAssertEqual(a.zeros[0], -2, accuracy: 1e-3)
-        XCTAssertEqual(a.zeros[1], 2, accuracy: 1e-3)
-        XCTAssertEqual(try XCTUnwrap(a.yIntercept), -4)
-        XCTAssertEqual(a.minima.count, 1)
-        XCTAssertEqual(a.minima[0].x, 0, accuracy: 1e-2)
-        XCTAssertEqual(a.minima[0].y, -4, accuracy: 1e-2)
-    }
-
-    func testSine() throws {
-        let expr = try XCTUnwrap(GraphExpression("sin(x)"))
-        let a = GraphAnalyzer.analyze(expr, xMin: -3.14159, xMax: 3.14159)
-        XCTAssertTrue(a.maxima.contains { abs($0.x - .pi / 2) < 1e-2 && abs($0.y - 1) < 1e-2 })
-        XCTAssertTrue(a.minima.contains { abs($0.x + .pi / 2) < 1e-2 && abs($0.y + 1) < 1e-2 })
-    }
-}
-
 // MARK: - 隐式方程 marching squares
 
 final class MarchingSquaresTests: XCTestCase {

@@ -255,10 +255,10 @@ static_assert(sizeof(double) == 8, "IEEE754 binary64 required");
 **不保留为 giac 超时兜底**——那意味着"超时后给出可能错误的答案"，违反 M4。
 
 **验收**：
-- [ ] 文件已删除
-- [ ] `GiacMathSolver` 中对它的引用已清理
-- [ ] 相关测试已移除或改为 giac 路径
-- [ ] `docs/rejected/numeric-solver.md` 记录删除理由
+- [x] 文件已删除
+- [x] `GiacMathSolver` 中对它的引用已清理（核查结果：无代码引用，仅注释提及上游接口名）
+- [x] 相关测试已移除或改为 giac 路径（删除 `GraphAnalyzerTests` 2 例；giac 路径已有 `GiacMathSolverTests` 覆盖）
+- [x] `docs/rejected/numeric-solver.md` 记录删除理由
 
 **成本**：0.5 人日
 
