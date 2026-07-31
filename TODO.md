@@ -1045,8 +1045,14 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 > limit=exp(1)、integrate）。可复现脚本 `Tools/build_giac_windows.sh` 已入仓，
 > 三个实测坑（2017 config.guess 不认 Windows_NT / 生成的 libtool 静默失效 /
 > 机器 PATH 污染解析到 w64devkit）及对策全部写进脚本头注释。
-> 下一里程碑：把 `caseval` 包成 extern "C" DLL（`calc_giac.dll`），
-> 供 UWP 主程序 LoadLibrary 接入 `IMathSolver`。
+>
+> **DLL 桥（2026-08-01 完成）**：`src/GraphingImpl/GiacBridge/`（纯 C ABI）+
+> `Tools/build_giac_bridge_windows.sh`（-static 全静态，零第三方 DLL 依赖），
+> 产物 `third_party/giac-win/bin/libgiac_bridge.dll`（32MB）+ .def + mingw 导入库。
+> 语义对齐 macOS GiacBridge：caseval 求值 + stderr 警告捕获（_pipe+_dup2，
+> 64KB 容量限制诚实记录）+ std::mutex 串行 + 异常不穿 C 边界（M4）。
+> 冒烟 9/9：8 个求值全对 + 警告通道工作。UWP 主程序侧 LoadLibrary 接入
+> `IMathSolver` 属 P-Windows-1/2 下一步。
 >
 > **可先做、零风险的真实增量**：把 geometry（`graph_geometry.*`）编入一个新的
 > `GiacGraphingImpl`/`NativeGraphingImpl` 工程并接上 `IGraphRenderer` 的 D2D 绘制，
