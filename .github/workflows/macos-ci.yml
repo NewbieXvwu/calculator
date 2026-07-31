@@ -30,6 +30,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: 工具链版本
         run: swift --version && xcodebuild -version
+      - name: 引擎 C++17 可移植性检查（防隐式 include / C++20 依赖）
+        run: Tools/check_engine_cxx17.sh
       - name: 引擎单元测试（原版 CalcManager 70 例）
         run: swift run engine-tests
       - name: 冒烟测试

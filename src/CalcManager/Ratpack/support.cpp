@@ -20,6 +20,7 @@
 
 #include <string>
 #include <cstring>  // for memmove
+#include <cmath>    // for log2/ceil (GCC/OHOS clang do not provide them transitively)
 #include <iostream> // for wostream
 #include "ratpak.h"
 

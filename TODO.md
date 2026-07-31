@@ -230,10 +230,10 @@ static_assert(sizeof(double) == 8, "IEEE754 binary64 required");
 - OHOS clang 15.0.4 / aarch64：`IHistoryDisplay.h:16: error: no type named 'wstring_view' in namespace 'std'`
 
 **验收**：
-- [ ] 两处 include 已添加
-- [ ] macOS 构建无回归（`swift build` + `xcodebuild test` 全绿）
-- [ ] CI 增加检查：引擎在 `-std=c++17` 下能编译（防止将来引入 C++20 依赖）
-- [ ] `docs/upstream-divergence.md` 记录这两处修改，标注"上游 `pch.h` 注释明确要求支持非 MSVC 工具链，此二文件违反该目标"
+- [x] 两处 include 已添加
+- [x] macOS 构建无回归（`swift build` + `xcodebuild test` 全绿）
+- [x] CI 增加检查：引擎在 `-std=c++17` 下能编译（防止将来引入 C++20 依赖）——`Tools/check_engine_cxx17.sh`
+- [x] `docs/upstream-divergence.md` 记录这两处修改，标注"上游 `pch.h` 注释明确要求支持非 MSVC 工具链，此二文件违反该目标"
 
 **成本**：1 人日
 
