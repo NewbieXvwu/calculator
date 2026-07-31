@@ -194,6 +194,16 @@ struct GraphExpression {
         root.giacString(params: params, trig: trig)
     }
 
+    /// 顶层是否为 sin/cos 调用（整个表达式形如 sin(g(x)) / cos(g(x))）。
+    /// 值域构造（TODO S3·R2）用它走"有界振荡"路径：|f| ≤ 1 由 sin/cos 值域保证，
+    /// 端点可达性再经 solve(f=±1) 验证。
+    var isTopLevelSinOrCos: Bool {
+        if case .call(let name, _) = root, name == "sin" || name == "cos" {
+            return true
+        }
+        return false
+    }
+
     // MARK: - 递归下降解析器
 
     private struct Parser {

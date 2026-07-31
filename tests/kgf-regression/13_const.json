@@ -1,0 +1,10 @@
+{
+  "input": "5",
+  "domain": "ℝ", "range": "{5}",
+  "zeros": [], "yIntercept": "5",
+  "minima": [], "maxima": [], "inflection": [],
+  "verticalAsymptotes": [], "horizontalAsymptotes": [], "obliqueAsymptotes": [],
+  "parity": "even", "period": null,
+  "monotonicity": [["(-∞, +∞)", "const"]],
+  "tooComplex": []
+}

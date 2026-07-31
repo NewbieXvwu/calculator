@@ -1,0 +1,10 @@
+{
+  "input": "abs(x)",
+  "domain": "ℝ", "range": "[0, +∞)",
+  "zeros": ["0"], "yIntercept": "0",
+  "minima": [["0", "0"]], "maxima": [], "inflection": [],
+  "verticalAsymptotes": [], "horizontalAsymptotes": [], "obliqueAsymptotes": ["y = -x", "y = x"],
+  "parity": "even", "period": "aperiodic",
+  "monotonicity": [["(-∞, 0)", "down"], ["(0, +∞)", "up"]],
+  "tooComplex": []
+}

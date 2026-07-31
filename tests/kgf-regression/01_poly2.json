@@ -1,0 +1,10 @@
+{
+  "input": "x^2-2",
+  "domain": "ℝ", "range": "[-2, +∞)",
+  "zeros": ["-sqrt(2)", "sqrt(2)"], "yIntercept": "-2",
+  "minima": [["0", "-2"]], "maxima": [], "inflection": [],
+  "verticalAsymptotes": [], "horizontalAsymptotes": [], "obliqueAsymptotes": [],
+  "parity": "even", "period": "aperiodic",
+  "monotonicity": [["(-∞, 0)", "down"], ["(0, +∞)", "up"]],
+  "tooComplex": []
+}

@@ -1,0 +1,10 @@
+{
+  "input": "(x^2-1)/(x-1)",
+  "domain": "x<>1", "range": "ℝ \\ {2}",
+  "zeros": ["-1"], "yIntercept": "1",
+  "minima": [], "maxima": [], "inflection": [],
+  "verticalAsymptotes": [], "horizontalAsymptotes": [], "obliqueAsymptotes": ["y = x + 1"],
+  "parity": "none", "period": "aperiodic",
+  "monotonicity": [["(-∞, 1)", "up"], ["(1, +∞)", "up"]],
+  "tooComplex": []
+}

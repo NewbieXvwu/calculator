@@ -1,0 +1,10 @@
+{
+  "input": "e^x",
+  "domain": "ℝ", "range": "(0, +∞)",
+  "zeros": [], "yIntercept": "1",
+  "minima": [], "maxima": [], "inflection": [],
+  "verticalAsymptotes": [], "horizontalAsymptotes": ["y = 0"], "obliqueAsymptotes": [],
+  "parity": "none", "period": "aperiodic",
+  "monotonicity": [["(-∞, +∞)", "up"]],
+  "tooComplex": []
+}

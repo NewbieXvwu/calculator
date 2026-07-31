@@ -1,0 +1,11 @@
+{
+  "input": "1/(x^2+0.01)",
+  "domain": "ℝ", "range": "(0, 100]",
+  "zeros": [], "yIntercept": "100",
+  "minima": [], "maxima": [["0", "100"]],
+  "inflection": [["-0.057735026919", "75"], ["0.057735026919", "75"]],
+  "verticalAsymptotes": [], "horizontalAsymptotes": ["y = 0"], "obliqueAsymptotes": [],
+  "parity": "even", "period": "aperiodic",
+  "monotonicity": [["(-∞, 0)", "up"], ["(0, +∞)", "down"]],
+  "tooComplex": []
+}

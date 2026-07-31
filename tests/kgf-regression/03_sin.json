@@ -1,0 +1,10 @@
+{
+  "input": "sin(x)",
+  "domain": "ℝ", "range": "[-1, 1]",
+  "zeros": ["n·π"], "yIntercept": "0",
+  "minima": [], "maxima": [], "inflection": [],
+  "verticalAsymptotes": [], "horizontalAsymptotes": [], "obliqueAsymptotes": [],
+  "parity": "odd", "period": "2·π",
+  "monotonicity": [],
+  "tooComplex": ["minima", "maxima", "inflection", "monotonicity"]
+}

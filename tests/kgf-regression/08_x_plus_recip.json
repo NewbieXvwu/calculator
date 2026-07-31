@@ -1,0 +1,10 @@
+{
+  "input": "x+1/x",
+  "domain": "x<>0", "range": "(-∞, -2] ∪ [2, +∞)",
+  "zeros": [], "yIntercept": null,
+  "minima": [["1", "2"]], "maxima": [["-1", "-2"]], "inflection": [],
+  "verticalAsymptotes": ["x = 0"], "horizontalAsymptotes": [], "obliqueAsymptotes": ["y = x"],
+  "parity": "odd", "period": "aperiodic",
+  "monotonicity": [["(-∞, -1)", "up"], ["(-1, 0)", "down"], ["(0, 1)", "down"], ["(1, +∞)", "up"]],
+  "tooComplex": []
+}

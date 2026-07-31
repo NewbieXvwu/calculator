@@ -1,0 +1,10 @@
+{
+  "input": "1/x",
+  "domain": "x<>0", "range": "ℝ \\ {0}",
+  "zeros": [], "yIntercept": null,
+  "minima": [], "maxima": [], "inflection": [],
+  "verticalAsymptotes": ["x = 0"], "horizontalAsymptotes": ["y = 0"], "obliqueAsymptotes": [],
+  "parity": "odd", "period": "aperiodic",
+  "monotonicity": [["(-∞, 0)", "down"], ["(0, +∞)", "down"]],
+  "tooComplex": []
+}

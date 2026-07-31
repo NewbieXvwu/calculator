@@ -1,0 +1,12 @@
+{
+  "input": "x^3-2x",
+  "domain": "ℝ", "range": "ℝ",
+  "zeros": ["-sqrt(2)", "0", "sqrt(2)"], "yIntercept": "0",
+  "minima": [["1/3·sqrt(6)", "-4·sqrt(6)/9"]],
+  "maxima": [["-1/3·sqrt(6)", "4·sqrt(6)/9"]],
+  "inflection": [["0", "0"]],
+  "verticalAsymptotes": [], "horizontalAsymptotes": [], "obliqueAsymptotes": [],
+  "parity": "odd", "period": "aperiodic",
+  "monotonicity": [["(-∞, -1/3·sqrt(6))", "up"], ["(-1/3·sqrt(6), 1/3·sqrt(6))", "down"], ["(1/3·sqrt(6), +∞)", "up"]],
+  "tooComplex": []
+}

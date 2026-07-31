@@ -1,0 +1,10 @@
+{
+  "input": "sqrt(x)",
+  "domain": "x>=0", "range": "[0, +∞)",
+  "zeros": ["0"], "yIntercept": "0",
+  "minima": [["0", "0"]], "maxima": [], "inflection": [],
+  "verticalAsymptotes": [], "horizontalAsymptotes": [], "obliqueAsymptotes": [],
+  "parity": "none", "period": "aperiodic",
+  "monotonicity": [["(0, +∞)", "up"]],
+  "tooComplex": []
+}

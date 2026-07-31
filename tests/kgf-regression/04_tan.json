@@ -1,0 +1,10 @@
+{
+  "input": "tan(x)",
+  "domain": null, "range": null,
+  "zeros": ["n·π"], "yIntercept": "0",
+  "minima": [], "maxima": [], "inflection": [],
+  "verticalAsymptotes": [], "horizontalAsymptotes": [], "obliqueAsymptotes": [],
+  "parity": "odd", "period": "π",
+  "monotonicity": [],
+  "tooComplex": ["domain", "range", "minima", "maxima", "inflection", "verticalAsymptotes", "horizontalAsymptotes", "monotonicity"]
+}
