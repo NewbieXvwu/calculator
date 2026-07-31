@@ -90,6 +90,18 @@ let package = Package(
                 .headerSearchPath("../MacBridge"),
             ]
         ),
+        // P-CLI/TUI 白送项：命令行计算器（共享层 C ABI 的最小跨平台验证载体）。
+        .executableTarget(
+            name: "calc-cli",
+            dependencies: ["CalcManagerCore", "CalcManagerBridge"],
+            path: "src/CalcManager/smoketest",
+            sources: ["calc_cli.cpp"],
+            cxxSettings: [
+                .headerSearchPath("../../MacBridge/include"),
+                .headerSearchPath("../../MacBridge"),
+                .headerSearchPath(".."),
+            ]
+        ),
         .testTarget(
             name: "MacAppTests",
             dependencies: ["MacCalculator"],
