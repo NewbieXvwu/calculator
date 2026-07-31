@@ -410,7 +410,7 @@ giac 有全局锁串行化 → **8.3s 会阻塞后续所有分析请求**。
 
 ---
 
-### S4 · 区间算术（Tupper 方法）🟠 P1
+### S4 · 区间算术（Tupper 方法）✅ 已完成（2026-07-31）
 
 **问题**：绘图渲染层有**唯一的静默失败**——它不知道自己错了。
 
@@ -435,11 +435,22 @@ giac 有全局锁串行化 → **8.3s 会阻塞后续所有分析请求**。
 - 显式曲线 `y=f(x)`：先保持逐列求值，第二阶段升级为"该列 x 区间上 f 的值域是否与像素 y 区间相交"
 
 **验收**：
-- [ ] `x² = y²(x+1)` 自交点正确渲染
-- [ ] `0 < sin(1/x) < 0.1` 附近的细窄区域不整片消失
-- [ ] 「不确定」像素有明确的视觉表示或细分策略
+- [x] `x² = y²(x+1)` 自交点正确渲染
+- [x] `0 < sin(1/x) < 0.1` 附近的细窄区域不整片消失
+- [x] 「不确定」像素有明确的视觉表示或细分策略
 
 **成本**：1–2 人周
+
+**验收记录（2026-07-31）**：
+- 架构：四叉树细分 + 三值判定下沉共享 C 层（`graph_geometry.h`：`graph_implicit_cells` / `graph_inequality_regions` / `graph_pow2_cell_count` / `graph_eval2_interval_fn`，与 S7 同一门面）；区间求值经 C 回调接 Swift 内核（`GraphExpression.evaluateInterval`），实现纯数学、零分配、snprintf 式 cap 约定，超预算由调用方加粗 `pixel_px`（保守方向，只多涂不丢解）。
+- 区间内核（Swift，`GraphExpression.swift`）：`IntervalValue` + 全部 15 个函数与四则/幂的区间扩展；外向舍入用 `nextDown/nextUp`（复合运算 2×加宽），三值定义域（defined / maybeDefined / nowhereDefined）；约定 0×∞→0、除以含零区间→全线+maybeDefined、sin/cos 宽区间→[-1,1]、周期极值经格点检测（容差随量级放大）。
+- 隐式方程混合渲染（`GraphingView.drawImplicit`）：marching squares 段保平滑与线型 + 区间补格只补 MS 因四角同号/角未定义漏画的格（自交点、亚格特征）；四叉树叶与 MS 网格经 `graph_pow2_cell_count` 逐节点对齐（2^k 格），角抑制判定才成立。
+- 不等式三值渲染（`GraphingView.drawInequality`）：「确定成立」0.2 透明度（原版口径）、「不确定」0.08 更浅着色显式呈现（M4：近似不冒充精确）；确定区域以未细分四叉树大块输出。
+- 验收判据逐条：①自交点——`testImplicitCellsCoverSelfIntersection`（无角抑制时原点叶格必幸存=无假阴性）+ `testImplicitCellsFindSubCellCircleMarchingSquaresMisses`（半径 1e-3 圆 MS 全盲、区间补格救回且聚在圆心 6px 内）；②细窄区域——`testInequalityRegionsKeepNarrowBandOldSamplerMisses`（0.2px 细带旧采样丢失、新版以不确定保住且面积收敛）+ `testInequalityRegionsSinOneOverXNoFalseNegatives`（sin(1/x)<0.1 全部真值列覆盖、x→0 振荡区以不确定可见）；③不确定表示——三值 API 分开输出 + UI 浅色着色 + `testInequalityRegionsCertainHalfPlane`（确定不越界、不确定贴边界）。
+- 内核性质锁定：`testIntervalEnclosesPointSamplesAcrossCorpus`（9 表达式 × 5 盒 × 81 采样点包含性 + 定义域三值诚实性）、`testIntervalSpecialShapes`（sin 周期极值、1/x 含零、sqrt/ln 部分定义域）。
+- 全量回归：swift test 126/126 通过，engine-tests ALL TESTS PASSED，calc-smoke 通过。
+- **M1 偏离**：未用 `Boost.Numeric.Interval`（TODO 原建议），改为自研 Swift 区间内核。理由（合法理由②依赖不可用）：boost 未 vendor 进仓库，且求值器 AST 在 Swift 侧（`GraphExpression` 私有类型），跨 C++ 桥接 AST 的成本远高于 ~200 行自研内核；语义按 Tupper 2001 + IEEE 1788 精神实现并被性质测试锁定。
+- 诚实未消费项：①显式曲线 `y=f(x)` 仍为逐列采样（N1 决定 a 的第二阶段，`sin(1000x)` 混叠仍在，待升级为列区间求值）；②外向舍入依赖 libm ≤1 ulp 误差假设（Apple libm 满足；复合运算 2×加宽作缓冲），非形式化验证；③舍入方向未用 fesetround（Swift/多线程下不可靠），用 nextUp/nextDown 代替，区间比最优紧界略宽；④`x^y`（底含负）与 tan 跨渐近线直接放宽为全线+maybeDefined，正确但不最紧；⑤参考实现 Graphest/inari 未逐项对照，仅按论文语义自证。
 
 ---
 
@@ -1347,7 +1358,7 @@ grep -rn "long double\|LDBL_\|%Lf\|strtold\|powl\|sqrtl\|sinl" src/CalcManager/
   S7  图形几何下沉                         ← ✅ 完成（2026-07-31）
   S8  Locale 注入加固 + 分组模式修复       ← ✅ 完成（2026-07-31）
   S11 @Observable 迁移                     ← ⏸️ 有据暂缓（部署目标 13 vs 宏要求 14，见 S11）
-  S4  区间算术                             ← 1–2 人周（可延后到首个绘图平台前）
+  S4  区间算术                             ← ✅ 完成（2026-07-31）
        ↓
   验收硬指标：macOS 零功能回归 + 14 函数回归全绿
 

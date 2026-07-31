@@ -27,6 +27,23 @@ enum GraphTrigMode: String, CaseIterable, Codable {
     }
 }
 
+/// 区间求值的定义域三值（S4 Tupper，镜像 graph_box_domain_t）。
+enum GraphBoxDomain {
+    /// 盒内处处未定义。
+    case nowhereDefined
+    /// 盒内处处已定义。
+    case defined
+    /// 可能部分未定义（保守：无法证明处处定义时取此值）。
+    case maybeDefined
+}
+
+/// 区间求值结果：F 在盒上（已定义部分）的保守围栏 + 定义域三值。
+struct GraphIntervalResult {
+    var lo: Double
+    var hi: Double
+    var domain: GraphBoxDomain
+}
+
 /// 把一元函数表达式 y=f(x) 解析为可反复求值的树。
 struct GraphExpression {
     private let root: Node
@@ -56,6 +73,19 @@ struct GraphExpression {
     func evaluate(x: Double, y: Double, params: [String: Double] = [:], trig: GraphTrigMode = .radians) -> Double? {
         let value = root.eval(x: x, y: y, params: params, trig: trig)
         return value.isFinite ? value : nil
+    }
+
+    /// S4 Tupper 区间求值：返回 F 在盒 [xLo,xHi]×[yLo,yHi] 上的保守围栏。
+    /// 契约（graph_eval2_interval_fn）：盒内任一已定义点的值必落在 [lo,hi] 内。
+    /// 每步不精确运算后端点外向舍入 1 ulp；libm 超越函数按 ≤1 ulp 误差假设，
+    /// 舍入方向只会把围栏放大——放大是保守的（多画"不确定"，绝不漏解）。
+    func evaluateInterval(
+        xLo: Double, xHi: Double, yLo: Double, yHi: Double,
+        params: [String: Double] = [:], trig: GraphTrigMode = .radians
+    ) -> GraphIntervalResult {
+        let result = root.evalInterval(
+            x: IntervalValue(xLo, xHi), y: IntervalValue(yLo, yHi), params: params, trig: trig)
+        return GraphIntervalResult(lo: result.v.lo, hi: result.v.hi, domain: result.domain)
     }
 
     /// 解析双变量表达式（不剥离 y= 前缀），供隐式方程 F(x,y)=LHS-RHS 使用。
@@ -128,6 +158,46 @@ struct GraphExpression {
                 default: return .nan
                 }
         }
+        }
+
+        // MARK: - 区间求值（S4 Tupper）
+        // 语义：围栏包住"双精度逐点求值"在盒内的一切取值（含 libm ≤1 ulp 误差
+        // 余量）。number 常量（π、e 亦然）按 double 点值处理——渲染的对象就是
+        // double 组合函数本身，与 eval(x:y:) 严格同源。
+        func evalInterval(
+            x: IntervalValue, y: IntervalValue, params: [String: Double], trig: GraphTrigMode
+        ) -> (v: IntervalValue, domain: GraphBoxDomain) {
+            switch self {
+            case .number(let value):
+                return (IntervalValue(value, value), .defined)
+            case .variable:
+                return (x, .defined)
+            case .variableY:
+                return (y, .defined)
+            case .parameter(let name):
+                guard let p = params[name] else { return (.whole, .nowhereDefined) }
+                return (IntervalValue(p, p), .defined)
+            case .negate(let n):
+                let r = n.evalInterval(x: x, y: y, params: params, trig: trig)
+                return (IntervalValue(-r.v.hi, -r.v.lo), r.domain)
+            case .binary(let op, let l, let rNode):
+                let a = l.evalInterval(x: x, y: y, params: params, trig: trig)
+                let b = rNode.evalInterval(x: x, y: y, params: params, trig: trig)
+                let dom = worseDomain(a.domain, b.domain)
+                if dom == .nowhereDefined { return (.whole, .nowhereDefined) }
+                switch op {
+                case "+": return (iadd(a.v, b.v), dom)
+                case "-": return (isub(a.v, b.v), dom)
+                case "*": return (imul(a.v, b.v), dom)
+                case "/": return idiv(a.v, b.v, dom)
+                case "^": return ipow(a.v, b.v, dom)
+                default: return (.whole, .maybeDefined)
+                }
+            case .call(let name, let arg):
+                let r = arg.evalInterval(x: x, y: y, params: params, trig: trig)
+                if r.domain == .nowhereDefined { return (.whole, .nowhereDefined) }
+                return icall(name, r.v, r.domain, trig: trig)
+            }
         }
 
         func collectParameters(into names: inout Set<String>) {
@@ -379,5 +449,200 @@ struct GraphExpression {
             guard known.contains(name) else { return nil }
             return .call(name, arg)
         }
+    }
+}
+
+// MARK: - 区间算术内核（S4 Tupper）
+
+/// 闭区间 [lo, hi]，端点可为 ±inf。构造时对 NaN 兜底为全线、自动排序端点
+/// （单调函数映射可以直接喂两个端点，方向无关）。
+struct IntervalValue {
+    let lo: Double
+    let hi: Double
+
+    init(_ a: Double, _ b: Double) {
+        if a.isNaN || b.isNaN {
+            lo = -.infinity
+            hi = .infinity
+        } else {
+            lo = Swift.min(a, b)
+            hi = Swift.max(a, b)
+        }
+    }
+
+    static let whole = IntervalValue(-.infinity, .infinity)
+
+    func contains(_ v: Double) -> Bool { v >= lo && v <= hi }
+
+    /// 外向舍入：把可能带 1 ulp 舍入误差的端点各放宽一档（∞ 保持）。
+    func widened() -> IntervalValue {
+        IntervalValue(lo.isFinite ? lo.nextDown : lo, hi.isFinite ? hi.nextUp : hi)
+    }
+}
+
+/// 定义域三值的悲观合并：任一侧全盒未定义 → 全盒未定义；任一侧可能未定义 → 可能。
+func worseDomain(_ a: GraphBoxDomain, _ b: GraphBoxDomain) -> GraphBoxDomain {
+    if a == .nowhereDefined || b == .nowhereDefined { return .nowhereDefined }
+    if a == .maybeDefined || b == .maybeDefined { return .maybeDefined }
+    return .defined
+}
+
+private func iadd(_ a: IntervalValue, _ b: IntervalValue) -> IntervalValue {
+    IntervalValue(a.lo + b.lo, a.hi + b.hi).widened()
+}
+
+private func isub(_ a: IntervalValue, _ b: IntervalValue) -> IntervalValue {
+    IntervalValue(a.lo - b.hi, a.hi - b.lo).widened()
+}
+
+/// 0×∞ 按区间算术约定取 0（避免 NaN 把整个围栏炸成全线）。
+private func prod(_ x: Double, _ y: Double) -> Double {
+    let p = x * y
+    return p.isNaN ? 0 : p
+}
+
+private func imul(_ a: IntervalValue, _ b: IntervalValue) -> IntervalValue {
+    let c = [prod(a.lo, b.lo), prod(a.lo, b.hi), prod(a.hi, b.lo), prod(a.hi, b.hi)]
+    return IntervalValue(c.min()!, c.max()!).widened()
+}
+
+private func idiv(
+    _ a: IntervalValue, _ b: IntervalValue, _ dom: GraphBoxDomain
+) -> (v: IntervalValue, domain: GraphBoxDomain) {
+    if b.contains(0) {
+        // 分母恒为 0 → 处处未定义；否则可能碰到除零点 → 无界 + 可能未定义。
+        if b.lo == 0 && b.hi == 0 { return (.whole, .nowhereDefined) }
+        return (.whole, .maybeDefined)
+    }
+    var qLo = Double.infinity
+    var qHi = -Double.infinity
+    for n in [a.lo, a.hi] {
+        for d in [b.lo, b.hi] {
+            let q = n / d
+            if q.isNaN { return (.whole, dom) }  // ∞/∞：无信息，保守全线
+            qLo = Swift.min(qLo, q)
+            qHi = Swift.max(qHi, q)
+        }
+    }
+    return (IntervalValue(qLo, qHi).widened(), dom)
+}
+
+/// 整数常量幂：负底数也精确（x^2、x^3 是隐式方程最常见形态）。
+private func ipowInt(
+    _ v: IntervalValue, _ n: Int, _ dom: GraphBoxDomain
+) -> (v: IntervalValue, domain: GraphBoxDomain) {
+    if n == 0 { return (IntervalValue(1, 1), dom) }  // pow(x,0)=1，含 0^0——与逐点求值一致
+    if n < 0 {
+        let p = ipowInt(v, -n, dom)
+        return idiv(IntervalValue(1, 1), p.v, p.domain)
+    }
+    let d = Double(n)
+    if n % 2 == 1 {
+        return (IntervalValue(pow(v.lo, d), pow(v.hi, d)).widened(), dom)
+    }
+    let aLo = abs(v.lo)
+    let aHi = abs(v.hi)
+    let mLo = v.contains(0) ? 0 : pow(Swift.min(aLo, aHi), d)
+    let mHi = pow(Swift.max(aLo, aHi), d)
+    return (IntervalValue(mLo, mHi).widened(), dom)
+}
+
+private func ipow(
+    _ a: IntervalValue, _ b: IntervalValue, _ dom: GraphBoxDomain
+) -> (v: IntervalValue, domain: GraphBoxDomain) {
+    if b.lo == b.hi, b.lo.rounded() == b.lo, abs(b.lo) <= 1e9 {
+        return ipowInt(a, Int(b.lo), dom)
+    }
+    if a.lo > 0 {
+        // x^y 在 x>0 的盒上：内部驻值仅出现在 x=1 或 y=0（值均为 1），
+        // 其余极值都在四角。
+        var c = [pow(a.lo, b.lo), pow(a.lo, b.hi), pow(a.hi, b.lo), pow(a.hi, b.hi)]
+        if a.contains(1) || b.contains(0) { c.append(1) }
+        if c.contains(where: { $0.isNaN }) { return (.whole, dom) }
+        return (IntervalValue(c.min()!, c.max()!).widened(), dom)
+    }
+    // 底数可能 ≤0 且指数非整数常量：实数域可能无定义（负底非整数幂），
+    // 保守：全线 + 可能未定义。
+    return (.whole, dom == .defined ? .maybeDefined : dom)
+}
+
+/// 周期格点 base + k·period 是否落在区间内。容差方向朝"包含"——对 sin/cos
+/// 极值多收进来只会把范围扩到 ±1（安全）；对 tan 渐近线多算只会更保守。
+/// 容差随端点量级放大：大参数下 (lo-base)/period 的除法舍入可达多个格点比例。
+private func gridPointIn(_ base: Double, _ period: Double, _ v: IntervalValue) -> Bool {
+    guard v.lo.isFinite, v.hi.isFinite else { return true }
+    let tol = Swift.max(period * 1e-9, Swift.max(abs(v.lo), abs(v.hi)) * 1e-12)
+    let k = ((v.lo - tol - base) / period).rounded(.up)
+    return base + k * period <= v.hi + tol
+}
+
+/// 单调函数映射（方向无关：IntervalValue 构造会排序端点）。复合了缩放的
+/// 映射额外 widened 一次，覆盖两步舍入。
+private func imono(_ v: IntervalValue, _ f: (Double) -> Double) -> IntervalValue {
+    IntervalValue(f(v.lo), f(v.hi)).widened().widened()
+}
+
+// swiftlint:disable:next cyclomatic_complexity function_body_length
+func icall(
+    _ name: String, _ v: IntervalValue, _ domain: GraphBoxDomain, trig: GraphTrigMode
+) -> (v: IntervalValue, domain: GraphBoxDomain) {
+    switch name {
+    case "sin", "cos":
+        let s = imul(v, IntervalValue(trig.scale, trig.scale))
+        guard s.lo.isFinite, s.hi.isFinite, s.hi - s.lo < 2 * .pi else {
+            return (IntervalValue(-1, 1), domain)
+        }
+        let f: (Double) -> Double = name == "sin" ? sin : cos
+        var lo = Swift.min(f(s.lo), f(s.hi)).nextDown
+        var hi = Swift.max(f(s.lo), f(s.hi)).nextUp
+        let maxBase = name == "sin" ? Double.pi / 2 : 0
+        let minBase = name == "sin" ? -Double.pi / 2 : Double.pi
+        if gridPointIn(maxBase, 2 * .pi, s) { hi = 1 }
+        if gridPointIn(minBase, 2 * .pi, s) { lo = -1 }
+        return (IntervalValue(Swift.max(lo, -1), Swift.min(hi, 1)), domain)
+    case "tan":
+        let s = imul(v, IntervalValue(trig.scale, trig.scale))
+        guard s.lo.isFinite, s.hi.isFinite, s.hi - s.lo < .pi,
+              !gridPointIn(.pi / 2, .pi, s) else {
+            // 区间跨过渐近线：值无界，且渐近线点本身未定义。
+            return (.whole, domain == .defined ? .maybeDefined : domain)
+        }
+        return (imono(s) { tan($0) }, domain)
+    case "asin", "acos":
+        if v.lo > 1 || v.hi < -1 { return (.whole, .nowhereDefined) }
+        let clipped = IntervalValue(Swift.max(v.lo, -1), Swift.min(v.hi, 1))
+        let partial = v.lo < -1 || v.hi > 1
+        let f: (Double) -> Double = name == "asin" ? asin : acos
+        let scale = trig.scale
+        return (imono(clipped) { f($0) / scale },
+                partial ? .maybeDefined : domain)
+    case "atan":
+        let scale = trig.scale
+        return (imono(v) { atan($0) / scale }, domain)
+    case "sinh":
+        return (imono(v, sinh), domain)
+    case "cosh":
+        let hi = Swift.max(cosh(v.lo), cosh(v.hi))
+        let lo = v.contains(0) ? 1 : cosh(Swift.min(abs(v.lo), abs(v.hi)))
+        return (IntervalValue(lo, hi).widened(), domain)
+    case "tanh":
+        return (imono(v, tanh), domain)
+    case "ln", "log", "log2":
+        let f: (Double) -> Double = name == "ln" ? log : (name == "log" ? log10 : log2)
+        if v.hi <= 0 { return (.whole, .nowhereDefined) }
+        if v.lo > 0 { return (imono(v, f), domain) }
+        return (IntervalValue(-.infinity, f(v.hi).nextUp), .maybeDefined)
+    case "sqrt":
+        if v.hi < 0 { return (.whole, .nowhereDefined) }
+        if v.lo >= 0 { return (imono(v, sqrt), domain) }
+        return (IntervalValue(0, sqrt(v.hi).nextUp), .maybeDefined)
+    case "abs":
+        if v.lo >= 0 { return (v, domain) }
+        if v.hi <= 0 { return (IntervalValue(-v.hi, -v.lo), domain) }
+        return (IntervalValue(0, Swift.max(-v.lo, v.hi)), domain)
+    case "exp":
+        return (imono(v, exp), domain)
+    default:
+        return (.whole, .maybeDefined)
     }
 }

@@ -33,6 +33,27 @@ private let evalThunk2: @convention(c) (UnsafeMutableRawPointer?, Double, Double
     return true
 }
 
+/// S4：区间求值闭包穿过 C void* 的载体。
+private final class IntervalBox {
+    let f: (Double, Double, Double, Double) -> GraphIntervalResult
+    init(_ f: @escaping (Double, Double, Double, Double) -> GraphIntervalResult) { self.f = f }
+}
+
+private let intervalThunk: @convention(c) (
+    UnsafeMutableRawPointer?, Double, Double, Double, Double,
+    UnsafeMutablePointer<Double>?, UnsafeMutablePointer<Double>?
+) -> graph_box_domain_t = { ctx, xLo, xHi, yLo, yHi, outLo, outHi in
+    let box = Unmanaged<IntervalBox>.fromOpaque(ctx!).takeUnretainedValue()
+    let r = box.f(xLo, xHi, yLo, yHi)
+    outLo!.pointee = r.lo
+    outHi!.pointee = r.hi
+    switch r.domain {
+    case .nowhereDefined: return GRAPH_BOX_NOWHERE_DEFINED
+    case .defined: return GRAPH_BOX_DEFINED
+    case .maybeDefined: return GRAPH_BOX_MAYBE_DEFINED
+    }
+}
+
 @MainActor
 final class GraphGeometryTests: XCTestCase {
     private func makeViewport(
@@ -331,5 +352,250 @@ final class GraphGeometryTests: XCTestCase {
 
         // 全 NaN → -1。
         XCTAssertEqual(graph_trace_snap([Double.nan, .nan], 2, 0, 20), -1)
+    }
+
+    // MARK: - S4 区间算术（Tupper）
+
+    func testPow2CellCountAlignsWithQuadtreeLeaves() {
+        // 400px / 3px：最小 2^k 使 400/2^k ≤ 3 → 256；4px → 128。
+        XCTAssertEqual(graph_pow2_cell_count(400, 3), 256)
+        XCTAssertEqual(graph_pow2_cell_count(400, 4), 128)
+        XCTAssertEqual(graph_pow2_cell_count(2, 4), 1)   // 不足一格 → 不再细分
+        XCTAssertEqual(graph_pow2_cell_count(0, 3), 1)
+    }
+
+    func testImplicitCellsCoverSelfIntersection() throws {
+        // 验收判据①：x² = y²(x+1) 自交点(0,0)。区间法保证无假阴性：
+        // 不做角抑制时，包含原点的叶格必然幸存（F 的包络含 0）。
+        var vp = makeViewport(width: 400, height: 400)
+        let expr = try XCTUnwrap(GraphExpression(rawTwoVariable: "x^2 - y^2(x+1)"))
+        let box = IntervalBox { expr.evaluateInterval(xLo: $0, xHi: $1, yLo: $2, yHi: $3) }
+        let ctx = Unmanaged.passUnretained(box).toOpaque()
+
+        var out = [graph_rect_t](repeating: graph_rect_t(), count: 1 << 16)
+        let count = out.withUnsafeMutableBufferPointer {
+            graph_implicit_cells(&vp, 3, intervalThunk, ctx, nil, nil, $0.baseAddress, $0.count)
+        }
+        XCTAssertGreaterThan(count, 0)
+        XCTAssertLessThanOrEqual(count, out.count, "预算内不应溢出")
+        // 原点屏幕坐标 (200,200) 必须被某个幸存叶格覆盖。
+        let coversOrigin = out.prefix(count).contains {
+            $0.x <= 200 && 200 <= $0.x + $0.w && $0.y <= 200 && 200 <= $0.y + $0.h
+        }
+        XCTAssertTrue(coversOrigin, "自交点所在格被区间法丢弃 = 假阴性")
+    }
+
+    func testImplicitCellsFindSubCellCircleMarchingSquaresMisses() throws {
+        // 半径 1e-3 的圆整体落在单个 MS 网格格内且不触及任何节点：
+        // 四角同号 → MS 完全失明；角抑制开启时区间补格必须把它救回来。
+        var vp = makeViewport(width: 400, height: 400)
+        let expr = try XCTUnwrap(GraphExpression(rawTwoVariable: "(x-0.037)^2 + (y+0.021)^2 - 0.000001"))
+        let iBox = IntervalBox { expr.evaluateInterval(xLo: $0, xHi: $1, yLo: $2, yHi: $3) }
+        let iCtx = Unmanaged.passUnretained(iBox).toOpaque()
+        let cBox = EvalBox(f2: { expr.evaluate(x: $0, y: $1) })
+        let cCtx = Unmanaged.passUnretained(cBox).toOpaque()
+
+        // 同网格的 MS 什么都画不出（对齐 2^k 网格）。
+        let cols = Int(graph_pow2_cell_count(400, 3))
+        var segs = [graph_segment_t](repeating: graph_segment_t(), count: 16)
+        let segCount = segs.withUnsafeMutableBufferPointer {
+            graph_marching_squares(-10, 10, -10, 10, Int32(cols), Int32(cols),
+                                   evalThunk2, cCtx, $0.baseAddress, $0.count)
+        }
+        XCTAssertEqual(segCount, 0, "圆应小到 MS 网格完全看不见")
+
+        var out = [graph_rect_t](repeating: graph_rect_t(), count: 1 << 16)
+        let count = out.withUnsafeMutableBufferPointer {
+            graph_implicit_cells(&vp, 3, intervalThunk, iCtx, evalThunk2, cCtx, $0.baseAddress, $0.count)
+        }
+        XCTAssertGreaterThan(count, 0, "亚格特征不得整体消失")
+        // 圆心 (0.037, -0.021) 屏幕坐标 ≈ (200.74, 200.42)；所有补格应聚在附近。
+        let sx = (0.037 + 10) / 20 * 400
+        let sy = 400 - (-0.021 + 10) / 20 * 400
+        for rect in out.prefix(min(count, out.count)) {
+            XCTAssertLessThan(abs(rect.x + rect.w / 2 - sx), 6, "补格离圆心过远")
+            XCTAssertLessThan(abs(rect.y + rect.h / 2 - sy), 6, "补格离圆心过远")
+        }
+    }
+
+    func testInequalityRegionsKeepNarrowBandOldSamplerMisses() throws {
+        // 验收判据②的机制版：y² < 0.0001（|y|<0.01，屏幕上仅 0.2px 高的细带）。
+        // 旧的中心点采样（graph_inequality_runs）整片丢失；区间三值版必须以
+        // 「不确定」形式保住 y=0 一线（M4：不确定有显式表示）。
+        var vp = makeViewport(width: 400, height: 400)
+        let expr = try XCTUnwrap(GraphExpression(rawTwoVariable: "y^2 - 0.0001"))
+
+        let cBox = EvalBox(f2: { expr.evaluate(x: $0, y: $1) })
+        let cCtx = Unmanaged.passUnretained(cBox).toOpaque()
+        var runs = [graph_rect_t](repeating: graph_rect_t(), count: 8)
+        let oldCount = runs.withUnsafeMutableBufferPointer {
+            graph_inequality_runs(&vp, 4, GRAPH_REL_LESS, evalThunk2, cCtx, $0.baseAddress, $0.count)
+        }
+        XCTAssertEqual(oldCount, 0, "旧采样若能看见细带，此测试前提不再成立")
+
+        let iBox = IntervalBox { expr.evaluateInterval(xLo: $0, xHi: $1, yLo: $2, yHi: $3) }
+        let iCtx = Unmanaged.passUnretained(iBox).toOpaque()
+        var certain = [graph_rect_t](repeating: graph_rect_t(), count: 1 << 16)
+        var uncertain = [graph_rect_t](repeating: graph_rect_t(), count: 1 << 16)
+        var uncertainTotal = 0
+        let certainCount = certain.withUnsafeMutableBufferPointer { cBuf in
+            uncertain.withUnsafeMutableBufferPointer { uBuf in
+                graph_inequality_regions(
+                    &vp, 4, GRAPH_REL_LESS, intervalThunk, iCtx,
+                    cBuf.baseAddress, cBuf.count, uBuf.baseAddress, uBuf.count, &uncertainTotal)
+            }
+        }
+        XCTAssertGreaterThan(uncertainTotal, 0, "细带必须至少以不确定形式呈现")
+        // y=0 的屏幕行 sy=200 必须被 certain ∪ uncertain 覆盖。
+        let all = certain.prefix(certainCount) + uncertain.prefix(min(uncertainTotal, uncertain.count))
+        let coversAxis = all.contains { $0.y <= 200 && 200 <= $0.y + $0.h }
+        XCTAssertTrue(coversAxis, "y=0 一线整片消失")
+        // 细带外的大片区域必须被判「确定不成立」而丢弃：不确定格总面积应远小于画布。
+        let uncertainArea = uncertain.prefix(min(uncertainTotal, uncertain.count)).reduce(0.0) { $0 + $1.w * $1.h }
+        XCTAssertLessThan(uncertainArea, 400.0 * 400.0 * 0.1, "不确定区域应收敛在细带附近")
+    }
+
+    func testInequalityRegionsSinOneOverXNoFalseNegatives() throws {
+        // 验收判据②：0 < sin(1/x) < 0.1 类细窄区域。UI 语法为单关系，取其窄侧
+        // sin(1/x) < 0.1 做无假阴性校验：所有真值采样点（含 x→0 无限振荡区）
+        // 必须落在 certain ∪ uncertain 覆盖内——宁可标不确定，不得整片消失。
+        var vp = graph_viewport_t(x_min: -1, x_max: 1, y_min: -1, y_max: 1, width: 400, height: 400)
+        let expr = try XCTUnwrap(GraphExpression(rawTwoVariable: "sin(1/x) - 0.1"))
+        let iBox = IntervalBox { expr.evaluateInterval(xLo: $0, xHi: $1, yLo: $2, yHi: $3) }
+        let iCtx = Unmanaged.passUnretained(iBox).toOpaque()
+
+        var certain = [graph_rect_t](repeating: graph_rect_t(), count: 1 << 16)
+        var uncertain = [graph_rect_t](repeating: graph_rect_t(), count: 1 << 16)
+        var uncertainTotal = 0
+        let certainCount = certain.withUnsafeMutableBufferPointer { cBuf in
+            uncertain.withUnsafeMutableBufferPointer { uBuf in
+                graph_inequality_regions(
+                    &vp, 4, GRAPH_REL_LESS, intervalThunk, iCtx,
+                    cBuf.baseAddress, cBuf.count, uBuf.baseAddress, uBuf.count, &uncertainTotal)
+            }
+        }
+        let rects = Array(certain.prefix(certainCount)) + Array(uncertain.prefix(min(uncertainTotal, uncertain.count)))
+        func columnCovered(_ sx: Double) -> Bool {
+            rects.contains { $0.x <= sx && sx <= $0.x + $0.w && $0.y <= 200 && 200 <= $0.y + $0.h }
+        }
+        // 真值采样点（留边距避免边界并列）：sin(1/x) < 0.05 的列必须被覆盖。
+        var checked = 0
+        for i in 1...400 {
+            let x = -1.0 + 2.0 * Double(i) / 400
+            guard abs(x) > 1e-9, sin(1 / x) < 0.05 else { continue }
+            let sx = (x + 1) / 2 * 400
+            XCTAssertTrue(columnCovered(sx), "真值列 x=\(x) 整片消失")
+            checked += 1
+        }
+        XCTAssertGreaterThan(checked, 50, "采样应覆盖足够多真值列")
+        // x=0 振荡区：区间收敛到 [-1,1]-0.1 含 0 → 必须以不确定形式可见。
+        XCTAssertGreaterThan(uncertainTotal, 0)
+        XCTAssertTrue(columnCovered(200), "x→0 振荡区不得空白")
+    }
+
+    func testInequalityRegionsCertainHalfPlane() throws {
+        // y < 0：下半平面应主要以「确定」大块矩形输出（未细分的四叉树节点），
+        // 不确定格仅贴着 y=0 边界一条线。
+        var vp = makeViewport(width: 400, height: 400)
+        let expr = try XCTUnwrap(GraphExpression(rawTwoVariable: "y"))
+        let iBox = IntervalBox { expr.evaluateInterval(xLo: $0, xHi: $1, yLo: $2, yHi: $3) }
+        let iCtx = Unmanaged.passUnretained(iBox).toOpaque()
+
+        var certain = [graph_rect_t](repeating: graph_rect_t(), count: 1 << 16)
+        var uncertain = [graph_rect_t](repeating: graph_rect_t(), count: 1 << 16)
+        var uncertainTotal = 0
+        let certainCount = certain.withUnsafeMutableBufferPointer { cBuf in
+            uncertain.withUnsafeMutableBufferPointer { uBuf in
+                graph_inequality_regions(
+                    &vp, 4, GRAPH_REL_LESS, intervalThunk, iCtx,
+                    cBuf.baseAddress, cBuf.count, uBuf.baseAddress, uBuf.count, &uncertainTotal)
+            }
+        }
+        XCTAssertGreaterThan(certainCount, 0)
+        let certainArea = certain.prefix(certainCount).reduce(0.0) { $0 + $1.w * $1.h }
+        XCTAssertGreaterThan(certainArea, 400.0 * 400.0 * 0.45, "下半平面绝大部分应为确定区域")
+        for rect in certain.prefix(certainCount) {
+            XCTAssertGreaterThanOrEqual(rect.y + 1e-9, 200, "确定区域不得越过 y=0")
+        }
+        for rect in uncertain.prefix(min(uncertainTotal, uncertain.count)) {
+            XCTAssertLessThan(abs(rect.y + rect.h / 2 - 200), 8, "不确定格应贴着边界")
+        }
+    }
+
+    // MARK: - S4 Swift 区间内核性质
+
+    func testIntervalEnclosesPointSamplesAcrossCorpus() throws {
+        // 包含性（区间算术的根本契约）：盒内任意可定义点的取值 ∈ [lo, hi]。
+        let corpus = [
+            "x^2 - y^2(x+1)", "sin(x)cos(y)", "1/(x-y)", "sqrt(x)+ln(y)",
+            "tan(x/3)", "e^x/(1+x^2)", "abs(x)-abs(y)", "x^y", "log(x*y)",
+        ]
+        let boxes: [(Double, Double, Double, Double)] = [
+            (-1, 1, -1, 1), (0.1, 2.3, 0.5, 4), (-5, -0.2, 1, 6),
+            (-0.001, 0.001, -0.001, 0.001), (2, 100, -3, 3),
+        ]
+        for source in corpus {
+            let expr = try XCTUnwrap(GraphExpression(rawTwoVariable: source), source)
+            for (xLo, xHi, yLo, yHi) in boxes {
+                let r = expr.evaluateInterval(xLo: xLo, xHi: xHi, yLo: yLo, yHi: yHi)
+                if case .nowhereDefined = r.domain {
+                    // 声称处处未定义 → 任何采样点都不得有定义值。
+                    for i in 0...8 {
+                        for j in 0...8 {
+                            let x = xLo + (xHi - xLo) * Double(i) / 8
+                            let y = yLo + (yHi - yLo) * Double(j) / 8
+                            XCTAssertNil(expr.evaluate(x: x, y: y), "\(source) 在 (\(x),\(y)) 有定义却报 nowhereDefined")
+                        }
+                    }
+                    continue
+                }
+                for i in 0...8 {
+                    for j in 0...8 {
+                        let x = xLo + (xHi - xLo) * Double(i) / 8
+                        let y = yLo + (yHi - yLo) * Double(j) / 8
+                        guard let v = expr.evaluate(x: x, y: y) else {
+                            if case .defined = r.domain {
+                                XCTFail("\(source) 报 defined 但在 (\(x),\(y)) 未定义")
+                            }
+                            continue
+                        }
+                        XCTAssertGreaterThanOrEqual(v, r.lo, "\(source) @(\(x),\(y)) 低于下界")
+                        XCTAssertLessThanOrEqual(v, r.hi, "\(source) @(\(x),\(y)) 高于上界")
+                    }
+                }
+            }
+        }
+    }
+
+    func testIntervalSpecialShapes() throws {
+        // sin 跨整周期 → 恰为 [-1,1]（含端点极值）。
+        let sinE = try XCTUnwrap(GraphExpression(rawTwoVariable: "sin(x)"))
+        let wide = sinE.evaluateInterval(xLo: -10, xHi: 10, yLo: 0, yHi: 0)
+        XCTAssertLessThanOrEqual(wide.lo, -1)
+        XCTAssertGreaterThanOrEqual(wide.hi, 1)
+        // 窄区间含极大值 π/2 → hi 必须达到 1（gridPointIn 极值检测）。
+        let peak = sinE.evaluateInterval(xLo: 1.5, xHi: 1.6, yLo: 0, yHi: 0)
+        XCTAssertGreaterThanOrEqual(peak.hi, 1)
+        XCTAssertLessThan(peak.lo, sin(1.5) + 1e-9)
+
+        // 除以含 0 区间 → 可能未定义，包络为全线。
+        let inv = try XCTUnwrap(GraphExpression(rawTwoVariable: "1/x"))
+        let r = inv.evaluateInterval(xLo: -1, xHi: 1, yLo: 0, yHi: 0)
+        XCTAssertEqual(r.domain, .maybeDefined)
+        XCTAssertEqual(r.lo, -.infinity)
+        XCTAssertEqual(r.hi, .infinity)
+
+        // sqrt 部分定义域：[-1,4] → maybeDefined，值域 ⊇ [0,2]。
+        let sq = try XCTUnwrap(GraphExpression(rawTwoVariable: "sqrt(x)"))
+        let s = sq.evaluateInterval(xLo: -1, xHi: 4, yLo: 0, yHi: 0)
+        XCTAssertEqual(s.domain, .maybeDefined)
+        XCTAssertLessThanOrEqual(s.lo, 0)
+        XCTAssertGreaterThanOrEqual(s.hi, 2)
+        // 全负 → nowhereDefined。
+        XCTAssertEqual(sq.evaluateInterval(xLo: -4, xHi: -1, yLo: 0, yHi: 0).domain, .nowhereDefined)
+
+        // ln 全非正 → nowhereDefined。
+        let ln = try XCTUnwrap(GraphExpression(rawTwoVariable: "ln(x)"))
+        XCTAssertEqual(ln.evaluateInterval(xLo: -3, xHi: -1, yLo: 0, yHi: 0).domain, .nowhereDefined)
     }
 }

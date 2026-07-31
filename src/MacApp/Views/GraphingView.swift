@@ -10,6 +10,7 @@
 // 方程样式（EquationStylePanelControl.xaml)：14 色 + 实线/虚线/点线。
 
 import AppKit
+import CalcManagerBridge
 import SwiftUI
 
 struct GraphingView: View {
@@ -1021,15 +1022,41 @@ private struct GraphCanvas: View {
         context.stroke(path, with: .color(color), style: stroke)
     }
 
-    /// 隐式方程 F(x,y)=0：marching squares 等值线（约 3px 网格）。
+    /// 隐式方程 F(x,y)=0：marching squares 等值线 + Tupper 区间补格（S4）。
+    /// MS 段保持平滑并沿用线宽/虚线；区间补格只补 MS 因四角同号或角未定义
+    /// 而漏画的格（自交点、亚格特征），保证不丢解。
     private func drawImplicit(_ expr: GraphExpression, color: Color, stroke: StrokeStyle, context: GraphicsContext, size: CGSize) {
         guard size.width > 1, size.height > 1 else { return }
-        let cellPx = 3.0
-        let cols = max(8, Int(size.width / cellPx))
-        let rows = max(8, Int(size.height / cellPx))
+        var vp = graph_viewport_t(
+            x_min: graph.xMin, x_max: graph.xMax, y_min: graph.yMin, y_max: graph.yMax,
+            width: Double(size.width), height: Double(size.height))
+        let params = graph.parameters
+        let trig = graph.trigMode
+        let box = GraphIntervalBox(
+            interval: { expr.evaluateInterval(xLo: $0, xHi: $1, yLo: $2, yHi: $3, params: params, trig: trig) },
+            point: { expr.evaluate(x: $0, y: $1, params: params, trig: trig) })
 
+        var pixelPx = 3.0
+        var rects = [graph_rect_t](repeating: graph_rect_t(), count: graphCellBudget)
+        var count = 0
+        withExtendedLifetime(box) {
+            let ctx = Unmanaged.passUnretained(box).toOpaque()
+            while true {
+                count = rects.withUnsafeMutableBufferPointer { buf in
+                    graph_implicit_cells(&vp, pixelPx, graphIntervalThunk, ctx,
+                                         graphCornerThunk, ctx, buf.baseAddress, graphCellBudget)
+                }
+                // 超预算：加粗格子重算（保守，只会多涂不会漏画），而非丢矩形。
+                if count <= graphCellBudget || pixelPx > Double(max(size.width, size.height)) { break }
+                pixelPx *= 2
+            }
+        }
+
+        // MS 网格与四叉树叶节点逐点对齐（2^k 格），补格抑制判定才成立。
+        let cols = Int(graph_pow2_cell_count(Double(size.width), pixelPx))
+        let rows = Int(graph_pow2_cell_count(Double(size.height), pixelPx))
         let segments = MarchingSquares.trace(
-            f: { expr.evaluate(x: $0, y: $1, params: graph.parameters, trig: graph.trigMode) },
+            f: { expr.evaluate(x: $0, y: $1, params: params, trig: trig) },
             xMin: graph.xMin, xMax: graph.xMax, yMin: graph.yMin, yMax: graph.yMax,
             cols: cols, rows: rows)
 
@@ -1039,44 +1066,78 @@ private struct GraphCanvas: View {
             path.addLine(to: CGPoint(x: toScreenX(seg.x2, size), y: toScreenY(seg.y2, size)))
         }
         context.stroke(path, with: .color(color), style: stroke)
+
+        if count > 0 {
+            var cells = Path()
+            for i in 0..<min(count, graphCellBudget) {
+                let r = rects[i]
+                cells.addRect(CGRect(x: r.x, y: r.y, width: r.w, height: r.h))
+            }
+            context.fill(cells, with: .color(color))
+        }
     }
 
-    /// 不等式 F(x,y) rel 0：满足区域半透明着色 + F=0 边界线
-    /// （严格不等式虚线、非严格实线，对应原版图形引擎行为）。
+    /// 不等式 F(x,y) rel 0：Tupper 三值区域（S4）——「确定成立」按原版 0.2
+    /// 透明度着色，「不确定」用更浅的着色显式呈现（M4：近似不冒充精确）；
+    /// F=0 边界线严格不等式虚线、非严格实线（原版行为）。
     private func drawInequality(_ expr: GraphExpression, relation: InequalityRelation, color: Color, stroke: StrokeStyle, context: GraphicsContext, size: CGSize) {
         guard size.width > 1, size.height > 1 else { return }
-        let cellPx = 4.0
-        let cols = max(8, Int(size.width / cellPx))
-        let rows = max(8, Int(size.height / cellPx))
-        let cellW = size.width / CGFloat(cols)
-        let cellH = size.height / CGFloat(rows)
+        var vp = graph_viewport_t(
+            x_min: graph.xMin, x_max: graph.xMax, y_min: graph.yMin, y_max: graph.yMax,
+            width: Double(size.width), height: Double(size.height))
+        let params = graph.parameters
+        let trig = graph.trigMode
+        let box = GraphIntervalBox(
+            interval: { expr.evaluateInterval(xLo: $0, xHi: $1, yLo: $2, yHi: $3, params: params, trig: trig) },
+            point: nil)
 
-        var fill = Path()
-        for row in 0..<rows {
-            let sy = (CGFloat(row) + 0.5) * cellH
-            let mathY = graph.yMax - Double(sy) / Double(size.height) * graph.ySpan
-            var runStart: Int?
-            for col in 0...cols {
-                var inside = false
-                if col < cols {
-                    let sx = (CGFloat(col) + 0.5) * cellW
-                    let mathX = graph.xMin + Double(sx) / Double(size.width) * graph.xSpan
-                    if let f = expr.evaluate(x: mathX, y: mathY, params: graph.parameters, trig: graph.trigMode) {
-                        inside = relation.satisfied(f)
+        let relationC: graph_relation_t
+        switch relation {
+        case .lessThan: relationC = GRAPH_REL_LESS
+        case .lessOrEqual: relationC = GRAPH_REL_LESS_EQUAL
+        case .greaterThan: relationC = GRAPH_REL_GREATER
+        case .greaterOrEqual: relationC = GRAPH_REL_GREATER_EQUAL
+        }
+
+        var pixelPx = 4.0
+        var certain = [graph_rect_t](repeating: graph_rect_t(), count: graphCellBudget)
+        var uncertain = [graph_rect_t](repeating: graph_rect_t(), count: graphCellBudget)
+        var certainCount = 0
+        var uncertainCount = 0
+        withExtendedLifetime(box) {
+            let ctx = Unmanaged.passUnretained(box).toOpaque()
+            while true {
+                var uncertainTotal = 0
+                certainCount = certain.withUnsafeMutableBufferPointer { cBuf in
+                    uncertain.withUnsafeMutableBufferPointer { uBuf in
+                        graph_inequality_regions(
+                            &vp, pixelPx, relationC, graphIntervalThunk, ctx,
+                            cBuf.baseAddress, graphCellBudget,
+                            uBuf.baseAddress, graphCellBudget, &uncertainTotal)
                     }
                 }
-                if inside {
-                    if runStart == nil { runStart = col }
-                } else if let start = runStart {
-                    // 合并同行连续单元为一个矩形，减少路径元素。
-                    fill.addRect(CGRect(
-                        x: CGFloat(start) * cellW, y: CGFloat(row) * cellH,
-                        width: CGFloat(col - start) * cellW, height: cellH))
-                    runStart = nil
-                }
+                uncertainCount = uncertainTotal
+                if (certainCount <= graphCellBudget && uncertainCount <= graphCellBudget)
+                    || pixelPx > Double(max(size.width, size.height)) { break }
+                pixelPx *= 2
             }
         }
-        context.fill(fill, with: .color(color.opacity(0.2)))
+
+        var certainPath = Path()
+        for i in 0..<min(certainCount, graphCellBudget) {
+            let r = certain[i]
+            certainPath.addRect(CGRect(x: r.x, y: r.y, width: r.w, height: r.h))
+        }
+        context.fill(certainPath, with: .color(color.opacity(0.2)))
+
+        if uncertainCount > 0 {
+            var uncertainPath = Path()
+            for i in 0..<min(uncertainCount, graphCellBudget) {
+                let r = uncertain[i]
+                uncertainPath.addRect(CGRect(x: r.x, y: r.y, width: r.w, height: r.h))
+            }
+            context.fill(uncertainPath, with: .color(color.opacity(0.08)))
+        }
 
         // 边界 F=0：严格不等式强制虚线。
         let boundaryStroke = relation.isStrict
@@ -1084,6 +1145,47 @@ private struct GraphCanvas: View {
             : stroke
         drawImplicit(expr, color: color, stroke: boundaryStroke, context: context, size: size)
     }
+}
+
+// MARK: - S4 区间求值 ↔ C 回调桥接
+
+/// 把 Swift 闭包穿过 C void* 上下文的载体（与 GraphGeometryTests 同模式）。
+private final class GraphIntervalBox {
+    let interval: (Double, Double, Double, Double) -> GraphIntervalResult
+    let point: ((Double, Double) -> Double?)?
+
+    init(interval: @escaping (Double, Double, Double, Double) -> GraphIntervalResult,
+         point: ((Double, Double) -> Double?)?) {
+        self.interval = interval
+        self.point = point
+    }
+}
+
+/// 单帧最多接收的矩形数；超出则加粗 pixel_px 重算（保守方向）。
+private let graphCellBudget = 1 << 16
+
+private let graphIntervalThunk: @convention(c) (
+    UnsafeMutableRawPointer?, Double, Double, Double, Double,
+    UnsafeMutablePointer<Double>?, UnsafeMutablePointer<Double>?
+) -> graph_box_domain_t = { ctx, xLo, xHi, yLo, yHi, outLo, outHi in
+    let box = Unmanaged<GraphIntervalBox>.fromOpaque(ctx!).takeUnretainedValue()
+    let r = box.interval(xLo, xHi, yLo, yHi)
+    outLo!.pointee = r.lo
+    outHi!.pointee = r.hi
+    switch r.domain {
+    case .nowhereDefined: return GRAPH_BOX_NOWHERE_DEFINED
+    case .defined: return GRAPH_BOX_DEFINED
+    case .maybeDefined: return GRAPH_BOX_MAYBE_DEFINED
+    }
+}
+
+private let graphCornerThunk: @convention(c) (
+    UnsafeMutableRawPointer?, Double, Double, UnsafeMutablePointer<Double>?
+) -> Bool = { ctx, x, y, out in
+    let box = Unmanaged<GraphIntervalBox>.fromOpaque(ctx!).takeUnretainedValue()
+    guard let f = box.point?(x, y) else { return false }
+    out!.pointee = f
+    return true
 }
 
 /// S13 无障碍 overlay：语义树先序展开为定位的隐形元素（spec traversalOrder），

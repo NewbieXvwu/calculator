@@ -109,6 +109,12 @@ typedef struct graph_segment {
 /// Grid resolution for implicit/inequality rendering: max(8, extent/cell_px).
 int graph_cell_count(double extent_px, double cell_px);
 
+/// Leaf-cell count per axis of the interval quadtree (S4): repeated halving of
+/// extent_px until <= pixel_px gives 2^k cells. Use this as the marching
+/// squares cols/rows so MS cells and quadtree leaves align node-for-node —
+/// required for graph_implicit_cells' corner_eval suppression to be sound.
+int graph_pow2_cell_count(double extent_px, double pixel_px);
+
 /// F(x,y) = 0 contour on a cols×rows grid via marching squares with linear
 /// interpolation and center-sample saddle disambiguation.
 /// Worst-case count = 2 * cols * rows. Returns 0 on invalid bounds/grid.
@@ -147,6 +153,59 @@ size_t graph_inequality_runs(
     const graph_viewport_t* vp, double cell_px,
     graph_relation_t relation, graph_eval2_fn eval, void* ctx,
     graph_rect_t* out, size_t cap);
+
+// MARK: - Interval arithmetic (Tupper, S4)
+
+/// Definedness of F over a whole box (three-valued).
+typedef enum graph_box_domain {
+    GRAPH_BOX_NOWHERE_DEFINED = 0,  ///< F undefined on the entire box
+    GRAPH_BOX_DEFINED = 1,          ///< F defined on the entire box
+    GRAPH_BOX_MAYBE_DEFINED = 2,    ///< F possibly undefined somewhere in the box
+} graph_box_domain_t;
+
+/// Interval enclosure of F over the box [x_lo,x_hi]×[y_lo,y_hi].
+/// Contract: [*out_lo, *out_hi] must contain F(x,y) for every point of the box
+/// where F is defined (outward rounding is the callback's responsibility).
+/// Bounds may be ±infinity; when the return value is NOWHERE_DEFINED the
+/// bounds are ignored. Must not throw across this boundary.
+typedef graph_box_domain_t (*graph_eval2_interval_fn)(
+    void* ctx, double x_lo, double x_hi, double y_lo, double y_hi,
+    double* out_lo, double* out_hi);
+
+/// Tupper implicit rendering: quadtree subdivision of the viewport, discarding
+/// boxes where 0 is excluded from the F-enclosure, emitting screen rects for
+/// surviving leaves (<= pixel_px on both sides). Guarantees no false negatives:
+/// every solution pixel is covered by some emitted rect.
+///
+/// When corner_eval is non-NULL, leaves whose four corners are all defined and
+/// show a sign change are suppressed — marching squares already draws those;
+/// only the cells it would miss (same-sign corners: self-intersections,
+/// sub-cell features) are emitted. Corner zero values count as positive,
+/// matching graph_marching_squares.
+///
+/// Total count returned (snprintf style); worst case ceil(w/px)*ceil(h/px).
+/// On overflow callers should coarsen pixel_px (stays conservative) rather
+/// than drop rects.
+size_t graph_implicit_cells(
+    const graph_viewport_t* vp, double pixel_px,
+    graph_eval2_interval_fn eval, void* ctx,
+    graph_eval2_fn corner_eval, void* corner_ctx,
+    graph_rect_t* out, size_t cap);
+
+/// Tupper inequality rendering, three-valued:
+///   certain   — F rel 0 provably holds on the whole box (requires DEFINED);
+///               emitted unsubdivided, so large areas collapse to few rects.
+///   discarded — F rel 0 provably fails everywhere it is defined.
+///   uncertain — neither; subdivided down to pixel_px then emitted separately
+///               so the UI can render "uncertain" distinctly (M4).
+/// Returns the total certain count; *out_uncertain_total (optional) receives
+/// the total uncertain count. Caps are snprintf style as above.
+size_t graph_inequality_regions(
+    const graph_viewport_t* vp, double pixel_px,
+    graph_relation_t relation, graph_eval2_interval_fn eval, void* ctx,
+    graph_rect_t* out_certain, size_t cap_certain,
+    graph_rect_t* out_uncertain, size_t cap_uncertain,
+    size_t* out_uncertain_total);
 
 // MARK: - Trace snapping
 

@@ -186,6 +186,17 @@ int graph_cell_count(double extent_px, double cell_px) {
     return std::max(8, static_cast<int>(extent_px / cell_px));
 }
 
+int graph_pow2_cell_count(double extent_px, double pixel_px) {
+    if (!(pixel_px > 0) || !std::isfinite(extent_px) || !(extent_px > 0)) return 1;
+    int cells = 1;
+    double size = extent_px;
+    while (size > pixel_px && cells < (1 << 20)) {
+        size /= 2;
+        cells *= 2;
+    }
+    return cells;
+}
+
 size_t graph_marching_squares(
     double x_min, double x_max, double y_min, double y_max,
     int cols, int rows, graph_eval2_fn eval, void* ctx,
@@ -329,6 +340,218 @@ int32_t graph_trace_snap(const double* ys, size_t count, double math_y, double y
         }
     }
     return best;
+}
+
+}  // extern "C"
+
+// MARK: - 区间算术四叉树（Tupper，S4）
+
+namespace {
+
+// 屏幕空间盒（像素，原点左上）。四叉树在屏幕空间细分，保证叶子对齐像素粒度；
+// 求值时映射回数学空间（y 翻转：屏幕 y0..y1 对应数学 y(y1)..y(y0)）。
+struct ScreenBox {
+    double sx0, sy0, sx1, sy1;
+};
+
+// 对盒内 F 求区间围栏。NaN 界按无信息处理（[-inf,inf]），保守不丢解。
+graph_box_domain_t eval_box(
+    const graph_viewport_t* vp, graph_eval2_interval_fn eval, void* ctx,
+    const ScreenBox& b, double* lo, double* hi) {
+    const double x_lo = graph_to_math_x(vp, b.sx0);
+    const double x_hi = graph_to_math_x(vp, b.sx1);
+    const double y_lo = graph_to_math_y(vp, b.sy1);
+    const double y_hi = graph_to_math_y(vp, b.sy0);
+    *lo = -HUGE_VAL;
+    *hi = HUGE_VAL;
+    const graph_box_domain_t domain = eval(ctx, x_lo, x_hi, y_lo, y_hi, lo, hi);
+    if (std::isnan(*lo)) *lo = -HUGE_VAL;
+    if (std::isnan(*hi)) *hi = HUGE_VAL;
+    return domain;
+}
+
+void split4(const ScreenBox& b, ScreenBox out[4]) {
+    const double mx = (b.sx0 + b.sx1) / 2;
+    const double my = (b.sy0 + b.sy1) / 2;
+    out[0] = ScreenBox{b.sx0, b.sy0, mx, my};
+    out[1] = ScreenBox{mx, b.sy0, b.sx1, my};
+    out[2] = ScreenBox{b.sx0, my, mx, b.sy1};
+    out[3] = ScreenBox{mx, my, b.sx1, b.sy1};
+}
+
+// 逐轴二分：只切超过 pixel_px 的轴。返回子盒数；0 = 已是叶子。
+// 这样叶子恰好构成 2^kx × 2^ky 均匀网格（kx/ky 为各轴对分次数），
+// 与 graph_pow2_cell_count 给 marching squares 的网格逐节点对齐——
+// corner_eval 抑制的前提（"该格 MS 已画"）才成立。
+int split_box(const ScreenBox& b, double pixel_px, ScreenBox out[4]) {
+    const bool split_x = (b.sx1 - b.sx0) > pixel_px;
+    const bool split_y = (b.sy1 - b.sy0) > pixel_px;
+    if (split_x && split_y) {
+        split4(b, out);
+        return 4;
+    }
+    if (split_x) {
+        const double mx = (b.sx0 + b.sx1) / 2;
+        out[0] = ScreenBox{b.sx0, b.sy0, mx, b.sy1};
+        out[1] = ScreenBox{mx, b.sy0, b.sx1, b.sy1};
+        return 2;
+    }
+    if (split_y) {
+        const double my = (b.sy0 + b.sy1) / 2;
+        out[0] = ScreenBox{b.sx0, b.sy0, b.sx1, my};
+        out[1] = ScreenBox{b.sx0, my, b.sx1, b.sy1};
+        return 2;
+    }
+    return 0;
+}
+
+inline void emit_rect(graph_rect_t* out, size_t cap, size_t index, const ScreenBox& b) {
+    if (out && index < cap) {
+        out[index] = graph_rect_t{b.sx0, b.sy0, b.sx1 - b.sx0, b.sy1 - b.sy0};
+    }
+}
+
+// MS 在该格无输出的判定：任一角未定义（MS 直接跳格），或四角同号
+// （0 视作正，与 graph_marching_squares 一致）。这类格必须由区间单元补画。
+bool corners_sign_blind(
+    const graph_viewport_t* vp, graph_eval2_fn eval, void* ctx, const ScreenBox& b) {
+    const double xs[2] = {graph_to_math_x(vp, b.sx0), graph_to_math_x(vp, b.sx1)};
+    const double ys[2] = {graph_to_math_y(vp, b.sy1), graph_to_math_y(vp, b.sy0)};
+    bool first = true;
+    bool positive = false;
+    for (double x : xs) {
+        for (double y : ys) {
+            double v = 0;
+            if (!eval(ctx, x, y, &v)) return true;  // 未定义角：MS 跳过该格
+            const bool p = (v == 0) ? true : (v > 0);
+            if (first) {
+                positive = p;
+                first = false;
+            } else if (p != positive) {
+                return false;  // 有符号变化：MS 会画
+            }
+        }
+    }
+    return true;
+}
+
+// 隐式 F=0 的递归细分。返回本子树输出的矩形数。
+size_t implicit_recurse(
+    const graph_viewport_t* vp, double pixel_px,
+    graph_eval2_interval_fn eval, void* ctx,
+    graph_eval2_fn corner_eval, void* corner_ctx,
+    const ScreenBox& box, graph_rect_t* out, size_t cap, size_t count) {
+    double lo = 0, hi = 0;
+    const graph_box_domain_t domain = eval_box(vp, eval, ctx, box, &lo, &hi);
+    // 无解可证：全盒未定义，或 0 不在（已定义部分的）围栏内。
+    if (domain == GRAPH_BOX_NOWHERE_DEFINED || lo > 0 || hi < 0) return 0;
+
+    ScreenBox children[4];
+    const int child_count = split_box(box, pixel_px, children);
+    const bool is_leaf_implicit = child_count == 0;
+    if (is_leaf_implicit) {
+        if (corner_eval && corners_sign_blind(vp, corner_eval, corner_ctx, box) == false) {
+            return 0;  // MS 已覆盖该格
+        }
+        emit_rect(out, cap, count, box);
+        return 1;
+    }
+    size_t emitted = 0;
+    for (int i = 0; i < child_count; ++i) {
+        emitted += implicit_recurse(
+            vp, pixel_px, eval, ctx, corner_eval, corner_ctx, children[i], out, cap, count + emitted);
+    }
+    return emitted;
+}
+
+// 关系在整个围栏上必然成立/必然不成立的判定。
+bool relation_certainly_holds(graph_relation_t relation, double lo, double hi) {
+    switch (relation) {
+        case GRAPH_REL_LESS: return hi < 0;
+        case GRAPH_REL_LESS_EQUAL: return hi <= 0;
+        case GRAPH_REL_GREATER: return lo > 0;
+        case GRAPH_REL_GREATER_EQUAL: return lo >= 0;
+    }
+    return false;
+}
+
+bool relation_certainly_fails(graph_relation_t relation, double lo, double hi) {
+    switch (relation) {
+        case GRAPH_REL_LESS: return lo >= 0;
+        case GRAPH_REL_LESS_EQUAL: return lo > 0;
+        case GRAPH_REL_GREATER: return hi <= 0;
+        case GRAPH_REL_GREATER_EQUAL: return hi < 0;
+    }
+    return false;
+}
+
+struct InequalityCounts {
+    size_t certain = 0;
+    size_t uncertain = 0;
+};
+
+void inequality_recurse(
+    const graph_viewport_t* vp, double pixel_px,
+    graph_relation_t relation, graph_eval2_interval_fn eval, void* ctx,
+    const ScreenBox& box,
+    graph_rect_t* out_certain, size_t cap_certain,
+    graph_rect_t* out_uncertain, size_t cap_uncertain,
+    InequalityCounts& counts) {
+    double lo = 0, hi = 0;
+    const graph_box_domain_t domain = eval_box(vp, eval, ctx, box, &lo, &hi);
+    // 未定义点不满足不等式：全盒未定义 → 丢弃；已定义部分必然不满足 → 丢弃。
+    if (domain == GRAPH_BOX_NOWHERE_DEFINED || relation_certainly_fails(relation, lo, hi)) {
+        return;
+    }
+    // 确定满足要求全盒已定义且围栏整体满足——整节点一次输出，不再细分。
+    if (domain == GRAPH_BOX_DEFINED && relation_certainly_holds(relation, lo, hi)) {
+        emit_rect(out_certain, cap_certain, counts.certain, box);
+        ++counts.certain;
+        return;
+    }
+    ScreenBox children[4];
+    const int child_count = split_box(box, pixel_px, children);
+    if (child_count == 0) {
+        emit_rect(out_uncertain, cap_uncertain, counts.uncertain, box);
+        ++counts.uncertain;
+        return;
+    }
+    for (int i = 0; i < child_count; ++i) {
+        inequality_recurse(
+            vp, pixel_px, relation, eval, ctx, children[i],
+            out_certain, cap_certain, out_uncertain, cap_uncertain, counts);
+    }
+}
+
+}  // namespace
+
+extern "C" {
+
+size_t graph_implicit_cells(
+    const graph_viewport_t* vp, double pixel_px,
+    graph_eval2_interval_fn eval, void* ctx,
+    graph_eval2_fn corner_eval, void* corner_ctx,
+    graph_rect_t* out, size_t cap) {
+    if (!vp || !eval || !(pixel_px > 0) || !(vp->width > 1) || !(vp->height > 1)) return 0;
+    const ScreenBox root{0, 0, vp->width, vp->height};
+    return implicit_recurse(vp, pixel_px, eval, ctx, corner_eval, corner_ctx, root, out, cap, 0);
+}
+
+size_t graph_inequality_regions(
+    const graph_viewport_t* vp, double pixel_px,
+    graph_relation_t relation, graph_eval2_interval_fn eval, void* ctx,
+    graph_rect_t* out_certain, size_t cap_certain,
+    graph_rect_t* out_uncertain, size_t cap_uncertain,
+    size_t* out_uncertain_total) {
+    if (out_uncertain_total) *out_uncertain_total = 0;
+    if (!vp || !eval || !(pixel_px > 0) || !(vp->width > 1) || !(vp->height > 1)) return 0;
+    const ScreenBox root{0, 0, vp->width, vp->height};
+    InequalityCounts counts;
+    inequality_recurse(
+        vp, pixel_px, relation, eval, ctx, root,
+        out_certain, cap_certain, out_uncertain, cap_uncertain, counts);
+    if (out_uncertain_total) *out_uncertain_total = counts.uncertain;
+    return counts.certain;
 }
 
 }  // extern "C"
