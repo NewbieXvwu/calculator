@@ -15,8 +15,8 @@ import AppKit
 import SwiftUI
 
 struct UnitConverterView: View {
-    @ObservedObject var model: StandardCalculatorViewModel
-    @StateObject private var converter = UnitConverterViewModel()
+    let model: StandardCalculatorViewModel
+    @State private var converter = UnitConverterViewModel()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -229,7 +229,7 @@ struct UnitConverterView: View {
 
 /// 单位换算模式的物理键盘监听：数字/小数点/退格/清除/正负号直接路由到换算 ViewModel。
 private struct ConverterKeyMonitor: ViewModifier {
-    @ObservedObject var converter: UnitConverterViewModel
+    let converter: UnitConverterViewModel
     var supportsNegative: Bool
     @State private var keyMonitor: Any?
 

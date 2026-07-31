@@ -15,9 +15,10 @@
 import SwiftUI
 
 struct ProgrammerCalculatorView: View {
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
 
     var body: some View {
+        @Bindable var model = model
         VStack(spacing: 0) {
             DisplayArea(model: model)
             radixRows
@@ -123,7 +124,8 @@ struct ProgrammerCalculatorView: View {
     // MARK: - 位运算 / 移位 菜单栏
 
     private var operatorPanelBar: some View {
-        HStack(spacing: 6) {
+        @Bindable var model = model
+        return HStack(spacing: 6) {
             Menu {
                 opItem("AND", .and); opItem("OR", .or); opItem("XOR", .xor)
                 opItem("NOT", .not); opItem("NAND", .nand); opItem("NOR", .nor)

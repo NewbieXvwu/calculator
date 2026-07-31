@@ -59,7 +59,7 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.radioGroup)
-                .onChangeCompat(of: appearance) { newValue in
+                .onChange(of: appearance) { _, newValue in
                     newValue.apply()
                 }
             }

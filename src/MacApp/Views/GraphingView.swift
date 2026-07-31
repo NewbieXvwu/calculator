@@ -14,8 +14,8 @@ import CalcManagerBridge
 import SwiftUI
 
 struct GraphingView: View {
-    @ObservedObject var model: StandardCalculatorViewModel
-    @StateObject private var graph = GraphingViewModel()
+    let model: StandardCalculatorViewModel
+    @State private var graph = GraphingViewModel()
 
     @State private var showAnalysis = false
 
@@ -35,7 +35,8 @@ struct GraphingView: View {
     // MARK: - 方程输入区
 
     private var equationPanel: some View {
-        VStack(spacing: 0) {
+        @Bindable var graph = graph
+        return VStack(spacing: 0) {
             HStack {
                 Text(L10n.string("funcButton.Text"))
                     .font(.system(size: 13, weight: .semibold))
@@ -116,7 +117,7 @@ struct GraphingView: View {
 // MARK: - 方程行（可见性圆点=样式入口 + MathLive 输入 + 删除）
 
 private struct EquationRow: View {
-    @ObservedObject var graph: GraphingViewModel
+    let graph: GraphingViewModel
     @Binding var eq: GraphingViewModel.Equation
     @Environment(\.colorScheme) private var colorScheme
 
@@ -202,7 +203,7 @@ private struct EquationRow: View {
 // MARK: - 方程样式面板（EquationStylePanelControl：14 色 + 线型）
 
 private struct EquationStylePanel: View {
-    @ObservedObject var graph: GraphingViewModel
+    let graph: GraphingViewModel
     let eq: GraphingViewModel.Equation
     @Environment(\.colorScheme) private var colorScheme
 
@@ -291,7 +292,7 @@ private struct LineStyleSample: View {
 // MARK: - 变量滑块行（值滑块 + ± 步进 + Min/Max/Step 编辑）
 
 private struct VariableSliderRow: View {
-    @ObservedObject var graph: GraphingViewModel
+    let graph: GraphingViewModel
     let name: String
 
     @State private var editorShown = false
@@ -383,7 +384,7 @@ private struct VariableSliderRow: View {
 // MARK: - 图形设置面板（GraphingSettings.xaml：范围/三角单位/线宽/重置）
 
 private struct GraphingSettingsPanel: View {
-    @ObservedObject var graph: GraphingViewModel
+    @Bindable var graph: GraphingViewModel
 
     @State private var xMinText = ""
     @State private var xMaxText = ""
@@ -592,7 +593,7 @@ private struct GiacAnalysisRow: View {
 /// 自研图形渲染器：网格 + 坐标轴 + 逐像素列自适应采样曲线 + 间断检测 +
 /// 跟踪光标（ActiveTracing）与右上角命令面板（对照 GraphControlCommandPanel）。
 private struct GraphCanvas: View {
-    @ObservedObject var graph: GraphingViewModel
+    let graph: GraphingViewModel
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var dragAccum: CGSize = .zero
@@ -647,13 +648,21 @@ private struct GraphCanvas: View {
                 }
                 .focusable(graph.isTracing)
                 .focused($canvasFocused)
-                .arrowKeyNavigation { key, fine in
-                    moveTraceCursor(key, fine: fine, size: size)
+                .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow], phases: [.down, .repeat]) { press in
+                    let key: ArrowKey
+                    switch press.key {
+                    case .leftArrow: key = .left
+                    case .rightArrow: key = .right
+                    case .upArrow: key = .up
+                    case .downArrow: key = .down
+                    default: return .ignored
+                    }
+                    return moveTraceCursor(key, fine: press.modifiers.contains(.shift), size: size) ? .handled : .ignored
                 }
                 .contextMenu {
                     Button(L10n.string("GraphCopyMenuItem.Text")) { copyGraphImage(size: size) }
                 }
-                .onChangeCompat(of: traceCursor) { _ in
+                .onChange(of: traceCursor) { _, _ in
                     announceTrace(size: size)
                 }
                 // S13：语义树 → 隐形无障碍元素 overlay（spec/graph-accessibility.json apple 机制）。

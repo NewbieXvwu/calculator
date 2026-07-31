@@ -18,7 +18,7 @@ import AppKit
 import SwiftUI
 
 struct StandardCalculatorView: View {
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -128,7 +128,7 @@ struct LayoutTier {
 }
 
 struct DisplayArea: View {
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
     @State private var editingTokenID: Int?
     @State private var editingText = ""
 
@@ -141,7 +141,7 @@ struct DisplayArea: View {
                     }
                 }
             }
-            .defaultTrailingScrollAnchor()
+            .defaultScrollAnchor(.trailing)
             .frame(maxWidth: .infinity, alignment: .trailing)
             .frame(height: 20)
             .accessibilityIdentifier("expressionDisplay")
@@ -231,7 +231,7 @@ struct DisplayArea: View {
 
 /// 显示区下方的记忆栏：MC MR M+ M− MS（对应 Views/Calculator.xaml MemoryPanel）。
 struct MemoryBar: View {
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
 
     var body: some View {
         HStack(spacing: 2) {

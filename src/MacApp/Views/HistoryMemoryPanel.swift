@@ -22,7 +22,7 @@ enum DockTab: String, CaseIterable, Identifiable {
 }
 
 struct HistoryMemoryPanel: View {
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
     @State private var tab: DockTab = .history
 
     /// 程序员模式无历史（原版引擎该模式不持有 CalculatorHistory）。
@@ -56,13 +56,13 @@ struct HistoryMemoryPanel: View {
 }
 
 struct HistoryListView: View {
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
 
     var body: some View {
         VStack(spacing: 0) {
             if model.historyItems.isEmpty {
-                CalcEmptyState(
-                    title: L10n.string("Mac_NoHistory"),
+                ContentUnavailableView(
+                    LocalizedStringKey(L10n.string("Mac_NoHistory")),
                     systemImage: AppIcon.historyEmpty.sfSymbol,
                     description: Text(L10n.string("Mac_NoHistoryDesc"))
                 )
@@ -129,13 +129,13 @@ private struct HistoryRow: View {
 }
 
 struct MemoryListView: View {
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
 
     var body: some View {
         VStack(spacing: 0) {
             if model.memorizedNumbers.isEmpty {
-                CalcEmptyState(
-                    title: L10n.string("Mac_NoMemory"),
+                ContentUnavailableView(
+                    LocalizedStringKey(L10n.string("Mac_NoMemory")),
                     systemImage: AppIcon.memoryEmpty.sfSymbol,
                     description: Text(L10n.string("Mac_NoMemoryDesc"))
                 )
@@ -167,7 +167,7 @@ struct MemoryListView: View {
 
 private struct MemoryRow: View {
     let slot: MemorySlot
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
 
     @State private var hovering = false
 

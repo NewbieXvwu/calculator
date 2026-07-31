@@ -787,7 +787,7 @@ constexpr size_t kMaxRationalDigits = 10000;   // 超限切浮点并置标志位
 
 ---
 
-### S11 · `@Observable` 迁移 ⏸️ 有据暂缓（2026-07-31）
+### S11 · `@Observable` 迁移 ✅ 完成（2026-07-31）
 
 51 处 `@Published` + `ObservableObject` 来自 **Combine**，而 Combine 是闭源 Apple 框架，Linux / Windows / Android 的 Swift 上不存在。Swift 的 Observation 模块是开源的、随 corelibs 分发。
 
@@ -795,16 +795,22 @@ constexpr size_t kMaxRationalDigits = 10000;   // 超限切浮点并置标志位
 
 **成本**：2–3 人日（机械替换 + 回归测试）
 
-**暂缓依据（2026-07-31）**：`@Observable` 宏与 SwiftUI 自动观察追踪在 Apple SDK
-中标注 **macOS 14.0+**，而本包部署目标是 **macOS 13**（Package.swift 明示承诺，
-PlatformCompat.swift 整层围绕它设计）。带着 13 迁移只有两条路：
+**执行记录（2026-07-31）**：用户调研后决定放弃 macOS 13 支持，解除暂缓前置约束：
+- Package.swift 部署目标 **13.0 → 14.0**（并同步更新注释）。
+- 4 个 ViewModel（`StandardCalculatorViewModel` / `GraphingViewModel` / `UnitConverterViewModel` / `DateCalculatorViewModel`）`ObservableObject` → `@Observable`，51 处 `@Published` 全部去掉修饰符，`private(set)` 语义保留。
+- 视图层：30+ 处 `@ObservedObject` 改 `let`（只读即自动跟踪）；`@StateObject` 改 `@State`；需写绑定的 `$x.prop`（`DateCalculatorView`、`ProgrammerCalculatorView` 的 `$model.shiftMode`、`GraphingView` 的 `$graph.equations`、`GraphingSettingsPanel` 的 `$graph.trigMode/lineWidth`）在对应作用域内声明局部/存储 `@Bindable`。
+- 清理 PlatformCompat.swift 的 macOS 13 回退分支（`onChangeCompat` / `defaultTrailingScrollAnchor` / `arrowKeyNavigation` / `CalcEmptyState` 删除，调用点改用 14 API），文件头注释同步更新；`ArrowKey` 枚举保留（GraphCanvas 方向键移动复用）。
+- 验证：`swift build` + 126 测试全绿；全库无 `ObservableObject`/`@Published`/`Combine` 残留（唯一命中是测试文件的说明性注释）。
+- 附带收益：ViewModel 与 SwiftUI/Combine 解耦，纯逻辑可在非 UI 环境复用。
+
+**历史暂缓依据（2026-07-31，已解除）**：`@Observable` 宏与 SwiftUI 自动观察追踪在 Apple SDK
+中标注 **macOS 14.0+**，而原部署目标是 **macOS 13**。带着 13 迁移只有两条路：
 ① 升部署目标到 14 —— 砍掉 macOS 13 用户，是产品决策，不在本清单授权范围；
 ② 双实现（`@available(macOS 14, *)` 的 Observable 版 + Combine 回退版）——
 ViewModel 全量翻倍，与"机械替换 2–3 人日"的前提矛盾，且回退版仍依赖 Combine，
 跨平台收益为零。另外收益前提"共享 Swift ViewModel"目前不存在：各平台按 §6
-走 Kotlin/ArkTS/TS 消费 C ABI。→ 待部署目标升至 14+（或出现真实的跨平台 Swift
-共享层）时执行原方案；届时仍是机械替换，成本估计不变。P-macOS 回填清单同步
-标注（§7）。
+走 Kotlin/ArkTS/TS 消费 C ABI。→ 用户 2026-07-31 决定放弃 macOS 13（调研确认无
+保留必要），原方案按机械替换执行，成本估计不变。
 
 ---
 
@@ -931,7 +937,7 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 - [ ] 改用共享层规格表（键盘 / 单位 / 快捷键 / 色板 / 模式元数据）
 - [x] 改用 C ABI 门面（2026-07-31）：`CalcManagerBridge.mm` 不再直接持有 `std::unique_ptr<MacCalc::CalcSession>`，改持 `calc_session_t*` 并全程委托 `calc_c_api`——ctor 用 `calc_grouping_format` + `calc_locale_t`（UTF-8）注入区域，`calc_callbacks_t` 装配 11 个 C thunk（`user_data` 为未持有的 bridge，无保留环）转发回 ObjC block，33 个方法逐一改调 `calc_*`（返回 `char*` 经 `calc_string_free` 释放）。至此 `calc_c_api` 成为 CalcSession 的**唯一**包装，跨平台 C 契约由 macOS 生产路径实际消费验证（消灭 mm 与 c_api 两套平行门面的重复）。零回归：`swift test` 126/126、engine-tests、calc-smoke（经 C ABI 显示/历史/进制端到端）全绿
 - [x] 图形几何改调共享层（2026-07-31）：生产路径的坐标变换（`toScreenX/Y`→`graph_to_screen_x/y`）、刻度步长（`niceStep`→`graph_nice_step`）、网格刻度枚举（`drawGrid`→`graph_ticks`）、显式曲线采样（`drawCurve`→`graph_sample_curve`）、隐式等值线追踪（`drawImplicit`→`graph_marching_squares`）、视窗平移/缩放/范围（`pan/zoom/zoom_at/applyRange`→对应 C ABI）全部改调 `graph_geometry.h`。`MarchingSquares.swift` 降级为对拍 oracle（`GraphGeometryTests`/`MacAppTests` 锁 C↔Swift 等价）。零回归：`swift test` 126/126、engine-tests、calc-smoke 全绿
-- [ ] `@Observable` 迁移（🔄 进行中：用户已决定放弃 macOS 13 支持、解除 S11 前置约束，该项转由外部模型推进）
+- [x] `@Observable` 迁移（2026-07-31，S11：部署目标 13→14，4 个 ViewModel + 全部视图层，126 测试全绿）
 - [x] ~~补 2 种线型~~ → 经核实无需补（2026-07-31）：原版 `EquationStylePanelControl` 用户可见 picker 只列 `Solid/Dash/Dot`，`DashDot`/`DashDotDot` 是底层渲染器枚举、UI 从不暴露（无 pattern、无 automation name、resw 无对应字符串）。fork 3 种线型即 UI 保真；补 2 种反成背离
 - [x] 补单调性 `Constant`（2026-07-31，S3 重写附带：常函数短路径给出 `(-∞, +∞) 恒定`）
 - [x] 分组模式改用结构（S8，2026-07-31：mm 桥经 MacCalc::Grouping + NumberFormatter 双组尺寸注入）
@@ -1357,7 +1363,7 @@ grep -rn "long double\|LDBL_\|%Lf\|strtold\|powl\|sqrtl\|sinl" src/CalcManager/
   S6  规格表下沉                           ← ✅ 完成（2026-07-31）
   S7  图形几何下沉                         ← ✅ 完成（2026-07-31）
   S8  Locale 注入加固 + 分组模式修复       ← ✅ 完成（2026-07-31）
-  S11 @Observable 迁移                     ← ⏸️ 有据暂缓（部署目标 13 vs 宏要求 14，见 S11）
+  S11 @Observable 迁移                     ← ✅ 完成（2026-07-31，部署目标 13→14）
   S4  区间算术                             ← ✅ 完成（2026-07-31）
        ↓
   验收硬指标：macOS 零功能回归 + 14 函数回归全绿

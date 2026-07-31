@@ -9,9 +9,11 @@
 
 import AppKit
 import Foundation
+import Observation
 
 @MainActor
-final class UnitConverterViewModel: ObservableObject {
+@Observable
+final class UnitConverterViewModel {
     /// 单个补充结果（其它单位的换算值，对应原版 SupplementaryResult）。
     struct SupplementaryResult: Identifiable {
         let id: Int
@@ -24,27 +26,27 @@ final class UnitConverterViewModel: ObservableObject {
     static let currencyUnitIDBase = 10000
 
     /// 动态货币类别（汇率加载成功后填充）。
-    @Published private(set) var currencyCategory: ConverterCategory?
+private(set) var currencyCategory: ConverterCategory?
     /// 货币数据状态提示（加载中 / 日期 / 失败）。
-    @Published private(set) var currencyStatus = L10n.string("Mac_Currency_Loading")
+private(set) var currencyStatus = L10n.string("Mac_Currency_Loading")
 
     /// 全部类别 = 静态单位 + （已加载的）货币。
     var categories: [ConverterCategory] {
         UnitConverterData.categories + (currencyCategory.map { [$0] } ?? [])
     }
 
-    @Published private(set) var currentCategory: ConverterCategory
-    @Published private(set) var fromUnit: ConverterUnit
-    @Published private(set) var toUnit: ConverterUnit
+private(set) var currentCategory: ConverterCategory
+private(set) var fromUnit: ConverterUnit
+private(set) var toUnit: ConverterUnit
 
     /// 活动输入框：true=编辑 from（上框），false=编辑 to（下框）。
-    @Published private(set) var isFromActive = true
+private(set) var isFromActive = true
 
     /// 两个框的显示字符串。非活动框为换算结果。
-    @Published private(set) var fromDisplay = "0"
-    @Published private(set) var toDisplay = "0"
+private(set) var fromDisplay = "0"
+private(set) var toDisplay = "0"
 
-    @Published private(set) var supplementaryResults: [SupplementaryResult] = []
+private(set) var supplementaryResults: [SupplementaryResult] = []
 
     /// 活动框正在编辑的原始输入串。
     private var inputBuffer = "0"

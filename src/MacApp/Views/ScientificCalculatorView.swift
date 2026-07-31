@@ -21,7 +21,7 @@
 import SwiftUI
 
 struct ScientificCalculatorView: View {
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
 
     // 左侧函数列：(常规文字, 常规命令, 2nd 文字, 2nd 命令)，行 2-7 各一项。
     // 静态表以便 SpecTableTests 与 spec/keyboard-layout.json 防漂移。

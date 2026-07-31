@@ -11,10 +11,11 @@
 import SwiftUI
 
 struct DateCalculatorView: View {
-    @ObservedObject var model: StandardCalculatorViewModel
-    @StateObject private var dateModel = DateCalculatorViewModel()
+    let model: StandardCalculatorViewModel
+    @State private var dateModel = DateCalculatorViewModel()
 
     var body: some View {
+        @Bindable var dateModel = dateModel
         VStack(spacing: 0) {
             Picker("", selection: $dateModel.isDateDiffMode) {
                 Text(L10n.string("Mac_Date_Difference")).tag(true)
@@ -42,7 +43,8 @@ struct DateCalculatorView: View {
     // MARK: - 日期差
 
     private var dateDiffSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        @Bindable var dateModel = dateModel
+        return VStack(alignment: .leading, spacing: 16) {
             labeledPicker(L10n.string("DateDiff_FromHeader.Header"), selection: $dateModel.fromDate)
             labeledPicker(L10n.string("DateDiff_ToHeader.Header"), selection: $dateModel.toDate)
 
@@ -63,7 +65,8 @@ struct DateCalculatorView: View {
     // MARK: - 加减日期
 
     private var addSubtractSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        @Bindable var dateModel = dateModel
+        return VStack(alignment: .leading, spacing: 16) {
             labeledPicker(L10n.string("DateDiff_FromHeader.Header"), selection: $dateModel.startDate)
 
             Picker("", selection: $dateModel.isAddMode) {

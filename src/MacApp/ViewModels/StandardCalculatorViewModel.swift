@@ -7,6 +7,7 @@
 import AppKit
 import CalcManagerBridge
 import Foundation
+import Observation
 
 enum CalculatorMode {
     case standard
@@ -175,33 +176,34 @@ struct MemorySlot: Identifiable, Equatable {
 }
 
 @MainActor
-final class StandardCalculatorViewModel: ObservableObject {
-    @Published private(set) var displayValue = "0"
-    @Published private(set) var isInError = false
+@Observable
+final class StandardCalculatorViewModel {
+private(set) var displayValue = "0"
+private(set) var isInError = false
     /// S10 精度闸门（M4）：结果谱系中发生过有理数强制截断 → 显示为近似值提示。
-    @Published private(set) var isPrecisionLimited = false
-    @Published private(set) var expressionTokens: [ExpressionToken] = []
-    @Published private(set) var openParenthesisCount: UInt = 0
-    @Published private(set) var isInputEmpty = true
-    @Published private(set) var memorizedNumbers: [MemorySlot] = []
-    @Published private(set) var isMemoryEmpty = true
-    @Published private(set) var historyItems: [HistoryItem] = []
-    @Published private(set) var mode: CalculatorMode = .standard
-    @Published private(set) var currentAngleType: EngineCommand = .deg
-    @Published var isFToEChecked = false
-    @Published private(set) var isFToEEnabled = true
+private(set) var isPrecisionLimited = false
+private(set) var expressionTokens: [ExpressionToken] = []
+private(set) var openParenthesisCount: UInt = 0
+private(set) var isInputEmpty = true
+private(set) var memorizedNumbers: [MemorySlot] = []
+private(set) var isMemoryEmpty = true
+private(set) var historyItems: [HistoryItem] = []
+private(set) var mode: CalculatorMode = .standard
+private(set) var currentAngleType: EngineCommand = .deg
+var isFToEChecked = false
+private(set) var isFToEEnabled = true
     /// 科学模式左侧函数列的 2nd/Shift 态（对应原版 ShiftButton）：切换 x²↔x³ 等。
-    @Published private(set) var isInvChecked = false
+private(set) var isInvChecked = false
     // MARK: 程序员模式状态
     /// 当前进制（对应原版 CurrentRadixType）。
-    @Published private(set) var currentRadix: RadixKind = .dec
+private(set) var currentRadix: RadixKind = .dec
     /// 当前字长（对应原版 ValueBitLength）。
-    @Published private(set) var wordSize: WordSize = .qword
+private(set) var wordSize: WordSize = .qword
     /// 是否处于位翻转（Bit Flip）键盘（对应原版 IsBitFlipChecked）。
-    @Published var isBitFlipChecked = false
+var isBitFlipChecked = false
 
     /// 当前移位类型（对应原版 BitShiftFlyout 单选，决定键盘行移位键）。
-    @Published var shiftMode: BitShiftMode = .arithmetic {
+var shiftMode: BitShiftMode = .arithmetic {
         didSet {
             // 对应原版 BitShiftRadioButtonContent 播报。
             if oldValue != shiftMode {
@@ -210,16 +212,16 @@ final class StandardCalculatorViewModel: ObservableObject {
         }
     }
     /// 四个进制的转换显示（对应原版 Hex/Dec/Oct/BinaryDisplayValue）。
-    @Published private(set) var hexDisplay = "0"
-    @Published private(set) var decDisplay = "0"
-    @Published private(set) var octDisplay = "0"
-    @Published private(set) var binDisplay = "0"
+private(set) var hexDisplay = "0"
+private(set) var decDisplay = "0"
+private(set) var octDisplay = "0"
+private(set) var binDisplay = "0"
     /// 位翻转面板的 64 位（bit 0 在数组首位），随显示更新。
-    @Published private(set) var binaryBits: [Bool] = Array(repeating: false, count: 64)
+private(set) var binaryBits: [Bool] = Array(repeating: false, count: 64)
     /// A–F 十六进制按钮是否可用（仅 HEX 进制下可用，对应原版 AreHEXButtonsEnabled）。
     var areHexButtonsEnabled: Bool { currentRadix == .hex }
     /// 物理键盘命中的按键，用于瞬时闪动高亮；短暂置位后自动清空。
-    @Published private(set) var flashedCommand: EngineCommand?
+private(set) var flashedCommand: EngineCommand?
 
     private let bridge = CalcManagerBridge()
     /// 下一次显示回调需向 VoiceOver 播报(对应原版 DisplayUpdated)。
@@ -680,7 +682,7 @@ final class StandardCalculatorViewModel: ObservableObject {
     }
 
     /// Ctrl+H 历史面板开关脉冲（视图 onChange 监听后翻转 popover）。
-    @Published private(set) var historyTogglePulse = 0
+private(set) var historyTogglePulse = 0
 
     /// 完整键盘映射，对照原版 Resources.resw 的 KeyboardShortcutManager 词条（129 条）。
     /// Character/VirtualKey/Shift/Ctrl(=macOS ⌃)/Ctrl+Shift 五类和弦；按当前模式分发。

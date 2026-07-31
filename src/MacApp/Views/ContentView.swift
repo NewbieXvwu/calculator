@@ -10,7 +10,7 @@ import CalcManagerBridge
 import SwiftUI
 
 struct ContentView: View {
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
 
     @AppStorage("HistorySidebarShown") private var sidebarShown = false
 
@@ -49,7 +49,7 @@ struct ContentView: View {
             minWidth: minWindowWidth + (sidebarActive ? 281 : 0),
             minHeight: minWindowHeight)
         // ⌃H / 菜单栏「历史记录」与工具栏按钮共用同一开合入口。
-        .onChangeCompat(of: model.historyTogglePulse) { _ in
+        .onChange(of: model.historyTogglePulse) { _, _ in
             toggleSidebar()
         }
     }

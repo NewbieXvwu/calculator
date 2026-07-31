@@ -7,7 +7,7 @@ import SwiftUI
 @main
 struct MacCalculatorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var model = StandardCalculatorViewModel()
+    @State private var model = StandardCalculatorViewModel()
     @State private var alwaysOnTop = UserDefaults.standard.bool(forKey: "AlwaysOnTop")
 
     var body: some Scene {

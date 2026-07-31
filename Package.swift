@@ -12,8 +12,9 @@ let homebrewPrefix = Context.environment["HOMEBREW_PREFIX"] ?? "/opt/homebrew"
 let package = Package(
     name: "MacCalculator",
     defaultLocalization: "en",
-    // 部署目标 macOS 13：Liquid Glass 等 26-only API 经 #available 运行时回退（见 Support/PlatformCompat.swift）。
-    platforms: [.macOS("13.0")],
+    // 部署目标 macOS 14：@Observable（Observation 宏）要求 14+；
+    // Liquid Glass 等 26-only API 经 #available 运行时回退（见 Support/PlatformCompat.swift）。
+    platforms: [.macOS("14.0")],
     targets: [
         .target(
             name: "CalcManagerCore",

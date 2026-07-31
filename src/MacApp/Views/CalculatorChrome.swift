@@ -12,7 +12,7 @@ import SwiftUI
 /// 工具栏模式菜单按钮（trailing 端，Apple 计算器惯例位置）。
 /// 按钮字形：SF 公共库无 `calculator`，先以 `circle.grid.3x3` 兜底（TODO P1-3 自绘 symbol）。
 struct ModeMenuButton: View {
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
 
     var body: some View {
         Menu {
@@ -37,7 +37,7 @@ struct ModeMenuButton: View {
 
 /// 物理键盘监听：把系统按键事件转给 ViewModel，命中即消费。
 private struct KeyMonitor: ViewModifier {
-    @ObservedObject var model: StandardCalculatorViewModel
+    let model: StandardCalculatorViewModel
     @State private var keyMonitor: Any?
 
     func body(content: Content) -> some View {

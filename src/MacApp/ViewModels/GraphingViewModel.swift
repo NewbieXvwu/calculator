@@ -45,7 +45,8 @@ enum InequalityRelation: String {
 }
 
 @MainActor
-final class GraphingViewModel: ObservableObject {
+@Observable
+final class GraphingViewModel {
     /// 单条方程。
     struct Equation: Identifiable {
         /// 编译结果：显式 y=f(x) 走逐列采样；隐式 F(x,y)=0 走 marching squares；
@@ -88,10 +89,10 @@ final class GraphingViewModel: ObservableObject {
     /// 原版 VariableViewModel 的 DefaultMinMaxRange。
     static let defaultMinMaxRange: Double = 10
 
-    @Published var equations: [Equation] = []
+var equations: [Equation] = []
 
     /// 变量滑块：所有方程引用的参数（a、b、k…）→ 滑块状态。
-    @Published var variables: [String: SliderVariable] = [:]
+var variables: [String: SliderVariable] = [:]
 
     /// 滑块顺序稳定的参数名列表。
     var parameterNames: [String] { variables.keys.sorted() }
@@ -100,16 +101,16 @@ final class GraphingViewModel: ObservableObject {
     var parameters: [String: Double] { variables.mapValues(\.value) }
 
     /// 视窗范围（数学坐标）。
-    @Published var xMin: Double = -10
-    @Published var xMax: Double = 10
-    @Published var yMin: Double = -10
-    @Published var yMax: Double = 10
+var xMin: Double = -10
+var xMax: Double = 10
+var yMin: Double = -10
+var yMax: Double = 10
 
     /// 三角单位（GraphingSettings 的 Radians/Degrees/Gradians）。
-    @Published var trigMode: GraphTrigMode = .radians
+var trigMode: GraphTrigMode = .radians
 
     /// 线宽（GraphingSettings 的 1.0/2.0/3.0/4.0，默认 2）。
-    @Published var lineWidth: Double = 2.0
+var lineWidth: Double = 2.0
 
     /// 14 色方程色板（App.xaml EquationBrush1–14，浅色主题）。
     static let lightPalette: [Color] = [
@@ -251,10 +252,10 @@ final class GraphingViewModel: ObservableObject {
     // MARK: - 跟踪（ActiveTracing）
 
     /// 跟踪开关（画布右上角命令面板的开关按钮）。
-    @Published var isTracing = false
+var isTracing = false
 
     /// 视图是否被手动调整过（graphViewButton 的 IsManualAdjustment）。
-    @Published var isManualAdjustment = false
+var isManualAdjustment = false
 
     struct TraceResult: Equatable {
         var equationIndex: Int

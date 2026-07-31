@@ -10,23 +10,25 @@
 // 偏移上限沿用原版 c_maxOffsetValue = 999。
 
 import Foundation
+import Observation
 
 @MainActor
-final class DateCalculatorViewModel: ObservableObject {
+@Observable
+final class DateCalculatorViewModel {
     /// 日期差 / 加减日期 两种子模式（对应原版 IsDateDiffMode）。
-    @Published var isDateDiffMode = true
+    var isDateDiffMode = true
 
     // 日期差模式
-    @Published var fromDate = Calendar.current.startOfDay(for: Date())
-    @Published var toDate = Calendar.current.startOfDay(for: Date())
+    var fromDate = Calendar.current.startOfDay(for: Date())
+    var toDate = Calendar.current.startOfDay(for: Date())
 
     // 加减日期模式
     /// true=加，false=减（对应原版 IsAddMode）。
-    @Published var isAddMode = true
-    @Published var startDate = Calendar.current.startOfDay(for: Date())
-    @Published var yearsOffset = 0
-    @Published var monthsOffset = 0
-    @Published var daysOffset = 0
+    var isAddMode = true
+    var startDate = Calendar.current.startOfDay(for: Date())
+    var yearsOffset = 0
+    var monthsOffset = 0
+    var daysOffset = 0
 
     /// 偏移量上限（对应原版 c_maxOffsetValue）。
     let maxOffset = 999
