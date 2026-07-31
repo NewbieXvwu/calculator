@@ -1033,14 +1033,11 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 > geometry+D2D 渲染确是 1–2 人周量级；**求值器上 Windows 才是主成本**（数周至数月，
 > 且有可行性风险）。求值器路线是一次性、难回退的架构抉择，须先定方向：见下。
 >
-> **求值器抉择**（待定，需决策）：
-> - **A. 移植 giac 到 Windows**：与 macOS 严格同构、零功能分叉，但 GMP/MPFR/AppContainer
->   三重风险，工期最长、可行性未证。
-> - **B. 桌面（非 UWP）外壳 + giac DLL**：放弃 AppContainer，用 Win32/WinUI3 桌面壳
->   加载 MinGW giac DLL，绕开沙箱；但「UI 一行不动」不再成立（换外壳）。
-> - **C. 轻量原生求值器**：为绘图常见函数（多项式/三角/指对）在 C++ 写小型解析求值器，
->   无外部依赖、纯 MSVC；代价是与 giac 路径功能分叉（关键特征/CAS 能力受限，违背 §9
->   共享层同构精神），须按 M1 记录偏差。
+> **求值器抉择（2026-08-01 已定：A 方案——完整移植 giac 到 Windows）**：
+> 与 macOS 严格同构、零功能分叉。接受 GMP/MPFR/AppContainer 三重风险；
+> 预期路径：MSYS2/MinGW 构建 GMP/MPFR/giac 静态库 → MinGW 构建
+> `libgiac` 导出 C 接口的 DLL（绕过 MSVC ABI 不兼容）→ 主程序
+> LoadLibrary 或链接导入库。B（桌面外壳）、C（轻量原生求值器）已否决。
 >
 > **可先做、零风险的真实增量**：把 geometry（`graph_geometry.*`）编入一个新的
 > `GiacGraphingImpl`/`NativeGraphingImpl` 工程并接上 `IGraphRenderer` 的 D2D 绘制，
