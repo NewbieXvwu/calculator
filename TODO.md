@@ -1066,6 +1066,16 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 > libgiac_bridge.dll）。实测修复：Graph 深拷贝所有权、分析器用归一化 body
 > （原始输入 y= 前缀会让 giac 当赋值致 extrema 崩溃）、尾操作符拦截。
 >
+> **全解构建 + 打包（2026-08-01）**：UseMockGraphingImpl=false +
+> USE_NATIVE_GRAPHING_IMPL 全解构建成功（Calculator.slnx → 19MB x64 msix，
+> libgiac_bridge.dll 经 Calculator.csproj Content 打包，appxrecipe 确认）。
+> GraphingImplOverrides.props 为本地注入文件（.gitignore 已忽略，按上游设计）。
+> **部署验证受阻**：SSH 会话（Session 0）下 Add-AppxPackage 失败（部署服务
+> 需交互会话）——UI 端到端（切绘图模式、画 y=x^2）留待人工在测试机
+> 交互桌面执行：`Add-AppxPackage -Path <msix> -ForceUpdateFromAnyVersion`。
+> ⚠️ 注意：测试机上系统版计算器已被移除（Remove-AppxPackage 后 winget
+> 恢复失败 0x80073d05），需人工用 Store 或 winget 恢复。
+>
 > **可先做、零风险的真实增量**：把 geometry（`graph_geometry.*`）编入一个新的
 > `GiacGraphingImpl`/`NativeGraphingImpl` 工程并接上 `IGraphRenderer` 的 D2D 绘制，
 > 求值器先用桩/原生最小实现验证渲染管线联通——但这会新增工程、改 `UseMockGraphingImpl`
