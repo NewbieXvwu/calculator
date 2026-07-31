@@ -36,70 +36,16 @@ struct StandardCalculatorView: View {
     private var keypad: some View {
         // 对照 CalculatorStandardOperators.xaml 的 Large/Medium/Small/Tiny 分档与
         // ShowStandardFunctions/HideStandardFunctions：按键盘可用高度选字号档，
-        // 窄高度隐藏「函数行(¹⁄ₓ x² ²√x)+百分号」并保留全部运算符。
+        // 窄高度隐藏「函数行(¹⁄ₓ x² ²√x)+百分号」并保留全部运算符（compactFirstRow）。
+        // 键面定义下沉至 KeyboardLayout.standard（S6 规格表），此处只负责分档与选行。
         GeometryReader { geo in
             let tier = LayoutTier.forKeypadHeight(geo.size.height)
-            GlassKeypadContainer(spacing: 6) {
-                Grid(horizontalSpacing: 6, verticalSpacing: 6) {
-                    if tier.hideStandardFunctions {
-                        // 紧凑：CE C ⌫ ÷ 顶起，去掉 % 与函数行。
-                        GridRow {
-                            CalcKey("CE", style: .function, fontSize: tier.clearFont, flashing: flashing(.clearEntry), a11yLabel: L10n.button("clearEntryButton")) { model.buttonPressed(.clearEntry) }
-                            CalcKey("C", style: .function, fontSize: tier.clearFont, flashing: flashing(.clear), a11yLabel: L10n.button("clearButton")) { model.buttonPressed(.clear) }
-                            CalcKey(symbol: AppIcon.keyBackspace.sfSymbol, style: .function, fontSize: tier.funcFont, flashing: flashing(.backspace), a11yLabel: L10n.button("backSpaceButton")) { model.buttonPressed(.backspace) }
-                            CalcKey(symbol: AppIcon.keyDivide.sfSymbol, style: .operatorKey, fontSize: tier.opFont, disabled: model.isInError, flashing: flashing(.divide), a11yLabel: L10n.button("divideButton")) { model.buttonPressed(.divide) }
-                        }
-                    } else {
-                        GridRow {
-                            CalcKey(symbol: AppIcon.keyPercent.sfSymbol, style: .function, fontSize: tier.funcFont, disabled: model.isInError, flashing: flashing(.percent), a11yLabel: L10n.button("percentButton")) { model.buttonPressed(.percent) }
-                            CalcKey("CE", style: .function, fontSize: tier.clearFont, flashing: flashing(.clearEntry), a11yLabel: L10n.button("clearEntryButton")) { model.buttonPressed(.clearEntry) }
-                            CalcKey("C", style: .function, fontSize: tier.clearFont, flashing: flashing(.clear), a11yLabel: L10n.button("clearButton")) { model.buttonPressed(.clear) }
-                            CalcKey(symbol: AppIcon.keyBackspace.sfSymbol, style: .function, fontSize: tier.funcFont, flashing: flashing(.backspace), a11yLabel: L10n.button("backSpaceButton")) { model.buttonPressed(.backspace) }
-                        }
-                        GridRow {
-                            CalcKey("¹⁄ₓ", style: .function, fontSize: tier.funcFont, disabled: model.isInError, flashing: flashing(.reciprocal), a11yLabel: L10n.button("invertButton")) { model.buttonPressed(.reciprocal) }
-                            CalcKey("x²", style: .function, fontSize: tier.funcFont, disabled: model.isInError, flashing: flashing(.sqr), a11yLabel: L10n.button("xpower2Button")) { model.buttonPressed(.sqr) }
-                            CalcKey("²√x", style: .function, fontSize: tier.funcFont, disabled: model.isInError, flashing: flashing(.sqrt), a11yLabel: L10n.button("squareRootButton")) { model.buttonPressed(.sqrt) }
-                            CalcKey(symbol: AppIcon.keyDivide.sfSymbol, style: .operatorKey, fontSize: tier.opFont, disabled: model.isInError, flashing: flashing(.divide), a11yLabel: L10n.button("divideButton")) { model.buttonPressed(.divide) }
-                        }
-                    }
-                    GridRow {
-                        digitKey(7, tier)
-                        digitKey(8, tier)
-                        digitKey(9, tier)
-                        CalcKey(symbol: AppIcon.keyMultiply.sfSymbol, style: .operatorKey, fontSize: tier.opFont, disabled: model.isInError, flashing: flashing(.multiply), a11yLabel: L10n.button("multiplyButton")) { model.buttonPressed(.multiply) }
-                    }
-                    GridRow {
-                        digitKey(4, tier)
-                        digitKey(5, tier)
-                        digitKey(6, tier)
-                        CalcKey(symbol: AppIcon.keySubtract.sfSymbol, style: .operatorKey, fontSize: tier.opFont, disabled: model.isInError, flashing: flashing(.subtract), a11yLabel: L10n.button("minusButton")) { model.buttonPressed(.subtract) }
-                    }
-                    GridRow {
-                        digitKey(1, tier)
-                        digitKey(2, tier)
-                        digitKey(3, tier)
-                        CalcKey(symbol: AppIcon.keyAdd.sfSymbol, style: .operatorKey, fontSize: tier.opFont, disabled: model.isInError, flashing: flashing(.add), a11yLabel: L10n.button("plusButton")) { model.buttonPressed(.add) }
-                    }
-                    GridRow {
-                        CalcKey(symbol: AppIcon.keyNegate.sfSymbol, style: .digit, fontSize: tier.digitFont, disabled: model.isInError, flashing: flashing(.sign), a11yLabel: L10n.button("negateButton")) { model.buttonPressed(.sign) }
-                        digitKey(0, tier)
-                        CalcKey(model.decimalSeparator, style: .digit, fontSize: tier.digitFont, flashing: flashing(.point), a11yLabel: L10n.button("decimalSeparatorButton")) { model.buttonPressed(.point) }
-                        CalcKey(symbol: AppIcon.keyEquals.sfSymbol, style: .operatorKey, fontSize: tier.opFont, flashing: flashing(.equals), a11yLabel: L10n.button("equalButton")) { model.buttonPressed(.equals) }
-                    }
-                }
-            }
+            let spec = KeyboardLayout.standard
+            let rows: [[KeySpec]] = tier.hideStandardFunctions
+                ? [spec.compactFirstRow ?? spec.rows[0]] + Array(spec.rows.dropFirst(2))
+                : spec.rows
+            KeypadGrid(rows: rows, renderer: KeypadRenderer(model: model, tier: tier, flashes: true))
         }
-    }
-
-    private func digitKey(_ digit: Int, _ tier: LayoutTier) -> some View {
-        CalcKey("\(digit)", style: .digit, fontSize: tier.digitFont, flashing: flashing(.digit(digit)), a11yLabel: L10n.button("num\(digit)Button")) {
-            model.digitPressed(digit)
-        }
-    }
-
-    private func flashing(_ command: EngineCommand) -> Bool {
-        model.flashedCommand == command
     }
 }
 

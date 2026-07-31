@@ -170,72 +170,10 @@ struct ProgrammerCalculatorView: View {
     //   D |  4  |  5  |  6   | −
     //   E |  1  |  2  |  3   | +
     //   F |  ±  |  0  |     =(跨列)
+    // 键面定义下沉至 KeyboardLayout.programmer（S6 规格表），此处只做数据驱动渲染。
 
     private var keypad: some View {
-        GlassKeypadContainer(spacing: 6) {
-            Grid(horizontalSpacing: 6, verticalSpacing: 6) {
-                GridRow {
-                    hexKey("A", .digitA)
-                    CalcKey(model.shiftMode.leftKey.label, style: .function, fontSize: model.shiftMode.leftKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: L10n.format("Mac_ShiftLeft", model.shiftMode.label)) { model.buttonPressed(model.shiftMode.leftKey.command) }
-                    CalcKey(model.shiftMode.rightKey.label, style: .function, fontSize: model.shiftMode.rightKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: L10n.format("Mac_ShiftRight", model.shiftMode.label)) { model.buttonPressed(model.shiftMode.rightKey.command) }
-                    clearKey
-                    CalcKey(symbol: AppIcon.keyBackspace.sfSymbol, style: .function, a11yLabel: L10n.button("backSpaceButton")) { model.buttonPressed(.backspace) }
-                }
-                GridRow {
-                    hexKey("B", .digitB)
-                    CalcKey("(", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("openParenthesisButton")) { model.buttonPressed(.openParen) }
-                    CalcKey(")", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("closeParenthesisButton")) { model.buttonPressed(.closeParen) }
-                    CalcKey("%", style: .function, disabled: model.isInError, a11yLabel: L10n.button("modButton")) { model.buttonPressed(.mod) }
-                    CalcKey(symbol: AppIcon.keyDivide.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("divideButton")) { model.buttonPressed(.divide) }
-                }
-                GridRow {
-                    hexKey("C", .digitC)
-                    digitKey(7); digitKey(8); digitKey(9)
-                    CalcKey(symbol: AppIcon.keyMultiply.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("multiplyButton")) { model.buttonPressed(.multiply) }
-                }
-                GridRow {
-                    hexKey("D", .digitD)
-                    digitKey(4); digitKey(5); digitKey(6)
-                    CalcKey(symbol: AppIcon.keySubtract.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("minusButton")) { model.buttonPressed(.subtract) }
-                }
-                GridRow {
-                    hexKey("E", .digitE)
-                    digitKey(1); digitKey(2); digitKey(3)
-                    CalcKey(symbol: AppIcon.keyAdd.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("plusButton")) { model.buttonPressed(.add) }
-                }
-                GridRow {
-                    hexKey("F", .digitF)
-                    CalcKey(symbol: AppIcon.keyNegate.sfSymbol, style: .digit, disabled: model.isInError, a11yLabel: L10n.button("negateButton")) { model.buttonPressed(.sign) }
-                    digitKey(0)
-                    CalcKey(symbol: AppIcon.keyEquals.sfSymbol, style: .operatorKey, a11yLabel: L10n.button("equalButton")) { model.buttonPressed(.equals) }
-                        .gridCellColumns(2)
-                }
-            }
-        }
-    }
-
-    /// CE/C：有输入时显示 CE，否则显示 C（对应原版可见性切换）。
-    @ViewBuilder
-    private var clearKey: some View {
-        if model.isInputEmpty {
-            CalcKey("C", style: .function, fontSize: 14, a11yLabel: L10n.button("clearButton")) { model.buttonPressed(.clear) }
-        } else {
-            CalcKey("CE", style: .function, fontSize: 14, a11yLabel: L10n.button("clearEntryButton")) { model.buttonPressed(.clearEntry) }
-        }
-    }
-
-    /// A–F 十六进制键：仅 HEX 进制下可用（对应 AreHEXButtonsEnabled）。
-    private func hexKey(_ label: String, _ command: EngineCommand) -> some View {
-        CalcKey(label, style: .function, fontSize: 16, disabled: model.isInError || !model.areHexButtonsEnabled, a11yLabel: L10n.button("\(label.lowercased())Button")) {
-            model.buttonPressed(command)
-        }
-    }
-
-    /// 0–9 数字键：按当前进制启用/禁用。
-    private func digitKey(_ digit: Int) -> some View {
-        CalcKey("\(digit)", style: .digit, fontSize: 18, disabled: model.isInError || !model.isDigitAllowed(digit), a11yLabel: L10n.button("num\(digit)Button")) {
-            model.digitPressed(digit)
-        }
+        KeypadGrid(rows: KeyboardLayout.programmer.rows, renderer: KeypadRenderer(model: model))
     }
 
     // MARK: - 位翻转面板

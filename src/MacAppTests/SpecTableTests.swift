@@ -410,6 +410,95 @@ final class SpecTableTests: XCTestCase {
         }
     }
 
+    // MARK: - spec/keyboard-layout.json ⇄ KeyboardLayout（Swift 镜像表逐键锁定）
+
+    func testKeyboardLayoutMirrorMatchesSpec() throws {
+        let spec = try loadJSON("keyboard-layout.json", as: LayoutSpec.self)
+        let mirrorByName: [String: KeypadSpec] = [
+            "standard": KeyboardLayout.standard,
+            "scientific": KeyboardLayout.scientific,
+            "programmer": KeyboardLayout.programmer,
+            "converter": KeyboardLayout.converter,
+        ]
+
+        func compareFace(_ face: KeyFace, _ label: LayoutSpec.Label?, _ where_: String) {
+            switch face {
+            case .text(let t):
+                XCTAssertEqual(label?.text, t, "\(where_) label.text")
+            case .icon(let icon):
+                XCTAssertEqual(label?.icon, icon.semantic, "\(where_) label.icon")
+            case .digit(let n):
+                XCTAssertEqual(label?.digit, n, "\(where_) label.digit")
+            case .none:
+                XCTAssertNil(label, "\(where_) 应无 label（动态键）")
+            }
+        }
+
+        func compareA11y(_ a11y: KeyA11y, _ key: LayoutSpec.Key, _ where_: String) {
+            switch a11y {
+            case .button(let k), .shiftFormat(let k):
+                XCTAssertEqual(key.a11y, k, "\(where_) a11y")
+            case .literal(let s):
+                XCTAssertEqual(key.a11yLiteral, s, "\(where_) a11yLiteral")
+                XCTAssertNil(key.a11y, "\(where_) 字面量键不应有 a11y")
+            case .dynamic, .none:
+                XCTAssertNil(key.a11y, "\(where_) 动态键不应有 a11y")
+                XCTAssertNil(key.a11yLiteral, "\(where_) 动态键不应有 a11yLiteral")
+            }
+        }
+
+        func compare(_ mirror: KeySpec, _ json: LayoutSpec.Key, _ keypad: String, _ pos: String) {
+            let at = "\(keypad)/\(pos)"
+            XCTAssertEqual(mirror.role.jsonKind, json.kind, "\(at) kind")
+            // 占位键（spacer）只承载布局占位，JSON 不带 style/command/a11y/disabled。
+            if json.kind == "spacer" {
+                XCTAssertEqual(mirror.colSpan, json.colSpan ?? 1, "\(at) colSpan")
+                return
+            }
+            XCTAssertEqual(mirror.jsonStyle, json.style ?? "", "\(at) style")
+            XCTAssertEqual(mirror.disabled.jsonName, json.disabled ?? "", "\(at) disabled")
+            XCTAssertEqual(mirror.colSpan, json.colSpan ?? 1, "\(at) colSpan")
+            if keypad == "converter" {
+                XCTAssertEqual(mirror.role.jsonConverterCommand, json.command, "\(at) command")
+            } else if let cmd = json.command {
+                XCTAssertEqual(mirror.role.jsonEngineCommand, Self.engineCommandByName[cmd], "\(at) command \(cmd)")
+            }
+            compareFace(mirror.face, json.label, at)
+            compareA11y(mirror.a11y, json, at)
+            if case .invPair(let normal, let inverted) = mirror.role {
+                XCTAssertEqual(normal.label, json.normal?.label, "\(at) invPair.normal.label")
+                XCTAssertEqual(normal.command, Self.engineCommandByName[json.normal?.command ?? ""], "\(at) invPair.normal.command")
+                XCTAssertEqual(inverted.label, json.inverted?.label, "\(at) invPair.inverted.label")
+                XCTAssertEqual(inverted.command, Self.engineCommandByName[json.inverted?.command ?? ""], "\(at) invPair.inverted.command")
+            }
+        }
+
+        XCTAssertEqual(Set(mirrorByName.keys), Set(spec.keypads.keys))
+        for (name, jsonKeypad) in spec.keypads {
+            let mirror = try XCTUnwrap(mirrorByName[name], name)
+            XCTAssertEqual(mirror.columns, jsonKeypad.columns, "\(name) columns")
+            XCTAssertEqual(mirror.rows.count, jsonKeypad.rows.count, "\(name) 行数")
+            for (r, pair) in zip(mirror.rows, jsonKeypad.rows).enumerated() {
+                let (mirrorRow, jsonRow) = pair
+                XCTAssertEqual(mirrorRow.count, jsonRow.count, "\(name) 第 \(r) 行键数")
+                for (c, keyPair) in zip(mirrorRow, jsonRow).enumerated() {
+                    compare(keyPair.0, keyPair.1, name, "r\(r)c\(c)")
+                }
+                // 行跨度守恒。
+                XCTAssertEqual(mirrorRow.reduce(0) { $0 + $1.colSpan }, mirror.columns, "\(name) 第 \(r) 行跨度")
+            }
+            if let jsonCompact = jsonKeypad.compactFirstRow {
+                let mirrorCompact = try XCTUnwrap(mirror.compactFirstRow, "\(name) 缺紧凑首行")
+                XCTAssertEqual(mirrorCompact.count, jsonCompact.keys.count, "\(name) 紧凑首行键数")
+                for (mirrorKey, jsonKey) in zip(mirrorCompact, jsonCompact.keys) {
+                    compare(mirrorKey, jsonKey, name, "compact")
+                }
+            } else {
+                XCTAssertNil(mirror.compactFirstRow, "\(name) 不应有紧凑首行")
+            }
+        }
+    }
+
     // MARK: - spec/keyboard-shortcuts.json ⇄ handleKey 行为
 
     private struct ShortcutsSpec: Decodable {

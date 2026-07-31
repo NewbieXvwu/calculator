@@ -24,15 +24,13 @@ struct ScientificCalculatorView: View {
     let model: StandardCalculatorViewModel
 
     // 左侧函数列：(常规文字, 常规命令, 2nd 文字, 2nd 命令)，行 2-7 各一项。
-    // 静态表以便 SpecTableTests 与 spec/keyboard-layout.json 防漂移。
-    static let functionColumn: [(String, EngineCommand, String, EngineCommand)] = [
-        ("x²", .sqr, "x³", .cube),
-        ("√x", .sqrt, "∛x", .cubeRoot),
-        ("xʸ", .power, "ʸ√x", .yroot),
-        ("10ˣ", .pow10, "2ˣ", .pow2),
-        ("log", .log, "logᵧ", .logBaseY),
-        ("ln", .ln, "eˣ", .powE),
-    ]
+    // 由 KeyboardLayout.scientific 的 invPair 键派生（S6 规格表单一事实源），
+    // SpecTableTests 与 spec/keyboard-layout.json 双向防漂移。
+    static let functionColumn: [(String, EngineCommand, String, EngineCommand)] =
+        KeyboardLayout.scientific.rows.dropFirst().compactMap { row in
+            guard case .invPair(let normal, let inverted)? = row.first?.role else { return nil }
+            return (normal.label, normal.command, inverted.label, inverted.command)
+        }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -142,88 +140,8 @@ struct ScientificCalculatorView: View {
 
     // MARK: - 科学键盘
 
+    // 键面定义下沉至 KeyboardLayout.scientific（S6 规格表），此处只做数据驱动渲染。
     private var keypad: some View {
-        GlassKeypadContainer(spacing: 6) {
-            Grid(horizontalSpacing: 6, verticalSpacing: 6) {
-                // 行 1：2nd | π | e | CE/C | ⌫
-                GridRow {
-                    CalcKey("2ⁿᵈ", style: model.isInvChecked ? .emphasized : .function, fontSize: 14, disabled: model.isInError, a11yLabel: L10n.button("shiftButton")) {
-                        model.toggleInv()
-                    }
-                    CalcKey("π", style: .function, disabled: model.isInError, a11yLabel: L10n.button("piButton")) { model.buttonPressed(.pi) }
-                    CalcKey("e", style: .function, disabled: model.isInError, a11yLabel: L10n.button("eulerButton")) { model.buttonPressed(.euler) }
-                    clearKey
-                    CalcKey(symbol: AppIcon.keyBackspace.sfSymbol, style: .function, a11yLabel: L10n.button("backSpaceButton")) { model.buttonPressed(.backspace) }
-                }
-                // 行 2：左列 | 1/x | |x| | exp | mod
-                GridRow {
-                    functionColumnKey(row: 0)
-                    CalcKey("¹⁄ₓ", style: .function, disabled: model.isInError, a11yLabel: L10n.button("invertButton")) { model.buttonPressed(.reciprocal) }
-                    CalcKey("|x|", style: .function, disabled: model.isInError, a11yLabel: L10n.button("absButton")) { model.buttonPressed(.abs) }
-                    CalcKey("exp", style: .function, disabled: model.isInError, a11yLabel: L10n.button("expButton")) { model.buttonPressed(.exp) }
-                    CalcKey("mod", style: .function, disabled: model.isInError, a11yLabel: L10n.button("modButton")) { model.buttonPressed(.mod) }
-                }
-                // 行 3：左列 | ( | ) | n! | ÷
-                GridRow {
-                    functionColumnKey(row: 1)
-                    CalcKey("(", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("openParenthesisButton")) { model.buttonPressed(.openParen) }
-                    CalcKey(")", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("closeParenthesisButton")) { model.buttonPressed(.closeParen) }
-                    CalcKey("n!", style: .function, disabled: model.isInError, a11yLabel: L10n.button("factorialButton")) { model.buttonPressed(.factorial) }
-                    CalcKey(symbol: AppIcon.keyDivide.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("divideButton")) { model.buttonPressed(.divide) }
-                }
-                // 行 4：左列 | 7 | 8 | 9 | ×
-                GridRow {
-                    functionColumnKey(row: 2)
-                    digitKey(7); digitKey(8); digitKey(9)
-                    CalcKey(symbol: AppIcon.keyMultiply.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("multiplyButton")) { model.buttonPressed(.multiply) }
-                }
-                // 行 5：左列 | 4 | 5 | 6 | −
-                GridRow {
-                    functionColumnKey(row: 3)
-                    digitKey(4); digitKey(5); digitKey(6)
-                    CalcKey(symbol: AppIcon.keySubtract.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("minusButton")) { model.buttonPressed(.subtract) }
-                }
-                // 行 6：左列 | 1 | 2 | 3 | +
-                GridRow {
-                    functionColumnKey(row: 4)
-                    digitKey(1); digitKey(2); digitKey(3)
-                    CalcKey(symbol: AppIcon.keyAdd.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("plusButton")) { model.buttonPressed(.add) }
-                }
-                // 行 7：左列 | ± | 0 | . | =
-                GridRow {
-                    functionColumnKey(row: 5)
-                    CalcKey(symbol: AppIcon.keyNegate.sfSymbol, style: .digit, disabled: model.isInError, a11yLabel: L10n.button("negateButton")) { model.buttonPressed(.sign) }
-                    digitKey(0)
-                    CalcKey(model.decimalSeparator, style: .digit, fontSize: 18, a11yLabel: L10n.button("decimalSeparatorButton")) { model.buttonPressed(.point) }
-                    CalcKey(symbol: AppIcon.keyEquals.sfSymbol, style: .operatorKey, a11yLabel: L10n.button("equalButton")) { model.buttonPressed(.equals) }
-                }
-            }
-        }
-    }
-
-    /// CE/C：有输入时显示 CE，否则显示 C（对应原版可见性切换）。
-    @ViewBuilder
-    private var clearKey: some View {
-        if model.isInputEmpty {
-            CalcKey("C", style: .function, fontSize: 14, a11yLabel: L10n.button("clearButton")) { model.buttonPressed(.clear) }
-        } else {
-            CalcKey("CE", style: .function, fontSize: 14, a11yLabel: L10n.button("clearEntryButton")) { model.buttonPressed(.clearEntry) }
-        }
-    }
-
-    private func functionColumnKey(row: Int) -> some View {
-        let entry = Self.functionColumn[row]
-        let inv = model.isInvChecked
-        let label = inv ? entry.2 : entry.0
-        let command = inv ? entry.3 : entry.1
-        return CalcKey(label, style: inv ? .emphasized : .function, fontSize: 14, disabled: model.isInError, a11yLabel: label) {
-            model.pressInvFunction(command)
-        }
-    }
-
-    private func digitKey(_ digit: Int) -> some View {
-        CalcKey("\(digit)", style: .digit, fontSize: 18, a11yLabel: L10n.button("num\(digit)Button")) {
-            model.digitPressed(digit)
-        }
+        KeypadGrid(rows: KeyboardLayout.scientific.rows, renderer: KeypadRenderer(model: model))
     }
 }

@@ -188,42 +188,11 @@ struct UnitConverterView: View {
 
     // MARK: - 数字键盘
 
+    // 键面定义下沉至 KeyboardLayout.converter（S6 规格表），动作走 UnitConverterViewModel。
     private var keypad: some View {
-        GlassKeypadContainer(spacing: 6) {
-            Grid(horizontalSpacing: 6, verticalSpacing: 6) {
-                GridRow {
-                    digitKey(7)
-                    digitKey(8)
-                    digitKey(9)
-                    CalcKey(symbol: AppIcon.keyBackspace.sfSymbol, style: .function, a11yLabel: L10n.button("backSpaceButton")) { converter.inputBackspace() }
-                }
-                GridRow {
-                    digitKey(4)
-                    digitKey(5)
-                    digitKey(6)
-                    CalcKey("C", style: .function, fontSize: 14, a11yLabel: L10n.button("clearButton")) { converter.clear() }
-                }
-                GridRow {
-                    digitKey(1)
-                    digitKey(2)
-                    digitKey(3)
-                    CalcKey(symbol: AppIcon.keyNegate.sfSymbol, style: .function,
-                            disabled: !converter.currentCategory.supportsNegative, a11yLabel: L10n.button("negateButton")) { converter.toggleSign() }
-                }
-                GridRow {
-                    digitKey(0)
-                        .gridCellColumns(2)
-                    CalcKey(model.decimalSeparator, style: .digit, fontSize: 18, a11yLabel: L10n.button("decimalSeparatorButton")) { converter.inputDecimal() }
-                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
-                }
-            }
-        }
-    }
-
-    private func digitKey(_ digit: Int) -> some View {
-        CalcKey("\(digit)", style: .digit, fontSize: 18, a11yLabel: "\(digit)") {
-            converter.inputDigit(digit)
-        }
+        KeypadGrid(
+            rows: KeyboardLayout.converter.rows,
+            renderer: KeypadRenderer(model: model, converter: converter))
     }
 }
 
