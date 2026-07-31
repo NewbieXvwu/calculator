@@ -108,7 +108,7 @@ struct ScientificCalculatorView: View {
                     trigItem("sech⁻¹", .asech); trigItem("csch⁻¹", .acsch); trigItem("coth⁻¹", .acoth)
                 }
             } label: {
-                Label(L10n.string("Mac_Trig"), systemImage: "angle")
+                Label(L10n.string("Mac_Trig"), systemImage: AppIcon.sciTrigMenu.sfSymbol)
             }
             .menuStyle(.button)
             .glassButtonStyle()
@@ -123,7 +123,7 @@ struct ScientificCalculatorView: View {
                 trigItem("dms", .dms)
                 trigItem("deg", .degrees)
             } label: {
-                Label(L10n.string("funcButton.Text"), systemImage: "f.cursive")
+                Label(L10n.string("funcButton.Text"), systemImage: AppIcon.sciFuncMenu.sfSymbol)
             }
             .menuStyle(.button)
             .glassButtonStyle()

@@ -143,4 +143,34 @@ final class SpecTableTests: XCTestCase {
             GraphingViewModel.equationColor(index: 14, darkMode: false),
             GraphingViewModel.equationColor(index: 0, darkMode: false))
     }
+
+    // MARK: - spec/icons.json ⇄ AppIcon
+
+    private struct IconsSpec: Decodable {
+        struct Icon: Decodable {
+            let semantic: String
+            let macos: String
+        }
+        let icons: [Icon]
+    }
+
+    func testIconsSpecMatchesAppIconTable() throws {
+        let spec = try loadJSON("icons.json", as: IconsSpec.self)
+        let table = AppIcon.all
+
+        XCTAssertEqual(spec.icons.count, table.count)
+        for (specIcon, icon) in zip(spec.icons, table) {
+            XCTAssertEqual(specIcon.semantic, icon.semantic)
+            XCTAssertEqual(specIcon.macos, icon.sfSymbol, specIcon.semantic)
+        }
+
+        // 语义名唯一。
+        XCTAssertEqual(Set(table.map(\.semantic)).count, table.count)
+
+        // 模式图标行与 ModeDescriptor 一致（表内即由其生成，此处防结构改动漂移）。
+        for descriptor in ModeDescriptor.all {
+            let entry = try XCTUnwrap(spec.icons.first { $0.semantic == descriptor.iconSemantic }, descriptor.persistenceKey)
+            XCTAssertEqual(entry.macos, descriptor.sfSymbol)
+        }
+    }
 }

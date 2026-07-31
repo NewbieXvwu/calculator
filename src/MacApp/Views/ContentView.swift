@@ -33,7 +33,7 @@ struct ContentView: View {
                 Button {
                     toggleSidebar()
                 } label: {
-                    Image(systemName: "sidebar.leading")
+                    Image(systemName: AppIcon.sidebarHistory.sfSymbol)
                 }
                 .help(L10n.string("Mac_HistoryAndMemory"))
                 .accessibilityLabel(L10n.string("Mac_HistoryAndMemory"))

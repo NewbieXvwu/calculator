@@ -24,7 +24,7 @@ struct ModeMenuButton: View {
             }
             .pickerStyle(.inline)
         } label: {
-            Image(systemName: "circle.grid.3x3")
+            Image(systemName: AppIcon.modeMenu.sfSymbol)
         }
         .help(L10n.string("Mac_ModeButtonLabel"))
         .accessibilityLabel(L10n.string("Mac_ModeButtonLabel"))

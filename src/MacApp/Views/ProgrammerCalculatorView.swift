@@ -91,8 +91,8 @@ struct ProgrammerCalculatorView: View {
     private var controlBar: some View {
         HStack(spacing: 6) {
             Picker("", selection: keypadModeBinding) {
-                Image(systemName: "square.grid.3x3").tag(false)
-                Image(systemName: "01.square").tag(true)
+                Image(systemName: AppIcon.progKeypadFull.sfSymbol).tag(false)
+                Image(systemName: AppIcon.progKeypadBitFlip.sfSymbol).tag(true)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -128,7 +128,7 @@ struct ProgrammerCalculatorView: View {
                 opItem("AND", .and); opItem("OR", .or); opItem("XOR", .xor)
                 opItem("NOT", .not); opItem("NAND", .nand); opItem("NOR", .nor)
             } label: {
-                Label(L10n.string("Mac_BitwiseOps"), systemImage: "point.3.filled.connected.trianglepath.dotted")
+                Label(L10n.string("Mac_BitwiseOps"), systemImage: AppIcon.progBitwiseMenu.sfSymbol)
             }
             .menuStyle(.button)
             .glassButtonStyle()
@@ -144,7 +144,7 @@ struct ProgrammerCalculatorView: View {
                 .pickerStyle(.inline)
                 .labelsHidden()
             } label: {
-                Label(L10n.string("Mac_Shift"), systemImage: "chevron.right.2")
+                Label(L10n.string("Mac_Shift"), systemImage: AppIcon.progShiftMenu.sfSymbol)
             }
             .menuStyle(.button)
             .glassButtonStyle()

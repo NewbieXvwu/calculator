@@ -1,0 +1,51 @@
+{
+  "$comment": "S6/D8 规格表下沉：图标语义名 → 各平台图标名。语义名跨平台稳定；macos 列为 SF Symbol 名（其余平台各自补列）。macOS 侧镜像为 AppIcons.swift，由 SpecTableTests 防漂移。key.* 供键盘布局表（spec/keyboard-layout.json）引用。",
+  "icons": [
+    { "semantic": "chrome.sidebar.history", "macos": "sidebar.leading", "note": "工具栏历史/记忆侧栏开关" },
+    { "semantic": "chrome.mode.menu", "macos": "circle.grid.3x3", "note": "SF 公共库无 calculator 字形，暂以九宫格兜底（TODO P1-3 自绘 symbol）" },
+
+    { "semantic": "mode.standard", "macos": "plus.slash.minus" },
+    { "semantic": "mode.scientific", "macos": "function" },
+    { "semantic": "mode.programmer", "macos": "cpu" },
+    { "semantic": "mode.date", "macos": "calendar" },
+    { "semantic": "mode.converter", "macos": "arrow.left.arrow.right" },
+    { "semantic": "mode.graphing", "macos": "chart.xyaxis.line" },
+
+    { "semantic": "panel.history.empty", "macos": "clock.arrow.circlepath", "note": "历史为空占位插图" },
+    { "semantic": "panel.memory.empty", "macos": "memorychip", "note": "记忆为空占位插图" },
+    { "semantic": "panel.item.delete", "macos": "trash", "note": "历史/记忆条目删除" },
+
+    { "semantic": "key.backspace", "macos": "delete.left" },
+    { "semantic": "key.divide", "macos": "divide" },
+    { "semantic": "key.multiply", "macos": "multiply" },
+    { "semantic": "key.subtract", "macos": "minus" },
+    { "semantic": "key.add", "macos": "plus" },
+    { "semantic": "key.equals", "macos": "equal" },
+    { "semantic": "key.negate", "macos": "plus.forwardslash.minus" },
+    { "semantic": "key.percent", "macos": "percent" },
+
+    { "semantic": "sci.menu.trig", "macos": "angle" },
+    { "semantic": "sci.menu.func", "macos": "f.cursive" },
+
+    { "semantic": "prog.keypad.full", "macos": "square.grid.3x3" },
+    { "semantic": "prog.keypad.bitflip", "macos": "01.square" },
+    { "semantic": "prog.menu.bitwise", "macos": "point.3.filled.connected.trianglepath.dotted" },
+    { "semantic": "prog.menu.shift", "macos": "chevron.right.2" },
+
+    { "semantic": "conv.currency.refresh", "macos": "arrow.clockwise" },
+    { "semantic": "conv.units.swap", "macos": "arrow.up.arrow.down" },
+
+    { "semantic": "graph.equation.add", "macos": "plus" },
+    { "semantic": "graph.equation.error", "macos": "exclamationmark.circle.fill" },
+    { "semantic": "graph.equation.remove", "macos": "xmark" },
+    { "semantic": "graph.param.step.minus", "macos": "minus.circle" },
+    { "semantic": "graph.param.step.plus", "macos": "plus.circle" },
+    { "semantic": "graph.param.range", "macos": "slider.horizontal.3" },
+    { "semantic": "graph.trace", "macos": "scope" },
+    { "semantic": "graph.export", "macos": "square.and.arrow.up" },
+    { "semantic": "graph.settings", "macos": "gearshape" },
+    { "semantic": "graph.zoom.in", "macos": "plus.magnifyingglass" },
+    { "semantic": "graph.zoom.out", "macos": "minus.magnifyingglass" },
+    { "semantic": "graph.zoom.reset", "macos": "arrow.up.left.and.down.right.magnifyingglass" }
+  ]
+}

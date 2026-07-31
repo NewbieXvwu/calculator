@@ -94,7 +94,7 @@ struct UnitConverterView: View {
             Button {
                 Task { await converter.refreshCurrencies() }
             } label: {
-                Image(systemName: "arrow.clockwise")
+                Image(systemName: AppIcon.convCurrencyRefresh.sfSymbol)
                     .font(.system(size: 11, weight: .semibold))
             }
             .buttonStyle(.borderless)
@@ -148,7 +148,7 @@ struct UnitConverterView: View {
 
     private var swapButton: some View {
         Button(action: converter.swapUnits) {
-            Image(systemName: "arrow.up.arrow.down")
+            Image(systemName: AppIcon.convUnitsSwap.sfSymbol)
                 .font(.system(size: 13, weight: .semibold))
         }
         .glassButtonStyle()

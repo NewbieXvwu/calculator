@@ -50,7 +50,7 @@ struct GraphingView: View {
                 Button {
                     graph.addEquation()
                 } label: {
-                    Image(systemName: "plus")
+                    Image(systemName: AppIcon.graphEquationAdd.sfSymbol)
                 }
                 .buttonStyle(.borderless)
                 .help(L10n.string("Mac_AddFunction"))
@@ -160,7 +160,7 @@ private struct EquationRow: View {
                 )
                 .frame(height: 32)
                 if eq.hasError {
-                    Image(systemName: "exclamationmark.circle.fill")
+                    Image(systemName: AppIcon.graphEquationError.sfSymbol)
                         .font(.system(size: 10))
                         .foregroundStyle(.red)
                         .help(L10n.string("Mac_ExprParseError"))
@@ -181,7 +181,7 @@ private struct EquationRow: View {
             Button {
                 graph.removeEquation(id: eq.id)
             } label: {
-                Image(systemName: "xmark")
+                Image(systemName: AppIcon.graphEquationRemove.sfSymbol)
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
             }
@@ -308,7 +308,7 @@ private struct VariableSliderRow: View {
                 .font(.system(size: 10, design: .monospaced))
                 .frame(width: 64, alignment: .leading)
             Button { graph.stepVariable(name, direction: -1) } label: {
-                Image(systemName: "minus.circle").font(.system(size: 10))
+                Image(systemName: AppIcon.graphParamStepMinus.sfSymbol).font(.system(size: 10))
             }
             .buttonStyle(.plain)
             .help(L10n.string("Mac_StepMinus"))
@@ -319,7 +319,7 @@ private struct VariableSliderRow: View {
                 .controlSize(.mini)
                 .accessibilityLabel(L10n.format("Mac_Param", name))
             Button { graph.stepVariable(name, direction: 1) } label: {
-                Image(systemName: "plus.circle").font(.system(size: 10))
+                Image(systemName: AppIcon.graphParamStepPlus.sfSymbol).font(.system(size: 10))
             }
             .buttonStyle(.plain)
             .help(L10n.string("Mac_StepPlus"))
@@ -330,7 +330,7 @@ private struct VariableSliderRow: View {
                 stepText = fmt(variable.step)
                 editorShown.toggle()
             } label: {
-                Image(systemName: "slider.horizontal.3").font(.system(size: 10))
+                Image(systemName: AppIcon.graphParamRange.sfSymbol).font(.system(size: 10))
             }
             .buttonStyle(.plain)
             .help(L10n.string("Mac_RangeAndStep"))
@@ -684,7 +684,7 @@ private struct GraphCanvas: View {
                     traceCursor = nil
                 }
             } label: {
-                Image(systemName: "scope")
+                Image(systemName: AppIcon.graphTrace.sfSymbol)
                     .foregroundStyle(graph.isTracing ? Color.accentColor : Color.primary)
             }
             .help(graph.isTracing ? L10n.string("disableTracingButtonToolTip") : L10n.string("enableTracingButtonToolTip"))
@@ -693,29 +693,29 @@ private struct GraphCanvas: View {
             Button {
                 share(size: size)
             } label: {
-                Image(systemName: "square.and.arrow.up")
+                Image(systemName: AppIcon.graphExport.sfSymbol)
             }
             .help(L10n.button("shareButton"))
             .accessibilityLabel(L10n.button("shareButton"))
 
-            Button { settingsShown.toggle() } label: { Image(systemName: "gearshape") }
+            Button { settingsShown.toggle() } label: { Image(systemName: AppIcon.graphSettings.sfSymbol) }
                 .help(L10n.string("GraphOptionsHeading.Text"))
                 .accessibilityLabel(L10n.string("GraphOptionsHeading.Text"))
                 .popover(isPresented: $settingsShown, arrowEdge: .bottom) {
                     GraphingSettingsPanel(graph: graph)
                 }
 
-            Button { graph.zoom(factor: 0.8) } label: { Image(systemName: "plus.magnifyingglass") }
+            Button { graph.zoom(factor: 0.8) } label: { Image(systemName: AppIcon.graphZoomIn.sfSymbol) }
                 .help(L10n.string("Mac_ZoomIn")).accessibilityLabel(L10n.button("zoomInButton"))
                 .keyboardShortcut("=", modifiers: .control)
-            Button { graph.zoom(factor: 1.25) } label: { Image(systemName: "minus.magnifyingglass") }
+            Button { graph.zoom(factor: 1.25) } label: { Image(systemName: AppIcon.graphZoomOut.sfSymbol) }
                 .help(L10n.string("Mac_ZoomOut")).accessibilityLabel(L10n.button("zoomOutButton"))
                 .keyboardShortcut("-", modifiers: .control)
 
             Button {
                 graph.autoFitView()
             } label: {
-                Image(systemName: "arrow.up.left.and.down.right.magnifyingglass")
+                Image(systemName: AppIcon.graphZoomReset.sfSymbol)
                     .foregroundStyle(graph.isManualAdjustment ? Color.accentColor : Color.primary)
             }
             .help(graph.isManualAdjustment ? L10n.string("Mac_RestoreAutoFit") : L10n.string("Mac_AutoFitView"))

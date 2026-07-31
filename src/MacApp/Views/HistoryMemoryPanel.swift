@@ -63,7 +63,7 @@ struct HistoryListView: View {
             if model.historyItems.isEmpty {
                 CalcEmptyState(
                     title: L10n.string("Mac_NoHistory"),
-                    systemImage: "clock.arrow.circlepath",
+                    systemImage: AppIcon.historyEmpty.sfSymbol,
                     description: Text(L10n.string("Mac_NoHistoryDesc"))
                 )
             } else {
@@ -84,7 +84,7 @@ struct HistoryListView: View {
                     Button {
                         model.clearHistory()
                     } label: {
-                        Image(systemName: "trash")
+                        Image(systemName: AppIcon.itemDelete.sfSymbol)
                     }
                     .buttonStyle(.borderless)
                     .help(L10n.string("Mac_ClearAllHistory"))
@@ -136,7 +136,7 @@ struct MemoryListView: View {
             if model.memorizedNumbers.isEmpty {
                 CalcEmptyState(
                     title: L10n.string("Mac_NoMemory"),
-                    systemImage: "memorychip",
+                    systemImage: AppIcon.memoryEmpty.sfSymbol,
                     description: Text(L10n.string("Mac_NoMemoryDesc"))
                 )
             } else {
@@ -154,7 +154,7 @@ struct MemoryListView: View {
                     Button {
                         model.clearMemory()
                     } label: {
-                        Image(systemName: "trash")
+                        Image(systemName: AppIcon.itemDelete.sfSymbol)
                     }
                     .buttonStyle(.borderless)
                     .help(L10n.string("Mac_ClearAllMemory"))

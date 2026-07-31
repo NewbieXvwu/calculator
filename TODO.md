@@ -516,7 +516,7 @@ S10），列表本为示意粒度；macOS Swift 切换到 C ABI 属 P-macOS 回�
 - [ ] 键盘布局五元组表 `spec/keyboard-layout.json`
 - [ ] 快捷键数据表 `spec/keyboard-shortcuts.json`（冲突矩阵归 S12）
 - [ ] 单位换算数据表 `spec/units.json`
-- [ ] 图标语义名 `spec/icons.json`
+- [x] 图标语义名 `spec/icons.json`（40 项语义名，含 key.* 供键盘布局表引用）+ `AppIcons.swift` 镜像；全部视图调用点已切到语义常量，源码不再出现 SF Symbol 字面量（键面符号经键盘布局表落地）
 
 下沉后各平台键盘退化成 ~80 行渲染循环：
 
