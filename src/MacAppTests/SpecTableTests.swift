@@ -294,6 +294,12 @@ final class SpecTableTests: XCTestCase {
         "digit5": .digit5, "digit6": .digit6, "digit7": .digit7, "digit8": .digit8, "digit9": .digit9,
         "digitA": .digitA, "digitB": .digitB, "digitC": .digitC, "digitD": .digitD, "digitE": .digitE, "digitF": .digitF,
         "lshf": .lshf, "rshf": .rshf, "rshfl": .rshfl, "rol": .rol, "ror": .ror, "rolc": .rolc, "rorc": .rorc,
+        "and": .and, "or": .or, "xor": .xor, "not": .not, "nand": .nand, "nor": .nor,
+        "floor": .floor, "ceil": .ceil, "rand": .rand, "dms": .dms, "degrees": .degrees,
+        "sin": .sin, "cos": .cos, "tan": .tan, "sec": .sec, "csc": .csc, "cot": .cot,
+        "asin": .asin, "acos": .acos, "atan": .atan, "asec": .asec, "acsc": .acsc, "acot": .acot,
+        "sinh": .sinh, "cosh": .cosh, "tanh": .tanh, "sech": .sech, "csch": .csch, "coth": .coth,
+        "asinh": .asinh, "acosh": .acosh, "atanh": .atanh, "asech": .asech, "acsch": .acsch, "acoth": .acoth,
     ]
 
     func testKeyboardLayoutSpecMatchesKeypads() throws {
@@ -401,6 +407,220 @@ final class SpecTableTests: XCTestCase {
             XCTAssertEqual(Self.engineCommandByName[variant.left.command], mode.leftKey.command, name)
             XCTAssertEqual(variant.right.label, mode.rightKey.label, name)
             XCTAssertEqual(Self.engineCommandByName[variant.right.command], mode.rightKey.command, name)
+        }
+    }
+
+    // MARK: - spec/keyboard-shortcuts.json ⇄ handleKey 行为
+
+    private struct ShortcutsSpec: Decodable {
+        struct MenuItem: Decodable {
+            let keys: String
+            let action: String
+        }
+        struct Special: Decodable {
+            let key: String
+            let macKeyCode: UInt16
+            let command: String
+        }
+        struct FnKey: Decodable {
+            let key: String
+            let macKeyCode: UInt16
+            let byMode: [String: String]
+        }
+        struct CharEntry: Decodable {
+            let char: String
+            let byMode: [String: String]
+        }
+        struct SciLetters: Decodable {
+            let plain: [String: String]
+            let shift: [String: String]
+            let control: [String: String]
+            let controlShift: [String: String]
+        }
+        /// "engine"/"all" 或模式名列表。
+        enum Modes: Decodable {
+            case named(String)
+            case list([String])
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.singleValueContainer()
+                if let name = try? container.decode(String.self) {
+                    self = .named(name)
+                } else {
+                    self = .list(try container.decode([String].self))
+                }
+            }
+
+            func contains(_ modeName: String) -> Bool {
+                switch self {
+                case .named: return true  // engine/all 均覆盖三个引擎模式
+                case .list(let names): return names.contains(modeName)
+                }
+            }
+        }
+        struct Chord: Decodable {
+            let key: String
+            let shift: Bool?
+            let modes: Modes
+            let action: String
+        }
+        let menu: [MenuItem]
+        let special: [Special]
+        let functionKeys: [FnKey]
+        let characters: [CharEntry]
+        let scientificLetters: SciLetters
+        let controlChords: [Chord]
+        let programmerHexLetters: HexLetters
+
+        struct HexLetters: Decodable {
+            let letters: String
+        }
+    }
+
+    func testKeyboardShortcutsSpecMatchesHandleKey() throws {
+        let spec = try loadJSON("keyboard-shortcuts.json", as: ShortcutsSpec.self)
+        let model = StandardCalculatorViewModel()
+        let engineModes: [(name: String, mode: CalculatorMode)] = [
+            ("standard", .standard), ("scientific", .scientific), ("programmer", .programmer),
+        ]
+
+        @discardableResult
+        func press(_ chars: String, keyCode: UInt16 = 0, shift: Bool = false, control: Bool = false) -> Bool {
+            var modifiers = StandardCalculatorViewModel.KeyModifiers()
+            modifiers.shift = shift
+            modifiers.control = control
+            return model.handleKey(chars: chars, keyCode: keyCode, modifiers: modifiers)
+        }
+
+        /// 打入哨兵命令，随后断言目标键的分发结果（expected=nil 表示消费但不分发）。
+        func assertDispatch(_ chars: String, keyCode: UInt16 = 0, shift: Bool = false, control: Bool = false,
+                            expected: EngineCommand?, consumed: Bool = true, _ message: String) {
+            press("5")
+            XCTAssertEqual(model.flashedCommand, .digit5, "哨兵失败: \(message)")
+            XCTAssertEqual(press(chars, keyCode: keyCode, shift: shift, control: control), consumed, message)
+            XCTAssertEqual(model.flashedCommand, expected ?? .digit5, message)
+        }
+
+        // 菜单快捷键：动作词汇合法（分发由 SwiftUI 菜单系统承担，此处锁词表与模式 id）。
+        let namedActions: Set<String> = [
+            "copy", "paste", "toggleHistory", "clearHistory", "toggleAlwaysOnTop",
+            "memoryStore", "memoryRecall", "memoryAdd", "memorySubtract", "memoryClear",
+        ]
+        for item in spec.menu {
+            if item.action.hasPrefix("setMode:") {
+                let id = String(item.action.dropFirst("setMode:".count))
+                XCTAssertNotNil(CalculatorMode(persistenceKey: id), item.keys)
+            } else {
+                XCTAssertTrue(namedActions.contains(item.action), "\(item.keys): 未知动作 \(item.action)")
+            }
+        }
+        XCTAssertEqual(spec.menu.filter { $0.action.hasPrefix("setMode:") }.count, ModeDescriptor.all.count)
+
+        // 特殊物理键：全引擎模式分发对应命令。
+        for entry in spec.special {
+            let command = try XCTUnwrap(Self.engineCommandByName[entry.command], entry.key)
+            for (name, mode) in engineModes {
+                model.setCalculatorType(mode)
+                assertDispatch("", keyCode: entry.macKeyCode, expected: command, "special \(entry.key) @\(name)")
+            }
+        }
+
+        // 字符词条：逐模式比对分发；未列出的模式不改变哨兵（','在程序员模式消费不分发）。
+        model.setCalculatorType(.programmer)
+        XCTAssertEqual(model.currentRadix, .dec)
+        for entry in spec.characters {
+            for (name, mode) in engineModes {
+                model.setCalculatorType(mode)
+                let expected: EngineCommand?
+                switch entry.byMode[name] {
+                case "shiftLeft": expected = model.shiftMode.leftKey.command
+                case "shiftRight": expected = model.shiftMode.rightKey.command
+                case let action?: expected = try XCTUnwrap(Self.engineCommandByName[action], "\(entry.char)@\(name)")
+                case nil: expected = nil
+                }
+                // 未列出的模式可能不消费（如标准模式 '('），仅在有映射时断言消费。
+                if let expected {
+                    assertDispatch(entry.char, expected: expected, "char \(entry.char) @\(name)")
+                } else {
+                    press("5")
+                    _ = press(entry.char)
+                    XCTAssertEqual(model.flashedCommand, .digit5, "char \(entry.char) @\(name) 不应分发")
+                }
+            }
+        }
+
+        // 科学模式字母四类和弦。
+        model.setCalculatorType(.scientific)
+        for (letter, action) in spec.scientificLetters.plain {
+            if action == "fToEToggle" {
+                XCTAssertTrue(press(letter), letter)
+                continue
+            }
+            let command = try XCTUnwrap(Self.engineCommandByName[action], letter)
+            assertDispatch(letter, expected: command, "sci plain \(letter)")
+        }
+        for (letter, action) in spec.scientificLetters.shift {
+            let command = try XCTUnwrap(Self.engineCommandByName[action], letter)
+            assertDispatch(letter, shift: true, expected: command, "sci shift \(letter)")
+        }
+        for (letter, action) in spec.scientificLetters.control {
+            let command = try XCTUnwrap(Self.engineCommandByName[action], letter)
+            assertDispatch(letter, control: true, expected: command, "sci ctrl \(letter)")
+        }
+        for (letter, action) in spec.scientificLetters.controlShift {
+            let command = try XCTUnwrap(Self.engineCommandByName[action], letter)
+            assertDispatch(letter, shift: true, control: true, expected: command, "sci ctrl+shift \(letter)")
+        }
+
+        // 程序员模式 A-F：仅 HEX 分发，其余进制消费不分发。
+        model.setCalculatorType(.programmer)
+        XCTAssertEqual(spec.programmerHexLetters.letters, "ABCDEF")
+        model.switchRadix(.dec)
+        press("5")
+        XCTAssertTrue(press("A"))
+        XCTAssertEqual(model.flashedCommand, .digit5, "DEC 下 A 不应分发")
+        model.switchRadix(.hex)
+        assertDispatch("A", expected: .digitA, "HEX 下 A → digitA")
+        model.switchRadix(.dec)
+
+        // Ctrl 和弦（记忆/历史）：按模式表消费。
+        for chord in spec.controlChords {
+            for (name, mode) in engineModes {
+                model.setCalculatorType(mode)
+                let consumed = press(chord.key, shift: chord.shift ?? false, control: true)
+                XCTAssertEqual(consumed, chord.modes.contains(name), "ctrl \(chord.key) @\(name)")
+            }
+        }
+
+        // 功能键：按模式表分发（sign 引擎命令、radix/angle 验证状态、无映射不消费）。
+        for entry in spec.functionKeys {
+            for (name, mode) in engineModes {
+                model.setCalculatorType(mode)
+                let action = entry.byMode[name]
+                let consumed = press("", keyCode: entry.macKeyCode)
+                XCTAssertEqual(consumed, action != nil, "\(entry.key) @\(name)")
+                switch action {
+                case "sign":
+                    XCTAssertEqual(model.flashedCommand, .sign, entry.key)
+                case "radix:hex": XCTAssertEqual(model.currentRadix, .hex, entry.key)
+                case "radix:dec": XCTAssertEqual(model.currentRadix, .dec, entry.key)
+                case "radix:oct": XCTAssertEqual(model.currentRadix, .oct, entry.key)
+                case "radix:bin": XCTAssertEqual(model.currentRadix, .bin, entry.key)
+                case "angle:deg": XCTAssertEqual(model.currentAngleType, .deg, entry.key)
+                case "angle:rad": XCTAssertEqual(model.currentAngleType, .rad, entry.key)
+                case "angle:grad": XCTAssertEqual(model.currentAngleType, .grad, entry.key)
+                case "wordSize:qword": XCTAssertEqual(model.wordSize, .qword, entry.key)
+                case "wordSize:dword": XCTAssertEqual(model.wordSize, .dword, entry.key)
+                case "wordSize:word": XCTAssertEqual(model.wordSize, .word, entry.key)
+                case "wordSize:byte": XCTAssertEqual(model.wordSize, .byte, entry.key)
+                case nil: break
+                default: XCTFail("\(entry.key): 未知动作 \(action ?? "")")
+                }
+            }
+            // 复位程序员模式状态，避免进制过滤影响后续（哨兵是数字键）。
+            model.setCalculatorType(.programmer)
+            model.switchRadix(.dec)
+            model.setWordSize(.qword)
         }
     }
 }

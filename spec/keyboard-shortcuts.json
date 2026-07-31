@@ -1,0 +1,106 @@
+{
+  "$comment": "物理键盘与菜单快捷键数据表（S6 规格表下沉，对照原版 Resources.resw KeyboardShortcutManager 词条在 macOS 的映射；冲突矩阵审计归 S12）。action 词汇：引擎命令名（同 keyboard-layout.json）或具名动作 setMode:<id>/copy/paste/toggleHistory/clearHistory/memoryStore/memoryRecall/memoryAdd/memorySubtract/memoryClear/toggleAlwaysOnTop/fToEToggle/shiftLeft/shiftRight/radix:<r>/wordSize:<w>/angle:<a>。engine 表示 standard+scientific+programmer 三个引擎模式。⌘ 组合一律放行给菜单栏，键盘分发层不拦截。",
+  "menu": [
+    { "keys": "cmd+1", "action": "setMode:standard" },
+    { "keys": "cmd+2", "action": "setMode:scientific" },
+    { "keys": "cmd+3", "action": "setMode:programmer" },
+    { "keys": "cmd+4", "action": "setMode:date" },
+    { "keys": "cmd+5", "action": "setMode:converter" },
+    { "keys": "cmd+6", "action": "setMode:graphing" },
+    { "keys": "cmd+c", "action": "copy" },
+    { "keys": "cmd+v", "action": "paste" },
+    { "keys": "ctrl+h", "action": "toggleHistory" },
+    { "keys": "ctrl+shift+d", "action": "clearHistory" },
+    { "keys": "ctrl+m", "action": "memoryStore" },
+    { "keys": "ctrl+r", "action": "memoryRecall" },
+    { "keys": "ctrl+p", "action": "memoryAdd" },
+    { "keys": "ctrl+q", "action": "memorySubtract" },
+    { "keys": "ctrl+l", "action": "memoryClear" },
+    { "keys": "opt+cmd+up", "action": "toggleAlwaysOnTop" }
+  ],
+  "special": [
+    { "key": "escape", "macKeyCode": 53, "command": "clear" },
+    { "key": "delete", "macKeyCode": 51, "command": "backspace" },
+    { "key": "forwardDelete", "macKeyCode": 117, "command": "clearEntry" },
+    { "key": "return", "macKeyCode": 36, "command": "equals" },
+    { "key": "keypadEnter", "macKeyCode": 76, "command": "equals" }
+  ],
+  "functionKeys": [
+    { "key": "F2", "macKeyCode": 120, "byMode": { "programmer": "wordSize:qword" } },
+    { "key": "F3", "macKeyCode": 99, "byMode": { "programmer": "wordSize:dword", "scientific": "angle:grad" } },
+    { "key": "F4", "macKeyCode": 118, "byMode": { "programmer": "wordSize:word", "scientific": "angle:deg" } },
+    { "key": "F5", "macKeyCode": 96, "byMode": { "programmer": "radix:hex", "scientific": "angle:rad" } },
+    { "key": "F6", "macKeyCode": 97, "byMode": { "programmer": "radix:dec" } },
+    { "key": "F7", "macKeyCode": 98, "byMode": { "programmer": "radix:oct" } },
+    { "key": "F8", "macKeyCode": 100, "byMode": { "programmer": "radix:bin" } },
+    { "key": "F9", "macKeyCode": 101, "byMode": { "standard": "sign", "scientific": "sign", "programmer": "sign" } },
+    { "key": "F12", "macKeyCode": 111, "byMode": { "programmer": "wordSize:byte" } }
+  ],
+  "digits": {
+    "$comment": "0-9 → digit0-digit9，全引擎模式；程序员模式按当前进制过滤（OCT 下 8/9、BIN 下 2-9 消费但不分发，等价禁用键）。"
+  },
+  "characters": [
+    { "char": "+", "byMode": { "standard": "add", "scientific": "add", "programmer": "add" } },
+    { "char": "-", "byMode": { "standard": "subtract", "scientific": "subtract", "programmer": "subtract" } },
+    { "char": "*", "byMode": { "standard": "multiply", "scientific": "multiply", "programmer": "multiply" } },
+    { "char": "/", "byMode": { "standard": "divide", "scientific": "divide", "programmer": "divide" } },
+    { "char": "=", "byMode": { "standard": "equals", "scientific": "equals", "programmer": "equals" } },
+    { "char": "%", "byMode": { "standard": "percent", "scientific": "percent", "programmer": "mod" } },
+    { "char": ".", "byMode": { "standard": "point", "scientific": "point", "programmer": "nand" } },
+    { "char": ",", "byMode": { "standard": "point", "scientific": "point" } },
+    { "char": "(", "byMode": { "scientific": "openParen", "programmer": "openParen" } },
+    { "char": ")", "byMode": { "scientific": "closeParen", "programmer": "closeParen" } },
+    { "char": "@", "byMode": { "standard": "sqrt", "scientific": "sqrt" } },
+    { "char": "!", "byMode": { "scientific": "factorial" } },
+    { "char": "#", "byMode": { "scientific": "cube" } },
+    { "char": "^", "byMode": { "scientific": "power", "programmer": "xor" } },
+    { "char": "|", "byMode": { "scientific": "abs", "programmer": "or" } },
+    { "char": "&", "byMode": { "programmer": "and" } },
+    { "char": "~", "byMode": { "programmer": "not" } },
+    { "char": "\\", "byMode": { "programmer": "nor" } },
+    { "char": "[", "byMode": { "scientific": "floor" } },
+    { "char": "]", "byMode": { "scientific": "ceil" } },
+    { "char": "<", "byMode": { "programmer": "shiftLeft" } },
+    { "char": ">", "byMode": { "programmer": "shiftRight" } }
+  ],
+  "localeDecimalSeparator": {
+    "$comment": "本地化小数点分隔符（如 ','）→ point，程序员模式除外。",
+    "modes": ["standard", "scientific"],
+    "command": "point"
+  },
+  "scientificLetters": {
+    "$comment": "科学模式字母词条；plain/shift/control(⌃)/controlShift(⌃⇧) 四类和弦。V=F-E 切换为具名动作。",
+    "plain": {
+      "S": "sin", "O": "cos", "T": "tan", "U": "sec", "I": "csc", "J": "cot",
+      "L": "log", "N": "ln", "X": "exp", "R": "reciprocal", "Q": "sqr", "B": "cubeRoot",
+      "Y": "power", "G": "pow2", "P": "pi", "M": "dms", "V": "fToEToggle"
+    },
+    "shift": {
+      "S": "asin", "O": "acos", "T": "atan", "U": "asec", "I": "acsc", "J": "acot",
+      "L": "logBaseY", "R": "rand", "E": "euler"
+    },
+    "control": {
+      "S": "sinh", "O": "cosh", "T": "tanh", "U": "sech", "I": "csch", "J": "coth",
+      "N": "powE", "G": "pow10", "Y": "yroot", "D": "degrees"
+    },
+    "controlShift": {
+      "S": "asinh", "O": "acosh", "T": "atanh", "U": "asech", "I": "acsch", "J": "acoth"
+    }
+  },
+  "programmerHexLetters": {
+    "$comment": "程序员模式 A-F → digitA-digitF，仅 HEX 进制分发（其余进制消费不分发）；Shift 同映射。",
+    "letters": "ABCDEF"
+  },
+  "controlChords": [
+    { "key": "L", "modes": "engine", "action": "memoryClear" },
+    { "key": "R", "modes": "engine", "action": "memoryRecall" },
+    { "key": "P", "modes": "engine", "action": "memoryAdd" },
+    { "key": "Q", "modes": "engine", "action": "memorySubtract" },
+    { "key": "M", "modes": "engine", "action": "memoryStore" },
+    { "key": "H", "modes": ["standard", "scientific"], "action": "toggleHistory" },
+    { "key": "D", "shift": true, "modes": "all", "action": "clearHistory" }
+  ],
+  "converter": {
+    "$comment": "换算模式独立键盘监听：0-9 inputDigit、'.'/',' inputDecimal、Delete/Fn+Delete inputBackspace、Esc clear、F9 及 '-' toggleSign（类目支持负数时）；⌘ 组合放行。"
+  }
+}
