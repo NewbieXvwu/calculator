@@ -19,65 +19,25 @@ enum CalculatorMode {
     /// 绘图：不走 CalcManager，用 GraphExpression(Mock)/Giac 求值与自研渲染。
     case graphing
 
+    /// 模式元数据统一查 ModeDescriptor 表（S6 规格表下沉，唯一事实源）。
+    var descriptor: ModeDescriptor { ModeDescriptor.descriptor(for: self) }
+
     /// 是否为引擎驱动的计算模式（日期计算/单位换算/绘图不使用 CalcManager）。
-    var usesEngine: Bool { self == .standard || self == .scientific || self == .programmer }
+    var usesEngine: Bool { descriptor.usesEngine }
 
     /// VoiceOver 播报用的模式名称。
-    var announcementLabel: String {
-        switch self {
-        case .standard: return L10n.string("StandardModeText")
-        case .scientific: return L10n.string("ScientificModeText")
-        case .programmer: return L10n.string("ProgrammerModeText")
-        case .date: return L10n.string("DateCalculationModeText")
-        case .converter: return L10n.string("ConverterModeText")
-        case .graphing: return L10n.string("GraphingCalculatorModeText")
-        }
-    }
+    var announcementLabel: String { L10n.string(descriptor.l10nKey) }
 
-    var precision: Int {
-        switch self {
-        case .standard: return 16
-        case .scientific: return 32
-        case .programmer: return 64
-        case .date: return 16
-        case .converter: return 16
-        case .graphing: return 32
-        }
-    }
+    var precision: Int { descriptor.precision }
 
-    var modeCommand: EngineCommand {
-        switch self {
-        case .standard: return .modeBasic
-        case .scientific: return .modeScientific
-        case .programmer: return .modeProgrammer
-        case .date: return .modeBasic
-        case .converter: return .modeBasic
-        case .graphing: return .modeBasic
-        }
-    }
+    var modeCommand: EngineCommand { descriptor.modeCommand }
 
     /// 跨启动持久化的稳定标识（对应原版 ApplicationDataContainer 记忆当前模式）。
-    var persistenceKey: String {
-        switch self {
-        case .standard: return "standard"
-        case .scientific: return "scientific"
-        case .programmer: return "programmer"
-        case .date: return "date"
-        case .converter: return "converter"
-        case .graphing: return "graphing"
-        }
-    }
+    var persistenceKey: String { descriptor.persistenceKey }
 
     init?(persistenceKey: String) {
-        switch persistenceKey {
-        case "standard": self = .standard
-        case "scientific": self = .scientific
-        case "programmer": self = .programmer
-        case "date": self = .date
-        case "converter": self = .converter
-        case "graphing": self = .graphing
-        default: return nil
-        }
+        guard let descriptor = ModeDescriptor.descriptor(persistenceKey: persistenceKey) else { return nil }
+        self = descriptor.mode
     }
 }
 

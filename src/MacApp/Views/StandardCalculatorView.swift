@@ -105,23 +105,25 @@ struct StandardCalculatorView: View {
 
 /// 响应式字号分档，对照原版 CalculatorStandardOperators.xaml 的 Large/Medium/Small/Tiny +
 /// HideStandardFunctions（窄高度隐藏函数行/百分号）。阈值按 macOS 版较小窗体等比收敛。
+/// 分档数据是唯一事实源（对应 spec/layout-tiers.json，S6 规格表下沉）。
 struct LayoutTier {
+    let name: String
+    let minHeight: CGFloat
     let digitFont: CGFloat
     let opFont: CGFloat
     let funcFont: CGFloat
     let clearFont: CGFloat
     let hideStandardFunctions: Bool
 
+    /// 按 minHeight 降序；最后一档 minHeight 0 兜底（Tiny + HideStandardFunctions）。
+    static let all: [LayoutTier] = [
+        LayoutTier(name: "large", minHeight: 360, digitFont: 26, opFont: 24, funcFont: 18, clearFont: 16, hideStandardFunctions: false),
+        LayoutTier(name: "medium", minHeight: 260, digitFont: 18, opFont: 16, funcFont: 14, clearFont: 14, hideStandardFunctions: false),
+        LayoutTier(name: "compact", minHeight: 0, digitFont: 16, opFont: 15, funcFont: 13, clearFont: 13, hideStandardFunctions: true),
+    ]
+
     static func forKeypadHeight(_ height: CGFloat) -> LayoutTier {
-        switch height {
-        case 360...:
-            return LayoutTier(digitFont: 26, opFont: 24, funcFont: 18, clearFont: 16, hideStandardFunctions: false)
-        case 260..<360:
-            return LayoutTier(digitFont: 18, opFont: 16, funcFont: 14, clearFont: 14, hideStandardFunctions: false)
-        default:
-            // 极窄：隐藏函数行/百分号并进一步缩字（对应 Tiny + HideStandardFunctions）。
-            return LayoutTier(digitFont: 16, opFont: 15, funcFont: 13, clearFont: 13, hideStandardFunctions: true)
-        }
+        all.first { height >= $0.minHeight } ?? all.last!
     }
 }
 

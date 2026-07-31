@@ -17,12 +17,10 @@ struct ModeMenuButton: View {
     var body: some View {
         Menu {
             Picker(L10n.string("Mac_Menu_Mode"), selection: modeBinding) {
-                Label(L10n.string("StandardModeText"), systemImage: "plus.slash.minus").tag(CalculatorMode.standard)
-                Label(L10n.string("ScientificModeText"), systemImage: "function").tag(CalculatorMode.scientific)
-                Label(L10n.string("ProgrammerModeText"), systemImage: "cpu").tag(CalculatorMode.programmer)
-                Label(L10n.string("DateCalculationModeText"), systemImage: "calendar").tag(CalculatorMode.date)
-                Label(L10n.string("ConverterModeText"), systemImage: "arrow.left.arrow.right").tag(CalculatorMode.converter)
-                Label(L10n.string("GraphingCalculatorModeText"), systemImage: "chart.xyaxis.line").tag(CalculatorMode.graphing)
+                ForEach(ModeDescriptor.all, id: \.persistenceKey) { descriptor in
+                    Label(L10n.string(descriptor.l10nKey), systemImage: descriptor.sfSymbol)
+                        .tag(descriptor.mode)
+                }
             }
             .pickerStyle(.inline)
         } label: {

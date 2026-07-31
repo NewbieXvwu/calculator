@@ -1,0 +1,32 @@
+{
+  "$comment": "S6 规格表下沉：标准模式键盘响应式字号分档（对照原版 CalculatorStandardOperators.xaml 的 Large/Medium/Small/Tiny + HideStandardFunctions 可见性状态，阈值按 macOS 较小窗体等比收敛）。分档按 minHeight 降序匹配，末档 minHeight=0 兜底。macOS 侧镜像为 LayoutTier.all，由 SpecTableTests 防漂移。",
+  "standardKeypadTiers": [
+    {
+      "name": "large",
+      "minHeight": 360,
+      "digitFont": 26,
+      "opFont": 24,
+      "funcFont": 18,
+      "clearFont": 16,
+      "hideStandardFunctions": false
+    },
+    {
+      "name": "medium",
+      "minHeight": 260,
+      "digitFont": 18,
+      "opFont": 16,
+      "funcFont": 14,
+      "clearFont": 14,
+      "hideStandardFunctions": false
+    },
+    {
+      "name": "compact",
+      "minHeight": 0,
+      "digitFont": 16,
+      "opFont": 15,
+      "funcFont": 13,
+      "clearFont": 13,
+      "hideStandardFunctions": true
+    }
+  ]
+}

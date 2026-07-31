@@ -1,0 +1,15 @@
+{
+  "$comment": "S6 规格表下沉：14 色方程色板（源自原版 App.xaml EquationBrush1-14，深浅两套）。索引即 colorIndex % 14。macOS 侧镜像为 GraphingViewModel.lightPalette/darkPalette，由 SpecTableTests 防漂移。",
+  "light": [
+    "#0063B1", "#00B7C3", "#6600CC", "#107C10",
+    "#00CC6A", "#008055", "#58595B", "#E81123",
+    "#E3008C", "#B31564", "#FFB900", "#F7630C",
+    "#8E562E", "#000000"
+  ],
+  "dark": [
+    "#4D92C8", "#4DCDD5", "#A366E0", "#58A358",
+    "#4DDB97", "#4DA688", "#8A8B8C", "#EF5865",
+    "#EB4DAF", "#CA5B93", "#FFCE4D", "#F99255",
+    "#B0896D", "#FFFFFF"
+  ]
+}

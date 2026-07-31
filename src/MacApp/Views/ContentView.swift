@@ -81,39 +81,13 @@ struct ContentView: View {
             sidebarShown ? L10n.string("Mac_Ann_SidebarOpen") : L10n.string("Mac_Ann_SidebarClosed"), highPriority: false)
     }
 
-    private var minBodyWidth: CGFloat {
-        switch model.mode {
-        case .scientific: return 360
-        case .programmer: return 340
-        case .date: return 300
-        case .converter: return 300
-        case .graphing: return 480
-        case .standard: return 280
-        }
-    }
+    // 尺寸元数据统一查 ModeDescriptor 表（S6 规格表下沉）。
+    private var minBodyWidth: CGFloat { model.mode.descriptor.minBodyWidth }
 
-    private var minWindowWidth: CGFloat {
-        switch model.mode {
-        case .scientific: return 400
-        case .programmer: return 380
-        case .date: return 340
-        case .converter: return 340
-        case .graphing: return 560
-        case .standard: return 322
-        }
-    }
+    private var minWindowWidth: CGFloat { model.mode.descriptor.minWindowWidth }
 
-    private var minWindowHeight: CGFloat {
-        switch model.mode {
-        case .scientific: return 560
-        case .programmer: return 600
-        case .date: return 460
-        case .converter: return 520
-        case .graphing: return 520
-        // 允许收缩到触发紧凑档（HideStandardFunctions）；默认 500 仍是常规档。
-        case .standard: return 360
-        }
-    }
+    // 标准模式允许收缩到触发紧凑档（HideStandardFunctions）；默认 500 仍是常规档。
+    private var minWindowHeight: CGFloat { model.mode.descriptor.minWindowHeight }
 }
 
 #Preview {

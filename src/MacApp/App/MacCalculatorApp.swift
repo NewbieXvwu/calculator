@@ -26,20 +26,12 @@ struct MacCalculatorApp: App {
                     Self.showAboutPanel()
                 }
             }
-            // 模式切换并入 macOS 惯例的"显示"菜单（对齐 Apple 计算器 ⌘1..⌘6）。
+            // 模式切换并入 macOS 惯例的"显示"菜单（对齐 Apple 计算器 ⌘1..⌘6，序号出自 ModeDescriptor 表）。
             CommandMenu(L10n.string("Mac_Menu_View")) {
-                Button(L10n.string("StandardModeText")) { model.setCalculatorType(.standard) }
-                    .keyboardShortcut("1", modifiers: .command)
-                Button(L10n.string("ScientificModeText")) { model.setCalculatorType(.scientific) }
-                    .keyboardShortcut("2", modifiers: .command)
-                Button(L10n.string("ProgrammerModeText")) { model.setCalculatorType(.programmer) }
-                    .keyboardShortcut("3", modifiers: .command)
-                Button(L10n.string("DateCalculationModeText")) { model.setCalculatorType(.date) }
-                    .keyboardShortcut("4", modifiers: .command)
-                Button(L10n.string("ConverterModeText")) { model.setCalculatorType(.converter) }
-                    .keyboardShortcut("5", modifiers: .command)
-                Button(L10n.string("GraphingCalculatorModeText")) { model.setCalculatorType(.graphing) }
-                    .keyboardShortcut("6", modifiers: .command)
+                ForEach(ModeDescriptor.all, id: \.persistenceKey) { descriptor in
+                    Button(L10n.string(descriptor.l10nKey)) { model.setCalculatorType(descriptor.mode) }
+                        .keyboardShortcut(KeyEquivalent(Character("\(descriptor.menuShortcutDigit)")), modifiers: .command)
+                }
             }
             CommandGroup(replacing: .pasteboard) {
                 Button(L10n.string("Mac_Menu_Copy")) { model.copyDisplay() }

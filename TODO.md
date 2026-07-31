@@ -509,6 +509,15 @@ S10），列表本为示意粒度；macOS Swift 切换到 C ABI 属 P-macOS 回�
 | 模式元数据 | 三个平行 `switch`（`minBodyWidth` / `minWindowWidth` / `minWindowHeight`）+ `persistenceKey` + `usesEngine` + ⌘1-6 散在两个文件 | **一张模式描述表** |
 | 图标语义名 | SF Symbols 名硬编码 | `spec/icons.json`（见 D8） |
 
+**进展（2026-07-31）**：
+- [x] 模式元数据 → `spec/modes.json` + `ModeDescriptor.swift` 一张表：消灭了 4 处平行 switch（usesEngine/precision/persistenceKey/announcementLabel、ContentView 三个尺寸 switch、模式菜单图标、⌘1-6 菜单），SpecTableTests 防漂移
+- [x] `LayoutTier` 分档阈值 → `spec/layout-tiers.json` + `LayoutTier.all` 静态表（降序匹配 + 0 兜底），含边界行为测试
+- [x] 14 色方程色板 → `spec/graph-colors.json`（深浅两套 hex），与 `GraphingViewModel.lightPalette/darkPalette` 逐色比对
+- [ ] 键盘布局五元组表 `spec/keyboard-layout.json`
+- [ ] 快捷键数据表 `spec/keyboard-shortcuts.json`（冲突矩阵归 S12）
+- [ ] 单位换算数据表 `spec/units.json`
+- [ ] 图标语义名 `spec/icons.json`
+
 下沉后各平台键盘退化成 ~80 行渲染循环：
 
 ```

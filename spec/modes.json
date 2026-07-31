@@ -1,0 +1,77 @@
+{
+  "$comment": "S6 规格表下沉：模式元数据唯一事实源。各平台由此表驱动模式菜单顺序、⌘1-6 快捷键、窗口最小尺寸、引擎精度与持久化键。macOS 侧镜像为 ModeDescriptor.swift，由 SpecTableTests 防漂移。icon 为 spec/icons.json 中的语义名。尺寸单位为平台无关的逻辑点（macOS=pt）。",
+  "modes": [
+    {
+      "id": "standard",
+      "l10nKey": "StandardModeText",
+      "usesEngine": true,
+      "precision": 16,
+      "engineModeCommand": "modeBasic",
+      "menuShortcutDigit": 1,
+      "icon": "mode.standard",
+      "minBodyWidth": 280,
+      "minWindowWidth": 322,
+      "minWindowHeight": 360
+    },
+    {
+      "id": "scientific",
+      "l10nKey": "ScientificModeText",
+      "usesEngine": true,
+      "precision": 32,
+      "engineModeCommand": "modeScientific",
+      "menuShortcutDigit": 2,
+      "icon": "mode.scientific",
+      "minBodyWidth": 360,
+      "minWindowWidth": 400,
+      "minWindowHeight": 560
+    },
+    {
+      "id": "programmer",
+      "l10nKey": "ProgrammerModeText",
+      "usesEngine": true,
+      "precision": 64,
+      "engineModeCommand": "modeProgrammer",
+      "menuShortcutDigit": 3,
+      "icon": "mode.programmer",
+      "minBodyWidth": 340,
+      "minWindowWidth": 380,
+      "minWindowHeight": 600
+    },
+    {
+      "id": "date",
+      "l10nKey": "DateCalculationModeText",
+      "usesEngine": false,
+      "precision": 16,
+      "engineModeCommand": "modeBasic",
+      "menuShortcutDigit": 4,
+      "icon": "mode.date",
+      "minBodyWidth": 300,
+      "minWindowWidth": 340,
+      "minWindowHeight": 460
+    },
+    {
+      "id": "converter",
+      "l10nKey": "ConverterModeText",
+      "usesEngine": false,
+      "precision": 16,
+      "engineModeCommand": "modeBasic",
+      "menuShortcutDigit": 5,
+      "icon": "mode.converter",
+      "minBodyWidth": 300,
+      "minWindowWidth": 340,
+      "minWindowHeight": 520
+    },
+    {
+      "id": "graphing",
+      "l10nKey": "GraphingCalculatorModeText",
+      "usesEngine": false,
+      "precision": 32,
+      "engineModeCommand": "modeBasic",
+      "menuShortcutDigit": 6,
+      "icon": "mode.graphing",
+      "minBodyWidth": 480,
+      "minWindowWidth": 560,
+      "minWindowHeight": 520
+    }
+  ]
+}
