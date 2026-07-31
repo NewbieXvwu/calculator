@@ -744,13 +744,24 @@ constexpr size_t kMaxRationalDigits = 10000;   // 超限切浮点并置标志位
 
 ---
 
-### S11 · `@Observable` 迁移 🟡 P2
+### S11 · `@Observable` 迁移 ⏸️ 有据暂缓（2026-07-31）
 
 51 处 `@Published` + `ObservableObject` 来自 **Combine**，而 Combine 是闭源 Apple 框架，Linux / Windows / Android 的 Swift 上不存在。Swift 的 Observation 模块是开源的、随 corelibs 分发。
 
 **收益**：2,178 行 ViewModel 从"Apple 专属"变成"任何跑 Swift 的地方都能用"。
 
 **成本**：2–3 人日（机械替换 + 回归测试）
+
+**暂缓依据（2026-07-31）**：`@Observable` 宏与 SwiftUI 自动观察追踪在 Apple SDK
+中标注 **macOS 14.0+**，而本包部署目标是 **macOS 13**（Package.swift 明示承诺，
+PlatformCompat.swift 整层围绕它设计）。带着 13 迁移只有两条路：
+① 升部署目标到 14 —— 砍掉 macOS 13 用户，是产品决策，不在本清单授权范围；
+② 双实现（`@available(macOS 14, *)` 的 Observable 版 + Combine 回退版）——
+ViewModel 全量翻倍，与"机械替换 2–3 人日"的前提矛盾，且回退版仍依赖 Combine，
+跨平台收益为零。另外收益前提"共享 Swift ViewModel"目前不存在：各平台按 §6
+走 Kotlin/ArkTS/TS 消费 C ABI。→ 待部署目标升至 14+（或出现真实的跨平台 Swift
+共享层）时执行原方案；届时仍是机械替换，成本估计不变。P-macOS 回填清单同步
+标注（§7）。
 
 ---
 
@@ -839,10 +850,10 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 - [ ] 改用共享层规格表（键盘 / 单位 / 快捷键 / 色板 / 模式元数据）
 - [ ] 改用 C ABI 门面
 - [ ] 图形几何改调共享层
-- [ ] `@Observable` 迁移
+- [ ] `@Observable` 迁移（⏸️ 前置：部署目标升至 macOS 14+，见 S11 暂缓依据）
 - [ ] 补 2 种线型
 - [x] 补单调性 `Constant`（2026-07-31，S3 重写附带：常函数短路径给出 `(-∞, +∞) 恒定`）
-- [ ] 分组模式改用结构（S8）
+- [x] 分组模式改用结构（S8，2026-07-31：mm 桥经 MacCalc::Grouping + NumberFormatter 双组尺寸注入）
 - [x] 14 函数回归测试全绿（2026-07-31，随 S3+S9 完成，见 `tests/kgf-regression/`）
 
 **验收硬指标**：回填后 macOS **零功能回归**——这是共享层设计正确性的试金石。
@@ -1265,7 +1276,7 @@ grep -rn "long double\|LDBL_\|%Lf\|strtold\|powl\|sqrtl\|sinl" src/CalcManager/
   S6  规格表下沉                           ← ✅ 完成（2026-07-31）
   S7  图形几何下沉                         ← ✅ 完成（2026-07-31）
   S8  Locale 注入加固 + 分组模式修复       ← ✅ 完成（2026-07-31）
-  S11 @Observable 迁移                     ← 2–3 人日
+  S11 @Observable 迁移                     ← ⏸️ 有据暂缓（部署目标 13 vs 宏要求 14，见 S11）
   S4  区间算术                             ← 1–2 人周（可延后到首个绘图平台前）
        ↓
   验收硬指标：macOS 零功能回归 + 14 函数回归全绿
