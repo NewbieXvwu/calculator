@@ -920,11 +920,11 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 
 | Gap | 说明 | 来源 |
 |---|---|---|
-| **线型只有 3 种** | 原版 `LineStyle` 枚举有 5 种：`Solid, Dot, Dash, DashDot, DashDotDot`；fork 只做了实线 / 虚线 / 点线 | `GraphingEnums.h` |
+| ~~线型只有 3 种~~（误诊，已订正） | 底层 `Renderer::LineStyle` 枚举有 5 种，但**原版用户可见 UI 恰只有 3 种**——`EquationStylePanelControl` 的 `allStyles` 只列 `Solid/Dash/Dot`；`GetLinePattern`/`GetLineAutomationName` 对 `DashDot`/`DashDotDot` 无 case（落到 default = 实线）；resw 只有 `solid/dash/dotLineStyleAutomationName` 3 个名、无任何 `DashDot` 字符串。fork 的实线/虚线/点线**与原版 UI 完全一致** | `EquationStylePanelControl.xaml.cs:22-29,90-126` + resw |
 | **单调性缺 `Constant`** | 原版 `FunctionMonotonicityType` 有 `Constant`，resw 有 `KGFMonotonicityConstant`；实测 `5` 显示「恒定」 | 枚举 + 截图 |
 | 渐近线方向语义 | 枚举有 `AsymptoteType{PositiveInfinity, NegativeInfinity, AnyInfinity}`，但**实测 UI 不展示方向**（`e^x` 只写 `y = 0`） | 截图 |
 
-→ 前两项**必须补**；第三项**不做**（原版 UI 不展示，照抄即可）。
+→ 单调性 `Constant`**必须补**（已补，见下）；线型「gap」经核实为误诊——比对对象错为底层渲染器枚举，**原版 UI 只有 3 种线型，fork 已保真**，补 DashDot/DashDotDot 反而制造背离（违反移植保真目标，M4）；渐近线方向**不做**（原版 UI 不展示，照抄即可）。
 
 #### 回填任务
 
@@ -932,7 +932,7 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 - [ ] 改用 C ABI 门面
 - [ ] 图形几何改调共享层
 - [ ] `@Observable` 迁移（⏸️ 前置：部署目标升至 macOS 14+，见 S11 暂缓依据）
-- [ ] 补 2 种线型
+- [x] ~~补 2 种线型~~ → 经核实无需补（2026-07-31）：原版 `EquationStylePanelControl` 用户可见 picker 只列 `Solid/Dash/Dot`，`DashDot`/`DashDotDot` 是底层渲染器枚举、UI 从不暴露（无 pattern、无 automation name、resw 无对应字符串）。fork 3 种线型即 UI 保真；补 2 种反成背离
 - [x] 补单调性 `Constant`（2026-07-31，S3 重写附带：常函数短路径给出 `(-∞, +∞) 恒定`）
 - [x] 分组模式改用结构（S8，2026-07-31：mm 桥经 MacCalc::Grouping + NumberFormatter 双组尺寸注入）
 - [x] 14 函数回归测试全绿（2026-07-31，随 S3+S9 完成，见 `tests/kgf-regression/`）
