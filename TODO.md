@@ -1337,6 +1337,13 @@ Web 是唯一必须自己做设计决策的平台（Windows 有 XAML、Apple 有
 
 **成本**：2–4 人日
 
+**完成记录（2026-08-01）**：CLI 部分完成——`src/CalcManager/smoketest/calc_cli.cpp`
+（纯 C++17，消费 calc_c_api C ABI：会话/命令/数字/显示回调/历史/内存，异常不穿
+边界）+ `Tools/build_calc_cli.sh`（纯 clang++/g++，不经 SPM，任何 C++20 平台可
+复现）。实测：1+2*3=9、10/4=2.5、2^10=1,024（千位分组）、3^4=81、5%%2=2、
+1/0='Cannot divide by zero'、REPL 交互、-h 历史。每行 calc_reset 清错误态。
+**TUI（ncurses 全键盘界面）为可选延伸**——CLI 已覆盖「共享层最小验证载体」目标。
+
 ---
 
 ## 第五部分 · MathLive / WebView 决策
