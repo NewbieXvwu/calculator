@@ -42,7 +42,7 @@ let package = Package(
             publicHeadersPath: "include",
             cxxSettings: [
                 .headerSearchPath("../CalcManager"),
-                // graph_geometry 与 Swift 首发实现位级平价（GraphGeometryTests）：
+                // graph_geometry C 层位级一致性（GraphGeometryCApiTests 直接断言）：
                 // 禁止把 a*b+c 收缩为 fma，各平台移植构建须同样关闭。
                 .unsafeFlags(["-ffp-contract=off"]),
                 .unsafeFlags(["-O3"], .when(configuration: .release)),

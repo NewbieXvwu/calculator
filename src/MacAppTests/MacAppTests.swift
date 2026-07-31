@@ -2,12 +2,14 @@
 // Licensed under the MIT License.
 
 // 行为级测试：对齐原 CalculatorUITests 的验证点（按键序列 → 显示结果），
-// 外加 macOS 移植新增纯逻辑模块（表达式解析、图形分析、隐式追踪、单位换算）。
-// 原版为 XAML UI 驱动，这里直接驱动 ViewModel/纯函数层（SPM 无 XCUITest 宿主）。
+// 外加 macOS 移植新增纯逻辑模块（表达式解析、图形分析、单位换算）。
+// 图形几何的 C 层回归网在 GraphGeometryCApiTests（S7 下沉 + 平价测试退役后
+// 的独立期望断言）；原版为 XAML UI 驱动，这里直接驱动 ViewModel/纯函数层。
 
 import XCTest
 @testable import MacCalculator
 import GiacBridge
+import CalcManagerBridge
 
 // MARK: - 标准/科学/程序员计算（对应 CalculatorUITests 基础用例）
 
@@ -351,43 +353,6 @@ final class GraphExpressionTests: XCTestCase {
     }
 }
 
-// MARK: - 隐式方程 marching squares
-
-final class MarchingSquaresTests: XCTestCase {
-    func testCircle() throws {
-        let f = try XCTUnwrap(GraphExpression(rawTwoVariable: "(x^2+y^2)-(25)"))
-        let segs = MarchingSquares.trace(
-            f: { f.evaluate(x: $0, y: $1) },
-            xMin: -10, xMax: 10, yMin: -10, yMax: 10, cols: 200, rows: 200)
-        XCTAssertGreaterThan(segs.count, 100)
-        for s in segs {
-            XCTAssertEqual((s.x1 * s.x1 + s.y1 * s.y1).squareRoot(), 5, accuracy: 0.05)
-            XCTAssertEqual((s.x2 * s.x2 + s.y2 * s.y2).squareRoot(), 5, accuracy: 0.05)
-        }
-    }
-
-    func testVerticalLineOnGridNodes() throws {
-        let f = try XCTUnwrap(GraphExpression(rawTwoVariable: "(x)-(5)"))
-        let segs = MarchingSquares.trace(
-            f: { f.evaluate(x: $0, y: $1) },
-            xMin: -10, xMax: 10, yMin: -10, yMax: 10, cols: 100, rows: 100)
-        XCTAssertGreaterThanOrEqual(segs.count, 100)
-        XCTAssertTrue(segs.allSatisfy { abs($0.x1 - 5) < 0.01 && abs($0.x2 - 5) < 0.01 })
-    }
-
-    func testHyperbola() throws {
-        let f = try XCTUnwrap(GraphExpression(rawTwoVariable: "(x*y)-(4)"))
-        let segs = MarchingSquares.trace(
-            f: { f.evaluate(x: $0, y: $1) },
-            xMin: -10, xMax: 10, yMin: -10, yMax: 10, cols: 200, rows: 200)
-        XCTAssertGreaterThan(segs.count, 50)
-        for s in segs {
-            XCTAssertEqual(s.x1 * s.y1, 4, accuracy: 0.2)
-            XCTAssertEqual(s.x2 * s.y2, 4, accuracy: 0.2)
-        }
-    }
-}
-
 // MARK: - Giac CAS 符号运算桥接
 
 final class GiacEngineTests: XCTestCase {
@@ -494,9 +459,10 @@ final class GraphingViewModelTests: XCTestCase {
         }
         XCTAssertEqual(rel, .lessThan)
         XCTAssertTrue(rel.isStrict)
-        // F = y - x^2：(0, -1) 在区域内，(0, 1) 不在。
-        XCTAssertTrue(rel.satisfied(try XCTUnwrap(f.evaluate(x: 0, y: -1))))
-        XCTAssertFalse(rel.satisfied(try XCTUnwrap(f.evaluate(x: 0, y: 1))))
+        // F = y - x^2：(0, -1) 在区域内，(0, 1) 不在（关系判定下沉为 C，
+        // graph_relation_satisfied 为单一真相源，见 GraphGeometryCApiTests）。
+        XCTAssertTrue(graph_relation_satisfied(GRAPH_REL_LESS, try XCTUnwrap(f.evaluate(x: 0, y: -1))))
+        XCTAssertFalse(graph_relation_satisfied(GRAPH_REL_LESS, try XCTUnwrap(f.evaluate(x: 0, y: 1))))
 
         vm.addEquation(text: "x^2+y^2<=25")
         guard case .inequality(let g, let rel2)? = vm.equations.last?.compiled else {
@@ -504,9 +470,9 @@ final class GraphingViewModelTests: XCTestCase {
         }
         XCTAssertEqual(rel2, .lessOrEqual)
         XCTAssertFalse(rel2.isStrict)
-        XCTAssertTrue(rel2.satisfied(try XCTUnwrap(g.evaluate(x: 0, y: 0))))
-        XCTAssertTrue(rel2.satisfied(try XCTUnwrap(g.evaluate(x: 5, y: 0)))) // 边界含于 ≤
-        XCTAssertFalse(rel2.satisfied(try XCTUnwrap(g.evaluate(x: 6, y: 0))))
+        XCTAssertTrue(graph_relation_satisfied(GRAPH_REL_LESS_EQUAL, try XCTUnwrap(g.evaluate(x: 0, y: 0))))
+        XCTAssertTrue(graph_relation_satisfied(GRAPH_REL_LESS_EQUAL, try XCTUnwrap(g.evaluate(x: 5, y: 0)))) // 边界含于 ≤
+        XCTAssertFalse(graph_relation_satisfied(GRAPH_REL_LESS_EQUAL, try XCTUnwrap(g.evaluate(x: 6, y: 0))))
 
         // Unicode ≥ 归一化。
         vm.addEquation(text: "y≥x")

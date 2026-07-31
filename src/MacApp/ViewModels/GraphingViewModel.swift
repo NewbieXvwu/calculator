@@ -25,22 +25,14 @@ enum EquationLineStyle: String, CaseIterable {
 }
 
 /// 不等式关系（对应原版图形引擎的 <、≤、>、≥ 区域绘制）。
+/// 关系是否成立的判定已下沉为共享层 `graph_relation_satisfied`（S7，单一真相源），
+/// 本枚举仅保留 UI 语义（严格 ⇄ 边界虚线）。
 enum InequalityRelation: String {
     case lessThan, lessOrEqual, greaterThan, greaterOrEqual
 
     /// 严格不等式边界画虚线，非严格画实线（原版行为）。
     var isStrict: Bool {
         self == .lessThan || self == .greaterThan
-    }
-
-    /// F(x,y) 与 0 的关系是否成立（F = LHS - RHS）。
-    func satisfied(_ f: Double) -> Bool {
-        switch self {
-        case .lessThan: return f < 0
-        case .lessOrEqual: return f <= 0
-        case .greaterThan: return f > 0
-        case .greaterOrEqual: return f >= 0
-        }
     }
 }
 
@@ -264,22 +256,27 @@ var isManualAdjustment = false
     }
 
     /// 就近吸附：在所有可见显式曲线上取 x 处的点，按 y 距离（视窗归一）选最近。
+    /// 距离判定下沉为共享层 `graph_trace_snap`（S7 单一真相源）；此处只负责
+    /// 候选 y 值采集（表达式求值属 ViewModel 职责）与方程下标映射。
     func nearestCurvePoint(mathX: Double, mathY: Double) -> TraceResult? {
-        var best: TraceResult?
-        var bestDist = Double.infinity
+        var ys: [Double] = []
+        var indexMap: [Int] = []
         for (index, eq) in equations.enumerated() where eq.isVisible {
             guard let expr = eq.explicitExpression,
                   let y = expr.evaluate(x: mathX, params: parameters, trig: trigMode) else { continue }
-            let dist = abs(y - mathY) / ySpan
-            if dist < bestDist {
-                bestDist = dist
-                best = TraceResult(equationIndex: index, x: mathX, y: y)
-            }
+            ys.append(y)
+            indexMap.append(index)
         }
-        return best
+        let picked = ys.withUnsafeBufferPointer {
+            graph_trace_snap($0.baseAddress, $0.count, mathY, ySpan)
+        }
+        guard picked >= 0 else { return nil }
+        return TraceResult(equationIndex: indexMap[Int(picked)], x: mathX, y: ys[Int(picked)])
     }
 
     /// 自动最佳视图（graphViewButton）：保持 x 范围，按可见显式曲线值域适配 y。
+    /// 5%–95% 分位 + 退化兜底 + 10% 边距的算法下沉为共享层 `graph_auto_fit_y`；
+    /// 此处只负责采样（表达式求值属 ViewModel 职责）。
     func autoFitView() {
         var ys: [Double] = []
         let samples = 512
@@ -297,18 +294,17 @@ var isManualAdjustment = false
             isManualAdjustment = false
             return
         }
-        // 用 5%–95% 分位裁掉渐近线附近的爆炸值。
-        let sorted = ys.sorted()
-        let lo = sorted[Int(Double(sorted.count - 1) * 0.05)]
-        let hi = sorted[Int(Double(sorted.count - 1) * 0.95)]
-        var newMin = lo, newMax = hi
-        if newMax - newMin < 1e-9 {
-            newMin -= 1
-            newMax += 1
+        var newMin = 0.0, newMax = 0.0
+        let fitted = ys.withUnsafeBufferPointer {
+            graph_auto_fit_y($0.baseAddress, $0.count, &newMin, &newMax)
         }
-        let margin = (newMax - newMin) * 0.1
-        yMin = newMin - margin
-        yMax = newMax + margin
+        guard fitted else {
+            resetView()
+            isManualAdjustment = false
+            return
+        }
+        yMin = newMin
+        yMax = newMax
         isManualAdjustment = false
         // 对应原版 GraphViewBestFitChanged 播报。
         AccessibilityAnnouncer.announce(L10n.string("Mac_Ann_BestFit"), highPriority: false)

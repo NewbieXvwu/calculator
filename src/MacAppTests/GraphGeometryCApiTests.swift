@@ -1,9 +1,11 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-// S7 图形几何下沉的平价测试：graph_geometry.h（C ABI 共享层）与 macOS 首发
-// 实现（GraphingView / GraphingViewModel / MarchingSquares）语义逐项锁定。
-// 任何一侧改动而另一侧未同步即红。
+// S7 图形几何下沉后的 C 层直接行为测试（平价测试退役，D6 纪律）：
+// macOS 首发实现（GraphingView / GraphingViewModel 内 Swift 公式、
+// MarchingSquares.swift 对拍 oracle）已全部退役或改为委托共享层，
+// 本文件不再与任何 Swift 实现逐项对拍——全部为 graph_geometry.h
+// （C ABI）的独立期望断言，构成 C 层行为回归网。
 
 import CalcManagerBridge
 import XCTest
@@ -55,7 +57,7 @@ private let intervalThunk: @convention(c) (
 }
 
 @MainActor
-final class GraphGeometryTests: XCTestCase {
+final class GraphGeometryCApiTests: XCTestCase {
     private func makeViewport(
         xMin: Double = -10, xMax: Double = 10, yMin: Double = -10, yMax: Double = 10,
         width: Double = 400, height: Double = 300
@@ -65,9 +67,9 @@ final class GraphGeometryTests: XCTestCase {
 
     // MARK: - 坐标变换
 
-    func testTransformsMatchViewFormulasAndRoundTrip() {
+    func testCoordinateTransformsAndRoundTrip() {
         var vp = makeViewport(xMin: -3, xMax: 7, yMin: -2, yMax: 4, width: 500, height: 320)
-        // GraphCanvas.toScreenX/Y 的公式镜像。
+        // 屏幕坐标定义：x 线性映射，y 向上翻转（数学 y 最大 → 屏幕 0）。
         XCTAssertEqual(graph_to_screen_x(&vp, -3), 0, accuracy: 1e-12)
         XCTAssertEqual(graph_to_screen_x(&vp, 7), 500, accuracy: 1e-12)
         XCTAssertEqual(graph_to_screen_x(&vp, 2), 250, accuracy: 1e-12)
@@ -75,6 +77,7 @@ final class GraphGeometryTests: XCTestCase {
         XCTAssertEqual(graph_to_screen_y(&vp, 4), 0, accuracy: 1e-12)
         XCTAssertEqual(graph_to_screen_y(&vp, 1), 160, accuracy: 1e-12)
 
+        // 双向互逆（往返保持精度）。
         for v in stride(from: 0.0, through: 500, by: 47) {
             XCTAssertEqual(graph_to_screen_x(&vp, graph_to_math_x(&vp, v)), v, accuracy: 1e-9)
         }
@@ -86,7 +89,7 @@ final class GraphGeometryTests: XCTestCase {
     // MARK: - 刻度（1-2-5）
 
     func testNiceStepCoversAll125Branches() {
-        // GraphCanvas.niceStep：rough=span/target → {1,2,5,10}×10^n。
+        // 1-2-5 序列：rough=span/target 归一到 {1,2,5,10}×10^n。
         XCTAssertEqual(graph_nice_step(20, 10), 2, accuracy: 1e-12)     // norm=2
         XCTAssertEqual(graph_nice_step(10, 10), 1, accuracy: 1e-12)     // norm=1
         XCTAssertEqual(graph_nice_step(1, 10), 0.1, accuracy: 1e-12)    // 缩小量级
@@ -99,7 +102,7 @@ final class GraphGeometryTests: XCTestCase {
     }
 
     func testTicksMatchGridEnumeration() {
-        // drawGrid：x = (min/step).rounded(.up)*step; while x <= max。
+        // 刻度枚举：x = (min/step).rounded(.up)*step; while x <= max。
         let step = graph_nice_step(20, 10)
         var expected: [Double] = []
         var x = (-10.0 / step).rounded(.up) * step
@@ -115,9 +118,11 @@ final class GraphGeometryTests: XCTestCase {
         XCTAssertEqual(graph_ticks(-10, 10, 0, nil, 0), 0)
     }
 
-    // MARK: - 视窗操作 ⇄ GraphingViewModel
+    // MARK: - 视窗操作（GraphingViewModel 委托锁）
 
     func testViewportOpsMatchViewModel() {
+        // VM 的 pan/zoom/applyRange 已委托共享层；本测试锁定委托语义：
+        // VM 写回结果必须与直接调用 C ABI 一致（防回退到本地公式实现）。
         let vm = GraphingViewModel()
         var vp = makeViewport()
 
@@ -137,7 +142,7 @@ final class GraphGeometryTests: XCTestCase {
         XCTAssertTrue(graph_apply_range(&vp, -5, 5, -4, 4))
         assertViewportMatches(vp, vm)
 
-        // 拒绝条件同 GraphingViewModel.applyRange。
+        // 拒绝条件：min ≥ max 或非有限值。
         XCTAssertFalse(vm.applyRange(xMin: 5, xMax: 5, yMin: -4, yMax: 4))
         XCTAssertFalse(graph_apply_range(&vp, 5, 5, -4, 4))
         XCTAssertFalse(graph_apply_range(&vp, -5, .infinity, -4, 4))
@@ -151,9 +156,17 @@ final class GraphGeometryTests: XCTestCase {
         XCTAssertEqual(vp.y_max, vm.yMax, accuracy: 1e-12)
     }
 
-    func testAutoFitMatchesViewModel() throws {
+    func testAutoFitPercentileDegenerateAndDelegation() {
+        // C 直接：退化值域（全常数）→ ±1 再加 10% 边距。
+        var lo = 0.0, hi = 0.0
+        XCTAssertTrue(graph_auto_fit_y([3.0, 3.0, 3.0], 3, &lo, &hi))
+        XCTAssertEqual(lo, 1.8, accuracy: 1e-12)
+        XCTAssertEqual(hi, 4.2, accuracy: 1e-12)
+        // 空输入 → false。
+        XCTAssertFalse(graph_auto_fit_y(nil, 0, &lo, &hi))
+
+        // VM 委托锁：autoFitView 采样后走同一 C 路径，结果写回视窗。
         let vm = GraphingViewModel()  // 自带 x^2 与 sin(x)
-        // 与 autoFitView 相同的采样（512 段，两条可见曲线依次追加）。
         var ys: [Double] = []
         let samples = 512
         for eq in vm.equations where eq.isVisible {
@@ -166,18 +179,11 @@ final class GraphGeometryTests: XCTestCase {
             }
         }
         XCTAssertFalse(ys.isEmpty)
-
-        var lo = 0.0, hi = 0.0
-        XCTAssertTrue(graph_auto_fit_y(ys, ys.count, &lo, &hi))
+        var cLo = 0.0, cHi = 0.0
+        XCTAssertTrue(graph_auto_fit_y(ys, ys.count, &cLo, &cHi))
         vm.autoFitView()
-        XCTAssertEqual(lo, vm.yMin, accuracy: 1e-9)
-        XCTAssertEqual(hi, vm.yMax, accuracy: 1e-9)
-
-        // 退化值域：全常数 → ±1 再加 10% 边距。
-        XCTAssertTrue(graph_auto_fit_y([3.0, 3.0, 3.0], 3, &lo, &hi))
-        XCTAssertEqual(lo, 2 - 0.2, accuracy: 1e-12)
-        XCTAssertEqual(hi, 4 + 0.2, accuracy: 1e-12)
-        XCTAssertFalse(graph_auto_fit_y(nil, 0, &lo, &hi))
+        XCTAssertEqual(cLo, vm.yMin, accuracy: 1e-9)
+        XCTAssertEqual(cHi, vm.yMax, accuracy: 1e-9)
     }
 
     // MARK: - 显式曲线逐列采样
@@ -200,8 +206,8 @@ final class GraphGeometryTests: XCTestCase {
     }
 
     func testSampleCurveBreaksAtUndefinedAndAsymptote() {
-        // y = 1/x：x=0 恰在第 200 列（未定义），渐近线两侧还各有一次
-        // 超过 1.5 倍画布高的跳变断裂 → 与 drawCurve 逐列循环全量平价。
+        // 独立期望（价值点：y=1/x 断裂/抬笔）：x=0 恰在第 200 列（未定义 → 抬笔），
+        // 渐近线两侧还有两次超过 1.5 倍画布高的跳变断裂。
         let vpValue = makeViewport(xMin: -5, xMax: 5, yMin: -5, yMax: 5)
         var vp = vpValue
         let f: (Double) -> Double? = { x in x == 0 ? nil : 1 / x }
@@ -210,7 +216,8 @@ final class GraphGeometryTests: XCTestCase {
         var out = [graph_sample_t](repeating: graph_sample_t(), count: 401)
         let count = graph_sample_curve(&vp, evalThunk1, ctx, &out, out.count)
 
-        // drawCurve 的采样循环镜像（GraphingView.swift）。
+        // 采样循环的独立镜像（drawCurve 语义，见 graph_geometry.cpp）：
+        // 未定义列抬笔；相邻列屏幕 y 跳变 > 1.5×画布高 → 断裂抬笔。
         var expected: [(sx: Double, sy: Double, move: Bool)] = []
         var penDown = false
         var lastScreenY = 0.0
@@ -243,69 +250,123 @@ final class GraphGeometryTests: XCTestCase {
         XCTAssertEqual(graph_sample_curve(&tiny, evalThunk1, ctx, nil, 0), 0)
     }
 
-    // MARK: - Marching squares ⇄ MarchingSquares.trace
+    // MARK: - Marching squares（独立期望；Swift 对拍 oracle 已退役）
 
-    func testMarchingSquaresParityWithSwift() {
-        let f: (Double, Double) -> Double? = { x, y in
-            // 圆 + 左半平面未定义洞，覆盖 nil 传播与鞍点消歧路径。
-            x < -9 ? nil : x * x + y * y - 25
-        }
-        let swiftSegments = MarchingSquares.trace(
-            f: f, xMin: -10, xMax: 10, yMin: -8, yMax: 8, cols: 64, rows: 48)
-
+    func testMarchingSquaresCircleRadius() {
+        // 独立期望：半径 5 的圆，全部线段端点落在圆上。
+        let f: (Double, Double) -> Double? = { x, y in (x * x + y * y) - 25 }
         let box = EvalBox(f2: f)
         let ctx = Unmanaged.passUnretained(box).toOpaque()
-        var out = [graph_segment_t](repeating: graph_segment_t(), count: 2 * 64 * 48)
-        let count = graph_marching_squares(-10, 10, -8, 8, 64, 48, evalThunk2, ctx, &out, out.count)
-
-        XCTAssertEqual(Int(count), swiftSegments.count)
-        XCTAssertGreaterThan(count, 0)
-        for (i, seg) in swiftSegments.enumerated() {
-            XCTAssertEqual(out[i].x1, seg.x1, accuracy: 1e-12, "seg[\(i)].x1")
-            XCTAssertEqual(out[i].y1, seg.y1, accuracy: 1e-12, "seg[\(i)].y1")
-            XCTAssertEqual(out[i].x2, seg.x2, accuracy: 1e-12, "seg[\(i)].x2")
-            XCTAssertEqual(out[i].y2, seg.y2, accuracy: 1e-12, "seg[\(i)].y2")
+        var out = [graph_segment_t](repeating: graph_segment_t(), count: 2 * 200 * 200)
+        let count = graph_marching_squares(-10, 10, -10, 10, 200, 200, evalThunk2, ctx, &out, out.count)
+        XCTAssertGreaterThan(count, 100)
+        for i in 0..<Int(count) {
+            XCTAssertEqual((out[i].x1 * out[i].x1 + out[i].y1 * out[i].y1).squareRoot(), 5, accuracy: 0.05, "seg[\(i)].p1")
+            XCTAssertEqual((out[i].x2 * out[i].x2 + out[i].y2 * out[i].y2).squareRoot(), 5, accuracy: 0.05, "seg[\(i)].p2")
         }
+    }
 
+    func testMarchingSquaresVerticalLineOnGridNodes() {
+        // 独立期望：竖直线 x=5 恰落在网格节点上（节点值 0 → +ε 防退化），
+        // 全部线段端点 x≈5。
+        let f: (Double, Double) -> Double? = { x, _ in x - 5 }
+        let box = EvalBox(f2: f)
+        let ctx = Unmanaged.passUnretained(box).toOpaque()
+        var out = [graph_segment_t](repeating: graph_segment_t(), count: 2 * 100 * 100)
+        let count = graph_marching_squares(-10, 10, -10, 10, 100, 100, evalThunk2, ctx, &out, out.count)
+        XCTAssertGreaterThanOrEqual(count, 100)
+        for i in 0..<Int(count) {
+            XCTAssertEqual(abs(out[i].x1 - 5), 0, accuracy: 0.01, "seg[\(i)].p1")
+            XCTAssertEqual(abs(out[i].x2 - 5), 0, accuracy: 0.01, "seg[\(i)].p2")
+        }
+    }
+
+    func testMarchingSquaresHyperbolaOnCurve() {
+        // 独立期望：双曲线 xy=4，全部端点落在曲线上。
+        let f: (Double, Double) -> Double? = { x, y in x * y - 4 }
+        let box = EvalBox(f2: f)
+        let ctx = Unmanaged.passUnretained(box).toOpaque()
+        var out = [graph_segment_t](repeating: graph_segment_t(), count: 2 * 200 * 200)
+        let count = graph_marching_squares(-10, 10, -10, 10, 200, 200, evalThunk2, ctx, &out, out.count)
+        XCTAssertGreaterThan(count, 50)
+        for i in 0..<Int(count) {
+            XCTAssertEqual(out[i].x1 * out[i].y1, 4, accuracy: 0.2, "seg[\(i)].p1")
+            XCTAssertEqual(out[i].x2 * out[i].y2, 4, accuracy: 0.2, "seg[\(i)].p2")
+        }
+    }
+
+    func testMarchingSquaresCircleWithNilHoleDropsCells() {
+        // 独立期望（nil 传播）：x < -3 的区域未定义 → 含未定义角的格子整体跳过，
+        // 圆左帽（x∈[−5,−3]）消失：线段数严格减少，且无任何端点落入洞区。
+        let full: (Double, Double) -> Double? = { x, y in x * x + y * y - 25 }
+        let holed: (Double, Double) -> Double? = { x, y in x < -3 ? nil : x * x + y * y - 25 }
+
+        let fBox = EvalBox(f2: full)
+        let fCtx = Unmanaged.passUnretained(fBox).toOpaque()
+        let hBox = EvalBox(f2: holed)
+        let hCtx = Unmanaged.passUnretained(hBox).toOpaque()
+        var fullOut = [graph_segment_t](repeating: graph_segment_t(), count: 2 * 64 * 48)
+        var holedOut = [graph_segment_t](repeating: graph_segment_t(), count: 2 * 64 * 48)
+        let fullCount = graph_marching_squares(-10, 10, -8, 8, 64, 48, evalThunk2, fCtx, &fullOut, fullOut.count)
+        let holedCount = graph_marching_squares(-10, 10, -8, 8, 64, 48, evalThunk2, hCtx, &holedOut, holedOut.count)
+
+        XCTAssertGreaterThan(fullCount, 100)
+        for i in 0..<Int(fullCount) {
+            XCTAssertEqual((fullOut[i].x1 * fullOut[i].x1 + fullOut[i].y1 * fullOut[i].y1).squareRoot(), 5, accuracy: 0.05)
+        }
+        XCTAssertLessThan(holedCount, fullCount, "洞区未生效：含未定义角的格子应被跳过")
+        XCTAssertGreaterThan(holedCount, 0)
+        for i in 0..<Int(holedCount) {
+            XCTAssertGreaterThanOrEqual(holedOut[i].x1, -3 - 1e-9, "seg[\(i)].p1 落入未定义洞区")
+            XCTAssertGreaterThanOrEqual(holedOut[i].x2, -3 - 1e-9, "seg[\(i)].p2 落入未定义洞区")
+        }
+    }
+
+    func testMarchingSquaresSaddleDisambiguationQuadrants() {
+        // 独立期望（价值点：鞍点消歧）：双曲线 xy=1 在单格网格 [−1.5,1.5]² 上
+        // 四角符号 +,−,+,−（bl=(−1.5,−1.5): xy=2.25>1；br<1；tr>1；tl<1）→ 4 交点
+        // 鞍点格。中心 (0,0) 处 f=−1<0 与 bl 异侧 → 配对「下-左、上-右」：
+        // 两条线段必须分别完全落在第三象限与第一象限，端点落在曲线上。
+        // 错误配对（下-上、左-右）会让线段横穿原点区域。
+        let f: (Double, Double) -> Double? = { x, y in x * y - 1 }
+        let box = EvalBox(f2: f)
+        let ctx = Unmanaged.passUnretained(box).toOpaque()
+        var out = [graph_segment_t](repeating: graph_segment_t(), count: 4)
+        let count = graph_marching_squares(-1.5, 1.5, -1.5, 1.5, 1, 1, evalThunk2, ctx, &out, out.count)
+
+        XCTAssertEqual(count, 2, "鞍点格应产出 2 条线段")
+        for i in 0..<Int(count) {
+            // 端点落在曲线 xy=1 上（线性插值精度内）。
+            XCTAssertEqual(abs(out[i].x1 * out[i].y1 - 1), 0, accuracy: 1e-9, "seg[\(i)].p1 不在曲线上")
+            XCTAssertEqual(abs(out[i].x2 * out[i].y2 - 1), 0, accuracy: 1e-9, "seg[\(i)].p2 不在曲线上")
+            // 端点按象限聚合：整条线段在 Q1 或 Q3，不得跨象限。
+            let q1 = out[i].x1 > 0 && out[i].y1 > 0 && out[i].x2 > 0 && out[i].y2 > 0
+            let q3 = out[i].x1 < 0 && out[i].y1 < 0 && out[i].x2 < 0 && out[i].y2 < 0
+            XCTAssertTrue(q1 || q3, "seg[\(i)] 端点跨象限 = 鞍点配对错误")
+            // 正确配对的分支端点离原点足够远（错误配对会贴近原点）。
+            XCTAssertGreaterThan((out[i].x1 * out[i].x1 + out[i].y1 * out[i].y1).squareRoot(), 1.0)
+            XCTAssertGreaterThan((out[i].x2 * out[i].x2 + out[i].y2 * out[i].y2).squareRoot(), 1.0)
+        }
         // 非法网格安全。
         XCTAssertEqual(graph_marching_squares(0, 1, 0, 1, 0, 4, evalThunk2, ctx, nil, 0), 0)
     }
 
-    func testMarchingSquaresSaddleParity() {
-        // 双曲线 xy=1 网格粗采样必然出现鞍点格。
-        let f: (Double, Double) -> Double? = { x, y in x * y - 1 }
-        let swiftSegments = MarchingSquares.trace(
-            f: f, xMin: -4, xMax: 4, yMin: -4, yMax: 4, cols: 9, rows: 9)
+    // MARK: - 不等式关系表
 
-        let box = EvalBox(f2: f)
-        let ctx = Unmanaged.passUnretained(box).toOpaque()
-        var out = [graph_segment_t](repeating: graph_segment_t(), count: 2 * 9 * 9)
-        let count = graph_marching_squares(-4, 4, -4, 4, 9, 9, evalThunk2, ctx, &out, out.count)
-
-        XCTAssertEqual(Int(count), swiftSegments.count)
-        for (i, seg) in swiftSegments.enumerated() {
-            XCTAssertEqual(out[i].x1, seg.x1, accuracy: 1e-12)
-            XCTAssertEqual(out[i].y1, seg.y1, accuracy: 1e-12)
-            XCTAssertEqual(out[i].x2, seg.x2, accuracy: 1e-12)
-            XCTAssertEqual(out[i].y2, seg.y2, accuracy: 1e-12)
+    func testRelationTableDirect() {
+        // C 层 graph_relation_satisfied 为单一真相源
+        // （原 Swift InequalityRelation.satisfied 已随平价测试退役删除）。
+        for f in [-1.0, 0.0, 1.0, -1e-300, 1e-300] {
+            XCTAssertEqual(graph_relation_satisfied(GRAPH_REL_LESS, f), f < 0, "LESS f=\(f)")
+            XCTAssertEqual(graph_relation_satisfied(GRAPH_REL_LESS_EQUAL, f), f <= 0, "LESS_EQUAL f=\(f)")
+            XCTAssertEqual(graph_relation_satisfied(GRAPH_REL_GREATER, f), f > 0, "GREATER f=\(f)")
+            XCTAssertEqual(graph_relation_satisfied(GRAPH_REL_GREATER_EQUAL, f), f >= 0, "GREATER_EQUAL f=\(f)")
         }
-    }
-
-    // MARK: - 不等式
-
-    func testRelationTableMatchesSwift() {
-        let pairs: [(graph_relation_t, InequalityRelation)] = [
-            (GRAPH_REL_LESS, .lessThan),
-            (GRAPH_REL_LESS_EQUAL, .lessOrEqual),
-            (GRAPH_REL_GREATER, .greaterThan),
-            (GRAPH_REL_GREATER_EQUAL, .greaterOrEqual),
-        ]
-        for (cRel, swiftRel) in pairs {
-            for f in [-1.0, 0.0, 1.0, -1e-300, 1e-300] {
-                XCTAssertEqual(graph_relation_satisfied(cRel, f), swiftRel.satisfied(f), "\(swiftRel) f=\(f)")
-            }
-            XCTAssertEqual(graph_relation_is_strict(cRel), swiftRel.isStrict, "\(swiftRel)")
-        }
+        // isStrict：< 与 > 严格（UI 边界虚线），≤ ≥ 非严格（实线）。
+        XCTAssertTrue(graph_relation_is_strict(GRAPH_REL_LESS))
+        XCTAssertTrue(graph_relation_is_strict(GRAPH_REL_GREATER))
+        XCTAssertFalse(graph_relation_is_strict(GRAPH_REL_LESS_EQUAL))
+        XCTAssertFalse(graph_relation_is_strict(GRAPH_REL_GREATER_EQUAL))
     }
 
     func testInequalityRunsHalfPlane() {
@@ -326,32 +387,36 @@ final class GraphGeometryTests: XCTestCase {
         }
 
         XCTAssertEqual(graph_cell_count(400, 4), 100)
-        XCTAssertEqual(graph_cell_count(10, 3), 8)  // max(8, …) 下限同 Swift
+        XCTAssertEqual(graph_cell_count(10, 3), 8)  // max(8, …) 下限
     }
 
-    // MARK: - 跟踪吸附 ⇄ nearestCurvePoint
+    // MARK: - 跟踪吸附（GraphingViewModel 委托锁）
 
-    func testTraceSnapMatchesNearestCurvePoint() throws {
+    func testTraceSnapDirectAndDelegation() throws {
+        // C 直接：按 |y−mathY|/ySpan 归一距离取最近；NaN 候选跳过。
+        let ys: [Double] = [1, 4, .nan, 9]
+        XCTAssertEqual(ys.withUnsafeBufferPointer { graph_trace_snap($0.baseAddress, $0.count, 4.1, 20) }, 1)
+        XCTAssertEqual(ys.withUnsafeBufferPointer { graph_trace_snap($0.baseAddress, $0.count, 8.9, 20) }, 3)
+        XCTAssertEqual(ys.withUnsafeBufferPointer { graph_trace_snap($0.baseAddress, $0.count, 20, 20) }, 3)
+        // 全 NaN → -1。
+        XCTAssertEqual(graph_trace_snap([Double.nan, .nan], 2, 0, 20), -1)
+
+        // VM 委托锁：候选采集 + 下标映射后走同一 C 路径。
         let vm = GraphingViewModel()  // x^2、sin(x)
         let mathX = 1.3, mathY = 1.1
         let snap = try XCTUnwrap(vm.nearestCurvePoint(mathX: mathX, mathY: mathY))
-
-        // 按可见方程序号构造候选 y 值（不可见/未定义 → NaN），与 VM 同一口径。
-        var ys: [Double] = []
+        var cand: [Double] = []
         var indexMap: [Int] = []
         for (index, eq) in vm.equations.enumerated() where eq.isVisible {
             guard let expr = eq.explicitExpression,
                   let y = expr.evaluate(x: mathX, params: vm.parameters, trig: vm.trigMode) else { continue }
-            ys.append(y)
+            cand.append(y)
             indexMap.append(index)
         }
-        let picked = graph_trace_snap(ys, ys.count, mathY, vm.ySpan)
+        let picked = cand.withUnsafeBufferPointer { graph_trace_snap($0.baseAddress, $0.count, mathY, vm.ySpan) }
         XCTAssertGreaterThanOrEqual(picked, 0)
         XCTAssertEqual(indexMap[Int(picked)], snap.equationIndex)
-        XCTAssertEqual(ys[Int(picked)], snap.y, accuracy: 1e-12)
-
-        // 全 NaN → -1。
-        XCTAssertEqual(graph_trace_snap([Double.nan, .nan], 2, 0, 20), -1)
+        XCTAssertEqual(cand[Int(picked)], snap.y, accuracy: 1e-12)
     }
 
     // MARK: - S4 区间算术（Tupper）

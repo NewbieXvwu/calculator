@@ -1169,7 +1169,7 @@ private struct GraphCanvas: View {
 
 // MARK: - S4 区间求值 ↔ C 回调桥接
 
-/// 把 Swift 闭包穿过 C void* 上下文的载体（与 GraphGeometryTests 同模式）。
+/// 把 Swift 闭包穿过 C void* 上下文的载体（与 GraphGeometryCApiTests 同模式）。
 private final class GraphIntervalBox {
     let interval: (Double, Double, Double, Double) -> GraphIntervalResult
     let point: ((Double, Double) -> Double?)?
