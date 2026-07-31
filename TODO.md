@@ -979,8 +979,29 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 > 不是「已有现代桌面架构」。现代化是另一笔预算。
 
 #### P-Windows-0 · 可行性验证
-- [ ] 本机打开 `src/Calculator.slnx` 构建成功
-- [ ] 记录所需 VS / SDK 版本
+- [x] 本机打开 `src/Calculator.slnx` 构建成功
+- [x] 记录所需 VS / SDK 版本
+
+> **2026-07-31 完成**：Windows 测试机（远程）全解 `Debug|x64` 构建 `src/Calculator.slnx` 成功——
+> `已成功生成，0 错误`，产出主应用 `Calculator_0.0.1.0_x64_Debug.msixbundle` 及全部
+> 语言/scale 分片 + `CalculatorUnitTests.exe/.msix`。参与工程全绿：CalcManager、
+> TraceLogging、GraphControl、GraphingImpl（mock）、CalcViewModel、Calculator。
+>
+> **所需工具链**（实测）：
+> - Visual Studio Community **2026**（`18.4.1`）／MSBuild **18.4.0.7901**
+> - .NET SDK **10.0.201**（`.slnx` 需 `/restore` 恢复 NuGet）
+> - Windows SDK 目标 **10.0.26100.0**，最低 **10.0.19041.0**；PlatformToolset **v145**
+> - 构建命令：`msbuild src\Calculator.slnx /restore /t:Build /p:Configuration=Debug /p:Platform=x64`
+>
+> **两处保真修正**（均属 M1 合法原因「上游缺陷/环境适配」，零功能回归）：
+> 1. `src/CalcViewModel/CalcViewModel.vcxproj` 六个配置块 `AdditionalOptions` 补 `/utf-8`——
+>    源码含非 ASCII 注释/字符串，在中文 CP936 系统区域下 MSVC 报 C4819，叠加 `/WX` 直接
+>    构建失败；补 `/utf-8` 与同仓 `CalcManager`/`TraceLogging` 既有约定一致，英文 CI（CP1252）零影响。
+> 2. 构建须经 `.slnx`（或显式 `/p:SolutionDir=…\src\\`）——单独构建 `.vcxproj` 会因
+>    `$(SolutionDir)` 未定义导致 `GraphingInterfaceDir`/`GraphingImpl` 路径解析失败（C1083）。
+>
+> **准确表述**：这是「已有 UWP/XAML 工程可在最新工具链继续构建」的验证，非现代化。
+> `UseMockGraphingImpl` 默认 true → 当前绘图仍是 `GraphingImpl` mock（P-Windows-1/2 才接真求解器）。
 
 #### P-Windows-1/2 · 五模式 + 绘图
 - [ ] **UI 一行不动**
