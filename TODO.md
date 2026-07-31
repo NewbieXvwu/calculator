@@ -1039,6 +1039,15 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 > `libgiac` 导出 C 接口的 DLL（绕过 MSVC ABI 不兼容）→ 主程序
 > LoadLibrary 或链接导入库。B（桌面外壳）、C（轻量原生求值器）已否决。
 >
+> **可行性验证（2026-08-01，Windows 测试机实测通过）**：giac 2.1.0 已在
+> MSYS2/mingw64 构建成功——102 对象 38.7MB `libgiac_mingw.a`，冒烟 8/8 全过
+> （caseval：1/2+1/3=5/6、sqrt(4)=2、sin(pi/2)=1、diff=cos(x)、factor、solve、
+> limit=exp(1)、integrate）。可复现脚本 `Tools/build_giac_windows.sh` 已入仓，
+> 三个实测坑（2017 config.guess 不认 Windows_NT / 生成的 libtool 静默失效 /
+> 机器 PATH 污染解析到 w64devkit）及对策全部写进脚本头注释。
+> 下一里程碑：把 `caseval` 包成 extern "C" DLL（`calc_giac.dll`），
+> 供 UWP 主程序 LoadLibrary 接入 `IMathSolver`。
+>
 > **可先做、零风险的真实增量**：把 geometry（`graph_geometry.*`）编入一个新的
 > `GiacGraphingImpl`/`NativeGraphingImpl` 工程并接上 `IGraphRenderer` 的 D2D 绘制，
 > 求值器先用桩/原生最小实现验证渲染管线联通——但这会新增工程、改 `UseMockGraphingImpl`
