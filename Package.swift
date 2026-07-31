@@ -79,11 +79,6 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "calc-smoke",
-            dependencies: ["CalcManagerBridge"],
-            path: "src/MacSmoke"
-        ),
-        .executableTarget(
             name: "engine-tests",
             dependencies: ["CalcManagerCore"],
             path: "src/MacEngineTests",

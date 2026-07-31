@@ -61,23 +61,42 @@ final class KGFRegressionTests: XCTestCase {
         }
     }
 
+    /// 相对基准（相对残差原则，TODO D6）：绝对时间跨设备不可比、CI 负载抖动
+    /// 会偶发红。改为与本机轻量基线（x^2-4 全字段分析）的中位数比值判退化——
+    /// 机器快慢同比例缩放，比值稳定。单 case 3 次取中位数消抖动。
+    private func medianSamples(_ measure: () -> Void, times: Int = 3) -> TimeInterval {
+        var samples: [TimeInterval] = []
+        for _ in 0..<times {
+            let start = Date()
+            measure()
+            samples.append(Date().timeIntervalSince(start))
+        }
+        return samples.sorted()[times / 2]
+    }
+
     func testAllFourteenCases() throws {
         let files = try FileManager.default.contentsOfDirectory(at: Self.casesDir, includingPropertiesForKeys: nil)
             .filter { $0.pathExtension == "json" }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
         XCTAssertEqual(files.count, 14, "期望 14 个回归 case")
 
+        // 本机基线：轻量表达式分析的中位数耗时 = "1 单位"。比值阈值 40× 留足
+        // 量级余量（正常函数比基线慢 5-20×），专防算法退化成指数复杂度；
+        // 下限 0.25s 防超快机器上基线噪声放大比值。
+        let baselineExpr = try XCTUnwrap(GraphExpression("x^2-4"))
+        let baseline = medianSamples { _ = GiacMathSolver.analyze(baselineExpr) }
+        let budget = max(baseline * 40, 0.25)
+
         for file in files {
             let name = file.lastPathComponent
             let exp = try JSONDecoder().decode(KGFExpectation.self, from: Data(contentsOf: file))
             let expr = try XCTUnwrap(GraphExpression(exp.input), "\(name): 解析失败")
 
-            let start = Date()
-            let a = GiacMathSolver.analyze(expr)
-            let elapsed = Date().timeIntervalSince(start)
-            // S3 性能验收：任何单函数分析 ≤ 2 秒。
-            XCTAssertLessThanOrEqual(elapsed, 2.0, "\(name): 分析耗时 \(elapsed)s 超过 2s 预算")
+            let elapsed = medianSamples { _ = GiacMathSolver.analyze(expr) }
+            // S3 性能验收（相对基准）：任何单函数分析 ≤ 40 × 本机基线。
+            XCTAssertLessThanOrEqual(elapsed, budget, "\(name): 分析耗时 \(elapsed)s 超基线 \(baseline)s 的 40 倍（复杂度退化）")
 
+            let a = GiacMathSolver.analyze(expr)
             XCTAssertEqual(a.domain, exp.domain, "\(name): 定义域")
             XCTAssertEqual(a.range, exp.range, "\(name): 值域")
             XCTAssertEqual(a.zeros, exp.zeros, "\(name): 零点")

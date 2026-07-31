@@ -28,10 +28,16 @@ final class LocaleBanTests: XCTestCase {
         "codecvt_utf8",
     ]
 
-    /// 受检目录：引擎 + 共享层门面。smoketest 是开发用 harness（不入库、
-    /// 不参与任何平台构建），豁免其日志输出。
-    private static let scannedDirs = ["src/CalcManager", "src/MacBridge"]
-    private static let exemptPathComponents = ["smoketest"]
+    /// 受检目录：src/ 下**全部**目录自动发现、默认纳入扫描——新增共享层目录
+    /// （如将来的 src/Shared）零维护自动入检；仅豁免明确不参与跨平台构建的
+    /// macOS 专属目录（豁免是罕见操作，须显式登记）。
+    private static let exemptDirs: Set<String> = ["MacApp", "MacAppTests", "MacEngineTests", "MacGiacBridge"]
+    private static let scannedDirs: [String] = {
+        let fm = FileManager.default
+        let srcRoot = repoRoot.appendingPathComponent("src")
+        guard let entries = try? fm.contentsOfDirectory(atPath: srcRoot.path) else { return [] }
+        return entries.filter { !exemptDirs.contains($0) }
+    }()
     private static let sourceExtensions: Set<String> = ["h", "hpp", "cpp", "cc", "mm", "m"]
 
     func testEngineAndSharedLayerAvoidLocaleFacilities() throws {
@@ -40,11 +46,13 @@ final class LocaleBanTests: XCTestCase {
         var violations: [String] = []
 
         for dir in Self.scannedDirs {
-            let root = Self.repoRoot.appendingPathComponent(dir)
+            let root = Self.repoRoot.appendingPathComponent("src").appendingPathComponent(dir)
+            guard fm.fileExists(atPath: root.path) else { continue }
             let enumerator = try XCTUnwrap(fm.enumerator(at: root, includingPropertiesForKeys: nil), dir)
             for case let url as URL in enumerator {
                 guard Self.sourceExtensions.contains(url.pathExtension.lowercased()) else { continue }
-                if url.pathComponents.contains(where: { Self.exemptPathComponents.contains($0) }) { continue }
+                // smoketest 是开发 harness（不入库、不参与任何平台构建），豁免其日志输出。
+                if url.pathComponents.contains("smoketest") { continue }
                 guard let content = try? String(contentsOf: url, encoding: .utf8) else { continue }
                 scannedCount += 1
                 for token in Self.bannedTokens where content.contains(token) {

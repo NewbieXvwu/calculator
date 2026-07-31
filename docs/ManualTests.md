@@ -1,4 +1,9 @@
 # Calculator Manual Tests
+> ⚠️ **仅适用于 Windows 平台**：本文档为上游（Microsoft Windows Calculator）XAML UI 手工测试清单，
+> 步骤涉及 WinAppDriver / UWP 控件树 / Windows 专属交互，macOS 移植版不可直接执行，
+> 仅作"应测状态清单"的参考来源（UI/VM 级测试按平台各写，见 TODO D6）。
+> macOS 版的手工验收见 `docs/` 下各决策文档的验收记录。
+
 These manual tests are run before every release of the Calculator app.
 
 ## Smoke Tests
