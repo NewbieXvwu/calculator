@@ -804,6 +804,14 @@
   <ItemGroup>
     <Content Include="Assets\CalculatorIcons.ttf" />
   </ItemGroup>
+  <!-- P-Windows-1/2：giac 求值桥 DLL（MinGW 全静态，仅系统依赖）作为 AppX
+       Content 打包，GraphingImpl 运行时 LoadLibrary 加载。构建前需按
+       Tools/build_giac_bridge_windows.sh 产出 third_party/giac-win/bin/。 -->
+  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)..\..\third_party\giac-win\bin\libgiac_bridge.dll')">
+    <Content Include="$(MSBuildThisFileDirectory)..\..\third_party\giac-win\bin\libgiac_bridge.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>
   </PropertyGroup>
