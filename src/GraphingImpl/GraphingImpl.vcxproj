@@ -107,7 +107,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <CompileAsWinRT>false</CompileAsWinRT>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\;$(GeneratedFilesDir);$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
@@ -123,7 +123,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <CompileAsWinRT>false</CompileAsWinRT>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\;$(GeneratedFilesDir);$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <WarningLevel>Level4</WarningLevel>
@@ -140,7 +140,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <CompileAsWinRT>false</CompileAsWinRT>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\;$(GeneratedFilesDir);$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
@@ -156,7 +156,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <CompileAsWinRT>false</CompileAsWinRT>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\;$(GeneratedFilesDir);$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <WarningLevel>Level4</WarningLevel>
@@ -173,7 +173,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <CompileAsWinRT>false</CompileAsWinRT>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\;$(GeneratedFilesDir);$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
@@ -189,7 +189,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <CompileAsWinRT>false</CompileAsWinRT>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/DGRAPHING_ENGINE_IMPL /w44242 /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\..\;$(GeneratedFilesDir);$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <WarningLevel>Level4</WarningLevel>
@@ -223,12 +223,36 @@
     <ClInclude Include="Mocks\Graph.h" />
     <ClInclude Include="Mocks\GraphingOptions.h" />
     <ClInclude Include="Mocks\MathSolver.h" />
+    <ClInclude Include="Native\GiacBridgeLoader.h" />
+    <ClInclude Include="Native\NativeEquation.h" />
+    <ClInclude Include="Native\NativeExpression.h" />
+    <ClInclude Include="Native\NativeGraph.h" />
+    <ClInclude Include="Native\NativeGraphAnalyzer.h" />
+    <ClInclude Include="Native\NativeGraphRenderer.h" />
+    <ClInclude Include="Native\NativeGraphingOptions.h" />
+    <ClInclude Include="Native\NativeMathSolver.h" />
+    <ClInclude Include="..\MacBridge\include\graph_geometry.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="Mocks\MathSolver.cpp" />
+    <ClCompile Include="Native\GiacBridgeLoader.cpp" />
+    <ClCompile Include="Native\NativeExpression.cpp" />
+    <ClCompile Include="Native\NativeGraph.cpp" />
+    <ClCompile Include="Native\NativeGraphAnalyzer.cpp" />
+    <ClCompile Include="Native\NativeGraphRenderer.cpp" />
+    <ClCompile Include="Native\NativeGraphingOptions.cpp" />
+    <ClCompile Include="Native\NativeMathSolver.cpp" />
+    <ClCompile Include="..\MacBridge\graph_geometry.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
