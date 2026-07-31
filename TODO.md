@@ -143,6 +143,7 @@ docs/
 - **引擎级 + 求解器级测试全部 C++**，扩展 `src/MacEngineTests/shim/CppUnitTest.h`（291 行，已实测在 macOS / GCC Linux / OHOS clang 三套工具链上编译运行）
 - **UI / VM 级测试各平台各写**
 - **现有 `MacAppTests.swift`（1,343 行 / 90 例）中测纯逻辑的部分逐步退役**，避免双真相源
+- **对拍/平价测试退役纪律**：`GraphGeometryTests`（C↔Swift 平价）、`MarchingSquares.swift`（对拍 oracle）等过渡测试**与 Swift 首发实现退役绑定**——实现删除之日必须同步处理：有独立行为价值的断言翻译为 C 层直接测试，其余删除。禁止平价测试锁定死代码（见 P-macOS 回填任务）
 - **验证方法优先级**：属性断言（相对残差，非绝对值）> 与原版实测对照 > 硬编码期望值（最后手段）
 
 ### D7 · 上游关系
@@ -779,7 +780,14 @@ constexpr size_t kMaxRationalDigits = 10000;   // 超限切浮点并置标志位
 - **诚实未消费项**：① D 段有意排除 libm 超越函数（sin/exp 等 1-ulp 平台差异，
   IEEE 不要求正确舍入）——超越一致性由 E 段经 Ratpack 纯整数泰勒级数保证，
   理由写在向量文件头；② WASM CI 腿未建（无 Emscripten 工装，待 Web 平台任务）；
-  aarch64-Linux 腿未建（GitHub 免费 runner 无，arm64 已由 macos-26 覆盖）；
+  aarch64-Linux 腿**已建**（2026-07-31 订正：GitHub 自 2025 年起对公开仓库免费提供
+  arm64 托管 runner `ubuntu-24.04-arm`，engine-arm64 job 已加入，与 macos-26 arm64
+  构成"同架构、不同 libc/工具链"（glibc vs Apple）交叉验证；OHOS 的 musl 差异
+  仍只能由 P-OHOS 真机/qemu 验证）；Windows arm64 腿**待办**——`windows-11-arm`
+  已 GA 且公开仓库免费，镜像预装 LLVM 20.1.6 + VS2022 Enterprise（含 ARM64 工具链），
+  可行性高，但 `Tools/build_engine_tests_portable.sh` 需加 Windows 分支
+  （MSVC 环境初始化 + clang++ 链接，或改 clang-cl），且 Windows 是第三套 libc
+  （ucrt），价值在工具链维度而非架构维度（架构已被 arm64 双腿覆盖）；
   ③ `CALC_USE_EXTENDED_FLOAT` 双构建 job 未建——boost 未 vendor 进仓，逃生通道
   目前只有 typedef 本体 + static_assert，"防腐烂"的 CI 消费待真实需要 80-bit
   的平台出现时补；④ 粘滞标志是引擎全局（Ratpack 无会话上下文），多会话场景
@@ -935,6 +943,8 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 #### 回填任务
 
 - [x] 改用共享层规格表（键盘 / 单位 / 快捷键 / 色板 / 模式元数据）（2026-07-31 全部完成）：模式元数据 / `LayoutTier` 分档 / 图标语义名 / 14 色方程色板 / 单位换算表此前已由各自镜像表消费（见 §S6 验收）；本次补齐**最后一张**——键盘布局。新增 `KeyboardLayout.swift`（Swift 镜像五元组表 + `KeypadRenderer` 解析 + `KeypadGrid` 数据驱动渲染循环），四套键盘（标准/科学/程序员/换算）视图内 57 处 `CalcKey(` 手写调用全部退化为消费 `KeyboardLayout.{standard,scientific,programmer,converter}` 的单一渲染循环。严格零回归保真：标准模式字号仍由 `LayoutTier` 驱动（含 `compactFirstRow` 紧凑首行交换）、科学/程序员/换算字号为镜像常量、移位键字号按标签长度动态、`emphasized` 态随 `isInvChecked`、闪动仅标准模式、全部 disabled 谓词逐键映射 JSON 规则；`ScientificCalculatorView.functionColumn` 改为从 `KeyboardLayout.scientific` 派生（单一真相源）。`SpecTableTests.testKeyboardLayoutMirrorMatchesSpec` 双向锁定镜像表 ⇄ `spec/keyboard-layout.json`（kind/style/command/a11y/disabled/colSpan/invPair/行跨度守恒/紧凑首行）。零回归：`swift test` 126/126（含新增镜像测试）、engine-tests 全绿
+- [ ] **平价测试退役**（与 Swift 首发实现退役绑定，D6 纪律）：`MarchingSquares.swift`（对拍 oracle）、`GraphingView`/`GraphingViewModel` 内残留 Swift 公式实现删除时，`GraphGeometryTests` 12 项平价断言同步处理——有独立行为价值的（`y=1/x` 断裂/抬笔、鞍点消歧、不等式三值覆盖、auto-fit 退化）翻译为 C 层直接行为断言，其余随实现删除
+- [ ] **C 层直接测试缺口**（承接上条）：Swift oracle 退役后 C 层行为回归网不得留白——`graph_sample_curve` 断裂、`graph_marching_squares` 鞍点、`graph_inequality_regions` 三值输出需有**独立期望**的直接测试，不再依赖与 Swift 对拍；`GraphGeometryTests` 文件名与结构可随之改名（如 `GraphGeometryCApiTests`）
 - [x] 改用 C ABI 门面（2026-07-31）：`CalcManagerBridge.mm` 不再直接持有 `std::unique_ptr<MacCalc::CalcSession>`，改持 `calc_session_t*` 并全程委托 `calc_c_api`——ctor 用 `calc_grouping_format` + `calc_locale_t`（UTF-8）注入区域，`calc_callbacks_t` 装配 11 个 C thunk（`user_data` 为未持有的 bridge，无保留环）转发回 ObjC block，33 个方法逐一改调 `calc_*`（返回 `char*` 经 `calc_string_free` 释放）。至此 `calc_c_api` 成为 CalcSession 的**唯一**包装，跨平台 C 契约由 macOS 生产路径实际消费验证（消灭 mm 与 c_api 两套平行门面的重复）。零回归：`swift test` 126/126、engine-tests、calc-smoke（经 C ABI 显示/历史/进制端到端）全绿
 - [x] 图形几何改调共享层（2026-07-31）：生产路径的坐标变换（`toScreenX/Y`→`graph_to_screen_x/y`）、刻度步长（`niceStep`→`graph_nice_step`）、网格刻度枚举（`drawGrid`→`graph_ticks`）、显式曲线采样（`drawCurve`→`graph_sample_curve`）、隐式等值线追踪（`drawImplicit`→`graph_marching_squares`）、视窗平移/缩放/范围（`pan/zoom/zoom_at/applyRange`→对应 C ABI）全部改调 `graph_geometry.h`。`MarchingSquares.swift` 降级为对拍 oracle（`GraphGeometryTests`/`MacAppTests` 锁 C↔Swift 等价）。零回归：`swift test` 126/126、engine-tests、calc-smoke 全绿
 - [x] `@Observable` 迁移（2026-07-31，S11：部署目标 13→14，4 个 ViewModel + 全部视图层，126 测试全绿）

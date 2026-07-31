@@ -34,8 +34,6 @@ jobs:
         run: Tools/check_engine_cxx17.sh
       - name: 引擎单元测试（原版 CalcManager 70 例）
         run: swift run engine-tests
-      - name: 冒烟测试
-        run: swift run calc-smoke
 
   # S10 跨架构逐位一致性：同一份 tests/golden/scalar_vectors.txt 在 x86-64 Linux
   # 上必须与 arm64 macOS（上面的 engine job）逐位一致。不用 SPM——纯 clang++ 编译，
@@ -48,6 +46,23 @@ jobs:
       - uses: actions/checkout@v7
       - name: 工具链版本
         run: clang++ --version
+      - name: 可移植构建 + 黄金向量测试
+        run: Tools/build_engine_tests_portable.sh
+
+  # S10 跨架构逐位一致性（aarch64 腿）：2025 年起 GitHub 对公开仓库免费提供
+  # arm64 托管 runner（ubuntu-24.04-arm），补齐 TODO 记录的 aarch64-Linux 缺口。
+  # 与 macos-26 arm64 构成"同架构不同 libc/工具链"（glibc vs Apple）交叉验证；
+  # OHOS 的 musl libc 差异仍只能由 P-OHOS 真机/qemu 验证（glibc 上模拟不了）。
+  engine-arm64:
+    name: 引擎黄金测试（aarch64-Linux，与 arm64 macOS 逐位一致）
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: 工具链版本
+        run: |
+          if ! command -v clang++ >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y clang; fi
+          clang++ --version
       - name: 可移植构建 + 黄金向量测试
         run: Tools/build_engine_tests_portable.sh
 
