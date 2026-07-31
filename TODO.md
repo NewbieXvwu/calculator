@@ -515,7 +515,7 @@ S10），列表本为示意粒度；macOS Swift 切换到 C ABI 属 P-macOS 回�
 - [x] 14 色方程色板 → `spec/graph-colors.json`（深浅两套 hex），与 `GraphingViewModel.lightPalette/darkPalette` 逐色比对
 - [ ] 键盘布局五元组表 `spec/keyboard-layout.json`
 - [ ] 快捷键数据表 `spec/keyboard-shortcuts.json`（冲突矩阵归 S12）
-- [ ] 单位换算数据表 `spec/units.json`
+- [x] 单位换算数据表 `spec/units.json`（12 类 142 单位，脚本自 Swift 表机械提取零手抄；factor 位级比对 + 温度特判抽样）；C++ 静态表在共享层落地时以此 JSON 为数据源生成（macOS 现阶段消费方仍是 UnitConverterData.swift，防漂移已锁死）
 - [x] 图标语义名 `spec/icons.json`（40 项语义名，含 key.* 供键盘布局表引用）+ `AppIcons.swift` 镜像；全部视图调用点已切到语义常量，源码不再出现 SF Symbol 字面量（键面符号经键盘布局表落地）
 
 下沉后各平台键盘退化成 ~80 行渲染循环：

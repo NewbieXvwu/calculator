@@ -173,4 +173,68 @@ final class SpecTableTests: XCTestCase {
             XCTAssertEqual(entry.macos, descriptor.sfSymbol)
         }
     }
+
+    // MARK: - spec/units.json ⇄ UnitConverterData
+
+    private struct UnitsSpec: Decodable {
+        struct Temp: Decodable {
+            let celsiusId: Int
+            let fahrenheitId: Int
+            let kelvinId: Int
+        }
+        struct Unit: Decodable {
+            let id: Int
+            let nameKey: String
+            let abbreviationKey: String
+            let factor: Double
+            let isWhimsical: Bool?
+        }
+        struct Category: Decodable {
+            let id: Int
+            let nameKey: String
+            let supportsNegative: Bool
+            let isTemperature: Bool
+            let units: [Unit]
+        }
+        let temperature: Temp
+        let categories: [Category]
+    }
+
+    func testUnitsSpecMatchesUnitConverterData() throws {
+        let spec = try loadJSON("units.json", as: UnitsSpec.self)
+
+        XCTAssertEqual(spec.temperature.celsiusId, UnitConverterData.celsiusID)
+        XCTAssertEqual(spec.temperature.fahrenheitId, UnitConverterData.fahrenheitID)
+        XCTAssertEqual(spec.temperature.kelvinId, UnitConverterData.kelvinID)
+
+        XCTAssertEqual(spec.categories.count, UnitConverterData.categories.count)
+        for (specCat, cat) in zip(spec.categories, UnitConverterData.categories) {
+            XCTAssertEqual(specCat.id, cat.id)
+            XCTAssertEqual(L10n.string(specCat.nameKey), cat.name, specCat.nameKey)
+            XCTAssertEqual(specCat.supportsNegative, cat.supportsNegative, specCat.nameKey)
+            XCTAssertEqual(specCat.isTemperature, cat.isTemperature, specCat.nameKey)
+            XCTAssertEqual(specCat.units.count, cat.units.count, specCat.nameKey)
+            for (specUnit, unit) in zip(specCat.units, cat.units) {
+                XCTAssertEqual(specUnit.id, unit.id)
+                XCTAssertEqual(L10n.string(specUnit.nameKey), unit.name, specUnit.nameKey)
+                XCTAssertEqual(L10n.string(specUnit.abbreviationKey), unit.abbreviation, specUnit.nameKey)
+                XCTAssertEqual(specUnit.factor, unit.factor, specUnit.nameKey)  // 位级一致
+                XCTAssertEqual(specUnit.isWhimsical ?? false, unit.isWhimsical, specUnit.nameKey)
+            }
+        }
+
+        // 换算行为抽样：线性因子 + 温度特判。
+        let length = UnitConverterData.categories[0]
+        let km = try XCTUnwrap(length.units.first { $0.id == 33 })
+        let mile = try XCTUnwrap(length.units.first { $0.id == 36 })
+        XCTAssertEqual(UnitConverterData.convert(1, from: mile, to: km, category: length), 1.609344, accuracy: 1e-12)
+
+        let temp = UnitConverterData.categories[3]
+        let celsius = try XCTUnwrap(temp.units.first { $0.id == UnitConverterData.celsiusID })
+        let fahrenheit = try XCTUnwrap(temp.units.first { $0.id == UnitConverterData.fahrenheitID })
+        let kelvin = try XCTUnwrap(temp.units.first { $0.id == UnitConverterData.kelvinID })
+        XCTAssertEqual(UnitConverterData.convert(100, from: celsius, to: fahrenheit, category: temp), 212, accuracy: 1e-12)
+        XCTAssertEqual(UnitConverterData.convert(0, from: celsius, to: kelvin, category: temp), 273.15, accuracy: 1e-12)
+        XCTAssertEqual(UnitConverterData.convert(-40, from: fahrenheit, to: celsius, category: temp), -40, accuracy: 1e-12)
+    }
 }

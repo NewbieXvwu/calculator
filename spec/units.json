@@ -1,0 +1,994 @@
+{
+  "$comment": "S6 规格表下沉：单位换算静态数据唯一事实源（源自原版 UnitConverterDataLoader.cpp 的 GetConversionData/GetExplicitConversionData）。factor 为相对类别基准单位的换算因子；温度类别走摄氏度中转特判。isWhimsical 单位不可选为源/目标，仅入补充结果。macOS 侧镜像为 UnitConverterData.swift，由 SpecTableTests 防漂移；C++ 静态表落地时以本文件为数据源生成。",
+  "temperature": {
+    "celsiusId": 46,
+    "fahrenheitId": 47,
+    "kelvinId": 48,
+    "conversions": {
+      "fahrenheit": {
+        "fromCelsius": "c*1.8+32",
+        "toCelsius": "(f-32)/1.8"
+      },
+      "kelvin": {
+        "fromCelsius": "c+273.15",
+        "toCelsius": "k-273.15"
+      }
+    }
+  },
+  "categories": [
+    {
+      "id": 1,
+      "nameKey": "CategoryName_LengthText",
+      "supportsNegative": false,
+      "isTemperature": false,
+      "units": [
+        {
+          "id": 38,
+          "nameKey": "UnitName_Nanometer",
+          "abbreviationKey": "UnitAbbreviation_Nanometer",
+          "factor": 1e-09
+        },
+        {
+          "id": 168,
+          "nameKey": "UnitName_Angstrom",
+          "abbreviationKey": "UnitAbbreviation_Angstrom",
+          "factor": 1e-10
+        },
+        {
+          "id": 35,
+          "nameKey": "UnitName_Micron",
+          "abbreviationKey": "UnitAbbreviation_Micron",
+          "factor": 1e-06
+        },
+        {
+          "id": 37,
+          "nameKey": "UnitName_Millimeter",
+          "abbreviationKey": "UnitAbbreviation_Millimeter",
+          "factor": 0.001
+        },
+        {
+          "id": 30,
+          "nameKey": "UnitName_Centimeter",
+          "abbreviationKey": "UnitAbbreviation_Centimeter",
+          "factor": 0.01
+        },
+        {
+          "id": 34,
+          "nameKey": "UnitName_Meter",
+          "abbreviationKey": "UnitAbbreviation_Meter",
+          "factor": 1
+        },
+        {
+          "id": 33,
+          "nameKey": "UnitName_Kilometer",
+          "abbreviationKey": "UnitAbbreviation_Kilometer",
+          "factor": 1000
+        },
+        {
+          "id": 32,
+          "nameKey": "UnitName_Inch",
+          "abbreviationKey": "UnitAbbreviation_Inch",
+          "factor": 0.0254
+        },
+        {
+          "id": 31,
+          "nameKey": "UnitName_Foot",
+          "abbreviationKey": "UnitAbbreviation_Foot",
+          "factor": 0.3048
+        },
+        {
+          "id": 40,
+          "nameKey": "UnitName_Yard",
+          "abbreviationKey": "UnitAbbreviation_Yard",
+          "factor": 0.9144
+        },
+        {
+          "id": 36,
+          "nameKey": "UnitName_Mile",
+          "abbreviationKey": "UnitAbbreviation_Mile",
+          "factor": 1609.344
+        },
+        {
+          "id": 39,
+          "nameKey": "UnitName_NauticalMile",
+          "abbreviationKey": "UnitAbbreviation_NauticalMile",
+          "factor": 1852
+        },
+        {
+          "id": 105,
+          "nameKey": "UnitName_Paperclip",
+          "abbreviationKey": "UnitAbbreviation_Paperclip",
+          "factor": 0.035052,
+          "isWhimsical": true
+        },
+        {
+          "id": 131,
+          "nameKey": "UnitName_Hand",
+          "abbreviationKey": "UnitAbbreviation_Hand",
+          "factor": 0.18669,
+          "isWhimsical": true
+        },
+        {
+          "id": 107,
+          "nameKey": "UnitName_JumboJet",
+          "abbreviationKey": "UnitAbbreviation_JumboJet",
+          "factor": 76,
+          "isWhimsical": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "nameKey": "CategoryName_WeightText",
+      "supportsNegative": false,
+      "isTemperature": false,
+      "units": [
+        {
+          "id": 82,
+          "nameKey": "UnitName_Carat",
+          "abbreviationKey": "UnitAbbreviation_Carat",
+          "factor": 0.0002
+        },
+        {
+          "id": 90,
+          "nameKey": "UnitName_Milligram",
+          "abbreviationKey": "UnitAbbreviation_Milligram",
+          "factor": 1e-06
+        },
+        {
+          "id": 83,
+          "nameKey": "UnitName_Centigram",
+          "abbreviationKey": "UnitAbbreviation_Centigram",
+          "factor": 1e-05
+        },
+        {
+          "id": 84,
+          "nameKey": "UnitName_Decigram",
+          "abbreviationKey": "UnitAbbreviation_Decigram",
+          "factor": 0.0001
+        },
+        {
+          "id": 86,
+          "nameKey": "UnitName_Gram",
+          "abbreviationKey": "UnitAbbreviation_Gram",
+          "factor": 0.001
+        },
+        {
+          "id": 85,
+          "nameKey": "UnitName_Decagram",
+          "abbreviationKey": "UnitAbbreviation_Decagram",
+          "factor": 0.01
+        },
+        {
+          "id": 87,
+          "nameKey": "UnitName_Hectogram",
+          "abbreviationKey": "UnitAbbreviation_Hectogram",
+          "factor": 0.1
+        },
+        {
+          "id": 88,
+          "nameKey": "UnitName_Kilogram",
+          "abbreviationKey": "UnitAbbreviation_Kilogram",
+          "factor": 1
+        },
+        {
+          "id": 95,
+          "nameKey": "UnitName_Tonne",
+          "abbreviationKey": "UnitAbbreviation_Tonne",
+          "factor": 1000
+        },
+        {
+          "id": 91,
+          "nameKey": "UnitName_Ounce",
+          "abbreviationKey": "UnitAbbreviation_Ounce",
+          "factor": 0.028349523125
+        },
+        {
+          "id": 92,
+          "nameKey": "UnitName_Pound",
+          "abbreviationKey": "UnitAbbreviation_Pound",
+          "factor": 0.45359237
+        },
+        {
+          "id": 94,
+          "nameKey": "UnitName_Stone",
+          "abbreviationKey": "UnitAbbreviation_Stone",
+          "factor": 6.35029318
+        },
+        {
+          "id": 93,
+          "nameKey": "UnitName_ShortTon",
+          "abbreviationKey": "UnitAbbreviation_ShortTon",
+          "factor": 907.18474
+        },
+        {
+          "id": 89,
+          "nameKey": "UnitName_LongTon",
+          "abbreviationKey": "UnitAbbreviation_LongTon",
+          "factor": 1016.0469088
+        },
+        {
+          "id": 113,
+          "nameKey": "UnitName_Snowflake",
+          "abbreviationKey": "UnitAbbreviation_Snowflake",
+          "factor": 2e-06,
+          "isWhimsical": true
+        },
+        {
+          "id": 133,
+          "nameKey": "UnitName_SoccerBall",
+          "abbreviationKey": "UnitAbbreviation_SoccerBall",
+          "factor": 0.4325,
+          "isWhimsical": true
+        },
+        {
+          "id": 114,
+          "nameKey": "UnitName_Elephant",
+          "abbreviationKey": "UnitAbbreviation_Elephant",
+          "factor": 4000,
+          "isWhimsical": true
+        },
+        {
+          "id": 123,
+          "nameKey": "UnitName_Whale",
+          "abbreviationKey": "UnitAbbreviation_Whale",
+          "factor": 90000,
+          "isWhimsical": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "nameKey": "CategoryName_VolumeText",
+      "supportsNegative": false,
+      "isTemperature": false,
+      "units": [
+        {
+          "id": 75,
+          "nameKey": "UnitName_Milliliter",
+          "abbreviationKey": "UnitAbbreviation_Milliliter",
+          "factor": 1
+        },
+        {
+          "id": 64,
+          "nameKey": "UnitName_CubicCentimeter",
+          "abbreviationKey": "UnitAbbreviation_CubicCentimeter",
+          "factor": 1
+        },
+        {
+          "id": 79,
+          "nameKey": "UnitName_TeaspoonUS",
+          "abbreviationKey": "UnitAbbreviation_TeaspoonUS",
+          "factor": 4.92892159375
+        },
+        {
+          "id": 78,
+          "nameKey": "UnitName_TablespoonUS",
+          "abbreviationKey": "UnitAbbreviation_TablespoonUS",
+          "factor": 14.78676478125
+        },
+        {
+          "id": 71,
+          "nameKey": "UnitName_FluidOunceUS",
+          "abbreviationKey": "UnitAbbreviation_FluidOunceUS",
+          "factor": 29.5735295625
+        },
+        {
+          "id": 70,
+          "nameKey": "UnitName_FluidOunceUK",
+          "abbreviationKey": "UnitAbbreviation_FluidOunceUK",
+          "factor": 28.4130625
+        },
+        {
+          "id": 69,
+          "nameKey": "UnitName_CupUS",
+          "abbreviationKey": "UnitAbbreviation_CupUS",
+          "factor": 236.588237
+        },
+        {
+          "id": 77,
+          "nameKey": "UnitName_PintUS",
+          "abbreviationKey": "UnitAbbreviation_PintUS",
+          "factor": 473.176473
+        },
+        {
+          "id": 76,
+          "nameKey": "UnitName_PintUK",
+          "abbreviationKey": "UnitAbbreviation_PintUK",
+          "factor": 568.26125
+        },
+        {
+          "id": 81,
+          "nameKey": "UnitName_QuartUS",
+          "abbreviationKey": "UnitAbbreviation_QuartUS",
+          "factor": 946.352946
+        },
+        {
+          "id": 80,
+          "nameKey": "UnitName_QuartUK",
+          "abbreviationKey": "UnitAbbreviation_QuartUK",
+          "factor": 1136.5225
+        },
+        {
+          "id": 74,
+          "nameKey": "UnitName_Liter",
+          "abbreviationKey": "UnitAbbreviation_Liter",
+          "factor": 1000
+        },
+        {
+          "id": 73,
+          "nameKey": "UnitName_GallonUS",
+          "abbreviationKey": "UnitAbbreviation_GallonUS",
+          "factor": 3785.411784
+        },
+        {
+          "id": 72,
+          "nameKey": "UnitName_GallonUK",
+          "abbreviationKey": "UnitAbbreviation_GallonUK",
+          "factor": 4546.09
+        },
+        {
+          "id": 66,
+          "nameKey": "UnitName_CubicInch",
+          "abbreviationKey": "UnitAbbreviation_CubicInch",
+          "factor": 16.387064
+        },
+        {
+          "id": 65,
+          "nameKey": "UnitName_CubicFoot",
+          "abbreviationKey": "UnitAbbreviation_CubicFoot",
+          "factor": 28316.846592
+        },
+        {
+          "id": 68,
+          "nameKey": "UnitName_CubicYard",
+          "abbreviationKey": "UnitAbbreviation_CubicYard",
+          "factor": 764554.857984
+        },
+        {
+          "id": 67,
+          "nameKey": "UnitName_CubicMeter",
+          "abbreviationKey": "UnitAbbreviation_CubicMeter",
+          "factor": 1000000
+        },
+        {
+          "id": 124,
+          "nameKey": "UnitName_CoffeeCup",
+          "abbreviationKey": "UnitAbbreviation_CoffeeCup",
+          "factor": 236.5882,
+          "isWhimsical": true
+        },
+        {
+          "id": 111,
+          "nameKey": "UnitName_Bathtub",
+          "abbreviationKey": "UnitAbbreviation_Bathtub",
+          "factor": 378541.2,
+          "isWhimsical": true
+        },
+        {
+          "id": 125,
+          "nameKey": "UnitName_SwimmingPool",
+          "abbreviationKey": "UnitAbbreviation_SwimmingPool",
+          "factor": 3750000000,
+          "isWhimsical": true
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "nameKey": "CategoryName_TemperatureText",
+      "supportsNegative": true,
+      "isTemperature": true,
+      "units": [
+        {
+          "id": 46,
+          "nameKey": "UnitName_DegreesCelsius",
+          "abbreviationKey": "UnitAbbreviation_DegreesCelsius",
+          "factor": 1
+        },
+        {
+          "id": 47,
+          "nameKey": "UnitName_DegreesFahrenheit",
+          "abbreviationKey": "UnitAbbreviation_DegreesFahrenheit",
+          "factor": 1
+        },
+        {
+          "id": 48,
+          "nameKey": "UnitName_Kelvin",
+          "abbreviationKey": "UnitAbbreviation_Kelvin",
+          "factor": 1
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "nameKey": "CategoryName_AreaText",
+      "supportsNegative": false,
+      "isTemperature": false,
+      "units": [
+        {
+          "id": 9,
+          "nameKey": "UnitName_SquareMillimeter",
+          "abbreviationKey": "UnitAbbreviation_SquareMillimeter",
+          "factor": 1e-06
+        },
+        {
+          "id": 3,
+          "nameKey": "UnitName_SquareCentimeter",
+          "abbreviationKey": "UnitAbbreviation_SquareCentimeter",
+          "factor": 0.0001
+        },
+        {
+          "id": 7,
+          "nameKey": "UnitName_SquareMeter",
+          "abbreviationKey": "UnitAbbreviation_SquareMeter",
+          "factor": 1
+        },
+        {
+          "id": 2,
+          "nameKey": "UnitName_Hectare",
+          "abbreviationKey": "UnitAbbreviation_Hectare",
+          "factor": 10000
+        },
+        {
+          "id": 6,
+          "nameKey": "UnitName_SquareKilometer",
+          "abbreviationKey": "UnitAbbreviation_SquareKilometer",
+          "factor": 1000000
+        },
+        {
+          "id": 5,
+          "nameKey": "UnitName_SquareInch",
+          "abbreviationKey": "UnitAbbreviation_SquareInch",
+          "factor": 0.00064516
+        },
+        {
+          "id": 4,
+          "nameKey": "UnitName_SquareFoot",
+          "abbreviationKey": "UnitAbbreviation_SquareFoot",
+          "factor": 0.09290304
+        },
+        {
+          "id": 10,
+          "nameKey": "UnitName_SquareYard",
+          "abbreviationKey": "UnitAbbreviation_SquareYard",
+          "factor": 0.83612736
+        },
+        {
+          "id": 1,
+          "nameKey": "UnitName_Acre",
+          "abbreviationKey": "UnitAbbreviation_Acre",
+          "factor": 4046.8564224
+        },
+        {
+          "id": 8,
+          "nameKey": "UnitName_SquareMile",
+          "abbreviationKey": "UnitAbbreviation_SquareMile",
+          "factor": 2589988.110336
+        },
+        {
+          "id": 165,
+          "nameKey": "UnitName_Pyeong",
+          "abbreviationKey": "UnitAbbreviation_Pyeong",
+          "factor": 3.3057851239669422
+        },
+        {
+          "id": 118,
+          "nameKey": "UnitName_Hand",
+          "abbreviationKey": "UnitAbbreviation_Hand",
+          "factor": 0.012516104,
+          "isWhimsical": true
+        },
+        {
+          "id": 127,
+          "nameKey": "UnitName_Paper",
+          "abbreviationKey": "UnitAbbreviation_Paper",
+          "factor": 0.06032246,
+          "isWhimsical": true
+        },
+        {
+          "id": 99,
+          "nameKey": "UnitName_SoccerField",
+          "abbreviationKey": "UnitAbbreviation_SoccerField",
+          "factor": 10869.66,
+          "isWhimsical": true
+        },
+        {
+          "id": 128,
+          "nameKey": "UnitName_Castle",
+          "abbreviationKey": "UnitAbbreviation_Castle",
+          "factor": 100000,
+          "isWhimsical": true
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "nameKey": "CategoryName_SpeedText",
+      "supportsNegative": false,
+      "isTemperature": false,
+      "units": [
+        {
+          "id": 57,
+          "nameKey": "UnitName_CentimetersPerSecond",
+          "abbreviationKey": "UnitAbbreviation_CentimetersPerSecond",
+          "factor": 1
+        },
+        {
+          "id": 62,
+          "nameKey": "UnitName_MetersPerSecond",
+          "abbreviationKey": "UnitAbbreviation_MetersPerSecond",
+          "factor": 100
+        },
+        {
+          "id": 59,
+          "nameKey": "UnitName_KilometersPerHour",
+          "abbreviationKey": "UnitAbbreviation_KilometersPerHour",
+          "factor": 27.77777777777778
+        },
+        {
+          "id": 58,
+          "nameKey": "UnitName_FeetPerSecond",
+          "abbreviationKey": "UnitAbbreviation_FeetPerSecond",
+          "factor": 30.48
+        },
+        {
+          "id": 63,
+          "nameKey": "UnitName_MilesPerHour",
+          "abbreviationKey": "UnitAbbreviation_MilesPerHour",
+          "factor": 44.7
+        },
+        {
+          "id": 60,
+          "nameKey": "UnitName_Knot",
+          "abbreviationKey": "UnitAbbreviation_Knot",
+          "factor": 51.44
+        },
+        {
+          "id": 61,
+          "nameKey": "UnitName_Mach",
+          "abbreviationKey": "UnitAbbreviation_Mach",
+          "factor": 34030
+        },
+        {
+          "id": 121,
+          "nameKey": "UnitName_Turtle",
+          "abbreviationKey": "UnitAbbreviation_Turtle",
+          "factor": 8.94,
+          "isWhimsical": true
+        },
+        {
+          "id": 126,
+          "nameKey": "UnitName_Horse",
+          "abbreviationKey": "UnitAbbreviation_Horse",
+          "factor": 2011.5,
+          "isWhimsical": true
+        },
+        {
+          "id": 122,
+          "nameKey": "UnitName_Jet",
+          "abbreviationKey": "UnitAbbreviation_Jet",
+          "factor": 24585,
+          "isWhimsical": true
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "nameKey": "CategoryName_TimeText",
+      "supportsNegative": false,
+      "isTemperature": false,
+      "units": [
+        {
+          "id": 51,
+          "nameKey": "UnitName_Microsecond",
+          "abbreviationKey": "UnitAbbreviation_Microsecond",
+          "factor": 1e-06
+        },
+        {
+          "id": 52,
+          "nameKey": "UnitName_Millisecond",
+          "abbreviationKey": "UnitAbbreviation_Millisecond",
+          "factor": 0.001
+        },
+        {
+          "id": 54,
+          "nameKey": "UnitName_Second",
+          "abbreviationKey": "UnitAbbreviation_Second",
+          "factor": 1
+        },
+        {
+          "id": 53,
+          "nameKey": "UnitName_Minute",
+          "abbreviationKey": "UnitAbbreviation_Minute",
+          "factor": 60
+        },
+        {
+          "id": 50,
+          "nameKey": "UnitName_Hour",
+          "abbreviationKey": "UnitAbbreviation_Hour",
+          "factor": 3600
+        },
+        {
+          "id": 49,
+          "nameKey": "UnitName_Day",
+          "abbreviationKey": "UnitAbbreviation_Day",
+          "factor": 86400
+        },
+        {
+          "id": 55,
+          "nameKey": "UnitName_Week",
+          "abbreviationKey": "UnitAbbreviation_Week",
+          "factor": 604800
+        },
+        {
+          "id": 56,
+          "nameKey": "UnitName_Year",
+          "abbreviationKey": "UnitAbbreviation_Year",
+          "factor": 31557600
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "nameKey": "CategoryName_PowerText",
+      "supportsNegative": false,
+      "isTemperature": false,
+      "units": [
+        {
+          "id": 42,
+          "nameKey": "UnitName_Foot-PoundPerMinute",
+          "abbreviationKey": "UnitAbbreviation_Foot-PoundPerMinute",
+          "factor": 0.0225969658055233
+        },
+        {
+          "id": 45,
+          "nameKey": "UnitName_Watt",
+          "abbreviationKey": "UnitAbbreviation_Watt",
+          "factor": 1
+        },
+        {
+          "id": 41,
+          "nameKey": "UnitName_BTUPerMinute",
+          "abbreviationKey": "UnitAbbreviation_BTUPerMinute",
+          "factor": 17.58426666666667
+        },
+        {
+          "id": 44,
+          "nameKey": "UnitName_Kilowatt",
+          "abbreviationKey": "UnitAbbreviation_Kilowatt",
+          "factor": 1000
+        },
+        {
+          "id": 43,
+          "nameKey": "UnitName_Horsepower",
+          "abbreviationKey": "UnitAbbreviation_Horsepower",
+          "factor": 745.6998715822702
+        },
+        {
+          "id": 108,
+          "nameKey": "UnitName_LightBulb",
+          "abbreviationKey": "UnitAbbreviation_LightBulb",
+          "factor": 60,
+          "isWhimsical": true
+        },
+        {
+          "id": 109,
+          "nameKey": "UnitName_Horse",
+          "abbreviationKey": "UnitAbbreviation_Horse",
+          "factor": 745.7,
+          "isWhimsical": true
+        },
+        {
+          "id": 132,
+          "nameKey": "UnitName_TrainEngine",
+          "abbreviationKey": "UnitAbbreviation_TrainEngine",
+          "factor": 2982799.486329081,
+          "isWhimsical": true
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "nameKey": "CategoryName_DataText",
+      "supportsNegative": false,
+      "isTemperature": false,
+      "units": [
+        {
+          "id": 11,
+          "nameKey": "UnitName_Bit",
+          "abbreviationKey": "UnitAbbreviation_Bit",
+          "factor": 1.25e-07
+        },
+        {
+          "id": 167,
+          "nameKey": "UnitName_Nibble",
+          "abbreviationKey": "UnitAbbreviation_Nibble",
+          "factor": 5e-07
+        },
+        {
+          "id": 12,
+          "nameKey": "UnitName_Byte",
+          "abbreviationKey": "UnitAbbreviation_Byte",
+          "factor": 1e-06
+        },
+        {
+          "id": 15,
+          "nameKey": "UnitName_Kilobit",
+          "abbreviationKey": "UnitAbbreviation_Kilobit",
+          "factor": 0.000125
+        },
+        {
+          "id": 16,
+          "nameKey": "UnitName_Kilobyte",
+          "abbreviationKey": "UnitAbbreviation_Kilobyte",
+          "factor": 0.001
+        },
+        {
+          "id": 17,
+          "nameKey": "UnitName_Megabit",
+          "abbreviationKey": "UnitAbbreviation_Megabit",
+          "factor": 0.125
+        },
+        {
+          "id": 18,
+          "nameKey": "UnitName_Megabyte",
+          "abbreviationKey": "UnitAbbreviation_Megabyte",
+          "factor": 1
+        },
+        {
+          "id": 13,
+          "nameKey": "UnitName_Gigabit",
+          "abbreviationKey": "UnitAbbreviation_Gigabit",
+          "factor": 125
+        },
+        {
+          "id": 14,
+          "nameKey": "UnitName_Gigabyte",
+          "abbreviationKey": "UnitAbbreviation_Gigabyte",
+          "factor": 1000
+        },
+        {
+          "id": 21,
+          "nameKey": "UnitName_Terabit",
+          "abbreviationKey": "UnitAbbreviation_Terabit",
+          "factor": 125000
+        },
+        {
+          "id": 22,
+          "nameKey": "UnitName_Terabyte",
+          "abbreviationKey": "UnitAbbreviation_Terabyte",
+          "factor": 1000000
+        },
+        {
+          "id": 19,
+          "nameKey": "UnitName_Petabit",
+          "abbreviationKey": "UnitAbbreviation_Petabit",
+          "factor": 125000000
+        },
+        {
+          "id": 20,
+          "nameKey": "UnitName_Petabyte",
+          "abbreviationKey": "UnitAbbreviation_Petabyte",
+          "factor": 1000000000
+        },
+        {
+          "id": 149,
+          "nameKey": "UnitName_Kibibits",
+          "abbreviationKey": "UnitAbbreviation_Kibibits",
+          "factor": 0.000128
+        },
+        {
+          "id": 150,
+          "nameKey": "UnitName_Kibibytes",
+          "abbreviationKey": "UnitAbbreviation_Kibibytes",
+          "factor": 0.001024
+        },
+        {
+          "id": 151,
+          "nameKey": "UnitName_Mebibits",
+          "abbreviationKey": "UnitAbbreviation_Mebibits",
+          "factor": 0.131072
+        },
+        {
+          "id": 152,
+          "nameKey": "UnitName_Mebibytes",
+          "abbreviationKey": "UnitAbbreviation_Mebibytes",
+          "factor": 1.048576
+        },
+        {
+          "id": 147,
+          "nameKey": "UnitName_Gibibits",
+          "abbreviationKey": "UnitAbbreviation_Gibibits",
+          "factor": 134.217728
+        },
+        {
+          "id": 148,
+          "nameKey": "UnitName_Gibibytes",
+          "abbreviationKey": "UnitAbbreviation_Gibibytes",
+          "factor": 1073.741824
+        },
+        {
+          "id": 155,
+          "nameKey": "UnitName_Tebibits",
+          "abbreviationKey": "UnitAbbreviation_Tebibits",
+          "factor": 137438.953472
+        },
+        {
+          "id": 156,
+          "nameKey": "UnitName_Tebibytes",
+          "abbreviationKey": "UnitAbbreviation_Tebibytes",
+          "factor": 1099511.627776
+        },
+        {
+          "id": 100,
+          "nameKey": "UnitName_FloppyDisk",
+          "abbreviationKey": "UnitAbbreviation_FloppyDisk",
+          "factor": 1.47456,
+          "isWhimsical": true
+        },
+        {
+          "id": 101,
+          "nameKey": "UnitName_CD",
+          "abbreviationKey": "UnitAbbreviation_CD",
+          "factor": 700,
+          "isWhimsical": true
+        },
+        {
+          "id": 102,
+          "nameKey": "UnitName_DVD",
+          "abbreviationKey": "UnitAbbreviation_DVD",
+          "factor": 4700,
+          "isWhimsical": true
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "nameKey": "CategoryName_PressureText",
+      "supportsNegative": false,
+      "isTemperature": false,
+      "units": [
+        {
+          "id": 137,
+          "nameKey": "UnitName_Atmosphere",
+          "abbreviationKey": "UnitAbbreviation_Atmosphere",
+          "factor": 1
+        },
+        {
+          "id": 138,
+          "nameKey": "UnitName_Bar",
+          "abbreviationKey": "UnitAbbreviation_Bar",
+          "factor": 0.9869232667160128
+        },
+        {
+          "id": 139,
+          "nameKey": "UnitName_KiloPascal",
+          "abbreviationKey": "UnitAbbreviation_KiloPascal",
+          "factor": 0.0098692326671601
+        },
+        {
+          "id": 140,
+          "nameKey": "UnitName_MillimeterOfMercury",
+          "abbreviationKey": "UnitAbbreviation_MillimeterOfMercury",
+          "factor": 0.0013155687145324
+        },
+        {
+          "id": 141,
+          "nameKey": "UnitName_Pascal",
+          "abbreviationKey": "UnitAbbreviation_Pascal",
+          "factor": 9.869232667160129e-06
+        },
+        {
+          "id": 142,
+          "nameKey": "UnitName_PSI",
+          "abbreviationKey": "UnitAbbreviation_PSI",
+          "factor": 0.068045961016531
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "nameKey": "CategoryName_AngleText",
+      "supportsNegative": false,
+      "isTemperature": false,
+      "units": [
+        {
+          "id": 134,
+          "nameKey": "UnitName_Degree",
+          "abbreviationKey": "UnitAbbreviation_Degree",
+          "factor": 1
+        },
+        {
+          "id": 135,
+          "nameKey": "UnitName_Radian",
+          "abbreviationKey": "UnitAbbreviation_Radian",
+          "factor": 57.29577951308233
+        },
+        {
+          "id": 136,
+          "nameKey": "UnitName_Gradian",
+          "abbreviationKey": "UnitAbbreviation_Gradian",
+          "factor": 0.9
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "nameKey": "CategoryName_EnergyText",
+      "supportsNegative": false,
+      "isTemperature": false,
+      "units": [
+        {
+          "id": 25,
+          "nameKey": "UnitName_Electron-Volt",
+          "abbreviationKey": "UnitAbbreviation_Electron-Volt",
+          "factor": 1.602176565e-19
+        },
+        {
+          "id": 27,
+          "nameKey": "UnitName_Joule",
+          "abbreviationKey": "UnitAbbreviation_Joule",
+          "factor": 1
+        },
+        {
+          "id": 26,
+          "nameKey": "UnitName_Foot-Pound",
+          "abbreviationKey": "UnitAbbreviation_Foot-Pound",
+          "factor": 1.3558179483314
+        },
+        {
+          "id": 24,
+          "nameKey": "UnitName_Calorie",
+          "abbreviationKey": "UnitAbbreviation_Calorie",
+          "factor": 4.184
+        },
+        {
+          "id": 29,
+          "nameKey": "UnitName_Kilojoule",
+          "abbreviationKey": "UnitAbbreviation_Kilojoule",
+          "factor": 1000
+        },
+        {
+          "id": 28,
+          "nameKey": "UnitName_Kilocalorie",
+          "abbreviationKey": "UnitAbbreviation_Kilocalorie",
+          "factor": 4184
+        },
+        {
+          "id": 23,
+          "nameKey": "UnitName_BritishThermalUnit",
+          "abbreviationKey": "UnitAbbreviation_BritishThermalUnit",
+          "factor": 1055.056
+        },
+        {
+          "id": 166,
+          "nameKey": "UnitName_Kilowatthour",
+          "abbreviationKey": "UnitAbbreviation_Kilowatthour",
+          "factor": 3600000
+        },
+        {
+          "id": 103,
+          "nameKey": "UnitName_Battery",
+          "abbreviationKey": "UnitAbbreviation_Battery",
+          "factor": 9000,
+          "isWhimsical": true
+        },
+        {
+          "id": 129,
+          "nameKey": "UnitName_Banana",
+          "abbreviationKey": "UnitAbbreviation_Banana",
+          "factor": 439614,
+          "isWhimsical": true
+        },
+        {
+          "id": 130,
+          "nameKey": "UnitName_SliceOfCake",
+          "abbreviationKey": "UnitAbbreviation_SliceOfCake",
+          "factor": 1046700,
+          "isWhimsical": true
+        }
+      ]
+    }
+  ]
+}
