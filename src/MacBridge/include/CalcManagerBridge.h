@@ -7,6 +7,7 @@
 
 // SPM 以本文件为伞头（与 target 同名）；C ABI 门面须由此导出给 Swift。
 #import "calc_c_api.h"
+#import "graph_geometry.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

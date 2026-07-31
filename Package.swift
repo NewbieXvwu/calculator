@@ -41,6 +41,9 @@ let package = Package(
             publicHeadersPath: "include",
             cxxSettings: [
                 .headerSearchPath("../CalcManager"),
+                // graph_geometry 与 Swift 首发实现位级平价（GraphGeometryTests）：
+                // 禁止把 a*b+c 收缩为 fma，各平台移植构建须同样关闭。
+                .unsafeFlags(["-ffp-contract=off"]),
                 .unsafeFlags(["-O3"], .when(configuration: .release)),
             ]
         ),

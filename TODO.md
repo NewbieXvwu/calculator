@@ -532,7 +532,7 @@ for row in spec.rows(mode, tier):
 
 ---
 
-### S7 · 图形几何下沉 🟠 P1
+### S7 · 图形几何下沉 ✅ 完成（2026-07-31）
 
 `GraphingView.swift` 1,056 行里，真正的绘制调用只有 13 个 `Path(`、10 个 `context.stroke`、4 个 `context.fill`。**其余绝大部分是可共享的几何数学**：
 
@@ -545,6 +545,17 @@ for row in spec.rows(mode, tier):
 **这层抽象在 macOS(CoreGraphics) / Web(Canvas) / 鸿蒙(OH_Drawing) / Android(Compose Canvas) 上是同一套代码，只换后端。这是 UI 相关代码里唯一能真正跨平台共享的部分。**
 
 **成本**：1 人周
+
+**验收记录（2026-07-31）**：`src/MacBridge/include/graph_geometry.h` + `graph_geometry.cpp`
+落地（纯 C ABI、零引擎依赖、零分配——调用方自备缓冲，求值以回调传入，异常不越界）。
+覆盖：视窗结构与坐标双向变换、1-2-5 刻度步长与刻度枚举、pan/zoom/锚点缩放/
+applyRange/auto-fit（5%–95% 分位）、逐像素列采样（未定义列抬笔 + 1.5 倍画布高
+跳变断裂）、marching squares（含 ε 防退化与鞍点中心消歧）、不等式区域行程合并、
+跟踪就近吸附。`GraphGeometryTests` 12 项平价测试把 C 层与 macOS 首发实现
+（GraphingView/GraphingViewModel/MarchingSquares）逐项锁定，其中 marching squares
+逐线段位级比对——为此 CalcManagerBridge 编译加 `-ffp-contract=off`（fma 收缩会翻转
+近零节点符号，改变等值线拓扑；各平台移植构建须同样关闭）。macOS 视图改调共享层
+属 P-macOS 回填（见 §7）。
 
 ---
 
@@ -1235,7 +1246,7 @@ grep -rn "long double\|LDBL_\|%Lf\|strtold\|powl\|sqrtl\|sinl" src/CalcManager/
   S9  KGF 规格 + 14 函数回归测试           ← ✅ 完成（2026-07-31，随 S3 互为验收）
   S5  C ABI 门面                           ← ✅ 完成（2026-07-31）
   S6  规格表下沉                           ← ✅ 完成（2026-07-31）
-  S7  图形几何下沉                         ← 1 人周
+  S7  图形几何下沉                         ← ✅ 完成（2026-07-31）
   S8  Locale 注入加固 + 分组模式修复       ← 3–5 人日
   S11 @Observable 迁移                     ← 2–3 人日
   S4  区间算术                             ← 1–2 人周（可延后到首个绘图平台前）
