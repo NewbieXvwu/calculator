@@ -5,6 +5,9 @@
 
 #import <Foundation/Foundation.h>
 
+// SPM 以本文件为伞头（与 target 同名）；C ABI 门面须由此导出给 Swift。
+#import "calc_c_api.h"
+
 NS_ASSUME_NONNULL_BEGIN
 
 /// One expression-display token. commandIndex >= 0 means the token is editable

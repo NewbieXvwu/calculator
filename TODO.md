@@ -443,7 +443,7 @@ giac 有全局锁串行化 → **8.3s 会阻塞后续所有分析请求**。
 
 ---
 
-### S5 · C ABI 门面 🟠 P1
+### S5 · C ABI 门面 ✅ 完成（2026-07-31）
 
 **问题**：`CalcManagerBridge.mm`（337 行 ObjC++）是唯一进入引擎的通道，而 ObjC 运行时**只存在于 Apple 平台**。Android / Linux / Web / Windows / 鸿蒙**每一个都要重写这 337 行**。
 
@@ -482,6 +482,16 @@ calc_serialize / restore_state
 → **绝不让 C++ 异常穿过 C ABI 边界。** 在边界处 `catch (uint32_t)` 并转成错误码返回值。
 
 **成本**：3–5 人日
+
+**完成记录（2026-07-31）**：`src/MacBridge/include/calc_c_api.h`（纯 C 头，UTF-8
+字符串约定 + 回调表 + 错误码约定）+ `calc_c_api.cpp`（只 include `CalcSession.h`，
+维持引擎头隔离；`CALC_GUARD` 在每个入口 `catch (uint32_t)` 转错误码、`catch (...)`
+折叠为 `CALC_E_UNKNOWN`，异常绝不穿越 C 边界；UTF-8↔wchar_t 转换自带，兼容
+2/4 字节 wchar_t）。`CalcCApiTests` 5 例冒烟（Swift 直接走 C ABI）：算术+历史、
+内存回调、locale 分隔符注入、程序员进制转换、NULL/越界边界安全。
+偏差记录：TODO 草案中的 `calc_paste/copy` 与 `calc_serialize/restore_state` 未
+实现——`CalcSession` 门面本身无此能力（粘贴解析在 ViewModel 层，序列化待
+S10），列表本为示意粒度；macOS Swift 切换到 C ABI 属 P-macOS 回填任务。
 
 ---
 
