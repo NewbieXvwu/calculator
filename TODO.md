@@ -1005,17 +1005,54 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 
 #### P-Windows-1/2 · 五模式 + 绘图
 - [ ] **UI 一行不动**
-- [ ] 实现 `IMathSolver` / `IGraphAnalyzer`（`src/GraphingInterfaces/`，1,069 行接口已由微软定义好）
+- [ ] 实现 `IMathSolver` / `IGraphAnalyzer`（`src/GraphingInterfaces/`，接口已由微软定义好）
 - [ ] 替换 `src/GraphingImpl/Mocks/MathSolver.cpp` 桩实现
-- [ ] 接 giac（复用 `GiacMathSolver` 的查询逻辑，从 Swift 翻回 C++）
+- [ ] 求解/求值后端（见下「求值器抉择」）
 
 **这一步的公开价值最高**：上游社区构建至今没有绘图功能（README 明说专有引擎不在仓库里、开发者构建用 mock）。完成后是**第一个带完整绘图的开源 Windows 计算器**。
+
+> **2026-07-31 摸底（M4 诚实修正，尚未动工）**：接口面已读通——真实实现需同时落地
+> `IMathSolver`（`ParseInput`/`CreateGrapher`/`Serialize`/`Analyze`）、`IGraph`
+> （`TryInitialize`/变量枚举）、`IGraphRenderer`（**核心是 `DrawD2D1(ID2D1Factory*,
+> ID2D1RenderTarget*)`——需用 Direct2D 亲手画曲线/网格/不等式域**）、`IGraphAnalyzer`
+> （关键图形特征）。几何部分可复用共享层 `src/MacBridge/include/graph_geometry.h`
+> 的 C ABI（采样/marching squares/Tupper 区间/trace 吸附，已在 macOS 生产路径验证），
+> 渲染后端只需把返回的图元转成 D2D 路径——**这部分与 macOS 同构，成本可控**。
+>
+> **真正的阻断在求值器**：曲线求值与关键特征依赖一个能解析/求值任意表达式的引擎。
+> macOS 走 giac（`Tools/build_giac.sh`：autotools `./configure`+`make`，依赖 GMP/MPFR/
+> gettext，GCC/clang 产 `libgiac.a`）。把这一套搬进 **UWP AppContainer + MSVC v145**
+> 有三重硬伤：
+> 1. **GMP/MPFR 不吃 MSVC**——含 GCC 汇编与 autotools，业界只能走 MSYS2/MinGW 或
+>    vcpkg 的打补丁路线；
+> 2. **MinGW 产物无法直接进 MSVC UWP**——C++ ABI 不兼容（`caseval` 虽是 `extern "C"`，
+>    但静态库整体仍是 MinGW ABI），只能改走「MinGW 建 DLL 导出 C 接口 + 主程序 LoadLibrary」；
+> 3. **AppContainer 沙箱**——giac 用到文件系统/环境变量/线程的方式未必过沙箱，且体量巨大。
+>
+> **结论**：原「1–2 人周（只写求解器接入）」估算**默认了求值器现成**，实为误判。
+> geometry+D2D 渲染确是 1–2 人周量级；**求值器上 Windows 才是主成本**（数周至数月，
+> 且有可行性风险）。求值器路线是一次性、难回退的架构抉择，须先定方向：见下。
+>
+> **求值器抉择**（待定，需决策）：
+> - **A. 移植 giac 到 Windows**：与 macOS 严格同构、零功能分叉，但 GMP/MPFR/AppContainer
+>   三重风险，工期最长、可行性未证。
+> - **B. 桌面（非 UWP）外壳 + giac DLL**：放弃 AppContainer，用 Win32/WinUI3 桌面壳
+>   加载 MinGW giac DLL，绕开沙箱；但「UI 一行不动」不再成立（换外壳）。
+> - **C. 轻量原生求值器**：为绘图常见函数（多项式/三角/指对）在 C++ 写小型解析求值器，
+>   无外部依赖、纯 MSVC；代价是与 giac 路径功能分叉（关键特征/CAS 能力受限，违背 §9
+>   共享层同构精神），须按 M1 记录偏差。
+>
+> **可先做、零风险的真实增量**：把 geometry（`graph_geometry.*`）编入一个新的
+> `GiacGraphingImpl`/`NativeGraphingImpl` 工程并接上 `IGraphRenderer` 的 D2D 绘制，
+> 求值器先用桩/原生最小实现验证渲染管线联通——但这会新增工程、改 `UseMockGraphingImpl`
+> 默认值，属于上面抉择的下游，故先请示方向再动工。
 
 #### P-Windows-4 · 分发
 - [ ] GitHub Release（GPLv3 侧载无障碍）
 - [ ] 不进 Microsoft Store（GPL 冲突）
 
-**成本**：1–2 人周（UI 零成本，只写求解器接入）
+**成本**（修正）：geometry+D2D 渲染 1–2 人周；求值器上 Windows 另计（视 A/B/C 抉择，
+数周至数月不等，A 路线含可行性风险）。P-Windows-0 已完成。
 
 ---
 
