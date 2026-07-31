@@ -212,7 +212,7 @@ static_assert(sizeof(double) == 8, "IEEE754 binary64 required");
 
 ---
 
-### S1 · 隐式依赖修复 🔴 P0
+### S1 · 隐式依赖修复 ✅ 完成（2026-07-31）
 
 **问题**：两个头文件靠 Apple SDK 的间接包含侥幸编过，换任何工具链都失败。
 
@@ -239,7 +239,7 @@ static_assert(sizeof(double) == 8, "IEEE754 binary64 required");
 
 ---
 
-### S2 · 删除 `GraphAnalyzer.swift` 🔴 P0
+### S2 · 删除 `GraphAnalyzer.swift` ✅ 完成（2026-07-31）
 
 **问题**：这 102 行是不依赖 giac 的降级路径，有三个实测确认的真 bug：
 
@@ -495,7 +495,7 @@ S10），列表本为示意粒度；macOS Swift 切换到 C ABI 属 P-macOS 回�
 
 ---
 
-### S6 · 规格表下沉 🟠 P1
+### S6 · 规格表下沉 ✅ 完成（2026-07-31）
 
 **问题**：本该是数据的东西被写成了代码，会被抄 7 遍，每抄一遍多一处漂移源。
 
@@ -527,6 +527,8 @@ for row in spec.rows(mode, tier):
 ```
 
 **成本**：1–1.5 人周
+
+**验收记录（2026-07-31）**：spec/ 下 7 张 JSON 表全部落地，SpecTableTests 七项双向防漂移测试全绿（含行为级 handleKey 驱动）。macOS 视图切换为直接消费规格表渲染循环属 P-macOS 回填（见 §7），单位表 C++ 静态表生成属共享层落地时的消费方迁移。
 
 ---
 
@@ -1227,12 +1229,12 @@ grep -rn "long double\|LDBL_\|%Lf\|strtold\|powl\|sqrtl\|sinl" src/CalcManager/
 
 ```
 第 0 阶段 · 共享层（4–6 人周）
-  S1  两个 include 修复                    ← 1 人日
-  S2  删除 GraphAnalyzer.swift             ← 0.5 人日
+  S1  两个 include 修复                    ← ✅ 完成（2026-07-31）
+  S2  删除 GraphAnalyzer.swift             ← ✅ 完成（2026-07-31）
   S3  GiacMathSolver 诚实性加固            ← ✅ 完成（2026-07-31）
   S9  KGF 规格 + 14 函数回归测试           ← ✅ 完成（2026-07-31，随 S3 互为验收）
-  S5  C ABI 门面                           ← 3–5 人日
-  S6  规格表下沉                           ← 1–1.5 人周
+  S5  C ABI 门面                           ← ✅ 完成（2026-07-31）
+  S6  规格表下沉                           ← ✅ 完成（2026-07-31）
   S7  图形几何下沉                         ← 1 人周
   S8  Locale 注入加固 + 分组模式修复       ← 3–5 人日
   S11 @Observable 迁移                     ← 2–3 人日
