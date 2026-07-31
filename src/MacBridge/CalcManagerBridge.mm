@@ -1,31 +1,23 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+// CalcManagerBridge.mm — ObjC 门面，委托给 calc_c_api 的 C ABI（不再直接持有
+// C++ CalcSession）。这样 calc_c_api 成为 CalcSession 的唯一包装，跨平台契约
+// 由 macOS 实际消费验证；本文件退化为 UTF-8 char* ⇄ NSString 与回调转发。
+
 #import "include/CalcManagerBridge.h"
 
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-
-#include "CalcSession.h"
+#import "calc_c_api.h"
 
 namespace
 {
-    constexpr int kCommandDigit0 = 130; // CalculationManager::Command::Command0
-
-    NSString* ToNSString(const std::wstring& text)
+    NSString* ToNSString(const char* utf8)
     {
-        return [[NSString alloc] initWithBytes:text.data()
-                                        length:text.size() * sizeof(wchar_t)
-                                      encoding:NSUTF32LittleEndianStringEncoding]
-                   ?: @"";
-    }
-
-    std::wstring ToWString(NSString* text)
-    {
-        NSData* data = [text dataUsingEncoding:NSUTF32LittleEndianStringEncoding];
-        return std::wstring(static_cast<const wchar_t*>(data.bytes), data.length / sizeof(wchar_t));
+        if (utf8 == nullptr)
+        {
+            return @"";
+        }
+        return [NSString stringWithUTF8String:utf8] ?: @"";
     }
 }
 
@@ -59,9 +51,126 @@ namespace
 
 @end
 
+@interface CalcManagerBridge ()
+- (void)handleDisplayUpdate:(NSString*)text isError:(BOOL)isError;
+- (void)handleIsInError:(BOOL)isInError;
+@end
+
+namespace
+{
+    // C 回调 thunk：user_data 是未持有的 CalcManagerBridge*（session 由 bridge
+    // 拥有，回调仅在 bridge 存活期间触发，故无需强引用，也不形成保留环）。
+    CalcManagerBridge* BridgeFrom(void* userData)
+    {
+        return (__bridge CalcManagerBridge*)userData;
+    }
+
+    void OnPrimaryDisplay(void* userData, const char* text, bool isError)
+    {
+        [BridgeFrom(userData) handleDisplayUpdate:ToNSString(text) isError:isError ? YES : NO];
+    }
+
+    void OnIsInError(void* userData, bool isInError)
+    {
+        [BridgeFrom(userData) handleIsInError:isInError ? YES : NO];
+    }
+
+    void OnExpressionTokens(void* userData, const calc_token_t* tokens, size_t count)
+    {
+        CalcManagerBridge* bridge = BridgeFrom(userData);
+        if (bridge.onExpressionChanged)
+        {
+            NSMutableArray<CalcBridgeToken*>* result = [NSMutableArray arrayWithCapacity:count];
+            for (size_t i = 0; i < count; ++i)
+            {
+                [result addObject:[[CalcBridgeToken alloc] initWithText:ToNSString(tokens[i].text)
+                                                          commandIndex:tokens[i].command_index]];
+            }
+            bridge.onExpressionChanged(result);
+        }
+    }
+
+    void OnParenthesisCount(void* userData, uint32_t count)
+    {
+        CalcManagerBridge* bridge = BridgeFrom(userData);
+        if (bridge.onParenthesisCountChanged)
+        {
+            bridge.onParenthesisCountChanged(count);
+        }
+    }
+
+    void OnNoRightParenAdded(void* userData)
+    {
+        CalcManagerBridge* bridge = BridgeFrom(userData);
+        if (bridge.onNoRightParenAdded)
+        {
+            bridge.onNoRightParenAdded();
+        }
+    }
+
+    void OnMaxDigitsReached(void* userData)
+    {
+        CalcManagerBridge* bridge = BridgeFrom(userData);
+        if (bridge.onMaxDigitsReached)
+        {
+            bridge.onMaxDigitsReached();
+        }
+    }
+
+    void OnBinaryOperatorReceived(void* userData)
+    {
+        CalcManagerBridge* bridge = BridgeFrom(userData);
+        if (bridge.onBinaryOperatorReceived)
+        {
+            bridge.onBinaryOperatorReceived();
+        }
+    }
+
+    void OnHistoryItemAdded(void* userData, uint32_t index)
+    {
+        CalcManagerBridge* bridge = BridgeFrom(userData);
+        if (bridge.onHistoryItemAdded)
+        {
+            bridge.onHistoryItemAdded(index);
+        }
+    }
+
+    void OnMemorizedNumbers(void* userData, const char* const* values, size_t count)
+    {
+        CalcManagerBridge* bridge = BridgeFrom(userData);
+        if (bridge.onMemoryChanged)
+        {
+            NSMutableArray<NSString*>* result = [NSMutableArray arrayWithCapacity:count];
+            for (size_t i = 0; i < count; ++i)
+            {
+                [result addObject:ToNSString(values[i])];
+            }
+            bridge.onMemoryChanged(result);
+        }
+    }
+
+    void OnMemoryItemChanged(void* userData, uint32_t index)
+    {
+        CalcManagerBridge* bridge = BridgeFrom(userData);
+        if (bridge.onMemoryItemChanged)
+        {
+            bridge.onMemoryItemChanged(index);
+        }
+    }
+
+    void OnInputChanged(void* userData)
+    {
+        CalcManagerBridge* bridge = BridgeFrom(userData);
+        if (bridge.onInputChanged)
+        {
+            bridge.onInputChanged();
+        }
+    }
+}
+
 @implementation CalcManagerBridge
 {
-    std::unique_ptr<MacCalc::CalcSession> _session;
+    calc_session_t* _session;
     NSString* _primaryDisplay;
     BOOL _isInError;
 }
@@ -73,122 +182,56 @@ namespace
     {
         _primaryDisplay = @"0";
 
-        MacCalc::LocaleStrings locale;
         NSLocale* currentLocale = NSLocale.currentLocale;
-        locale.decimalSeparator = ToWString(currentLocale.decimalSeparator ?: @".");
-        locale.thousandSeparator = ToWString(currentLocale.groupingSeparator ?: @",");
+        NSString* decimal = currentLocale.decimalSeparator ?: @".";
+        NSString* thousand = currentLocale.groupingSeparator ?: @",";
 
         // S8：分组模式从结构推导，不再硬编码 "3;0"。
         // 只读 groupingSize 会破坏印度拉克/克若尔制（3;2;0），必须连读 secondary。
         NSNumberFormatter* formatter = [[NSNumberFormatter alloc] init];
         formatter.locale = currentLocale;
         formatter.numberStyle = NSNumberFormatterDecimalStyle;
-        MacCalc::Grouping grouping;
+        calc_grouping_t grouping = {};
         if (formatter.usesGroupingSeparator && formatter.groupingSize > 0)
         {
-            grouping.primary = static_cast<int>(formatter.groupingSize);
-            grouping.secondary = static_cast<int>(formatter.secondaryGroupingSize);
+            grouping.primary = static_cast<int32_t>(formatter.groupingSize);
+            grouping.secondary = static_cast<int32_t>(formatter.secondaryGroupingSize);
         }
         else
         {
             grouping.primary = 0;
         }
-        locale.grouping = grouping.EngineString();
+        char groupingBuffer[32];
+        calc_grouping_format(&grouping, groupingBuffer, sizeof(groupingBuffer));
 
-        _session = std::make_unique<MacCalc::CalcSession>(locale);
+        calc_locale_t locale = {};
+        locale.decimal_separator = decimal.UTF8String;
+        locale.thousand_separator = thousand.UTF8String;
+        locale.grouping = groupingBuffer;
 
-        __weak CalcManagerBridge* weakSelf = self;
-        MacCalc::SessionCallbacks callbacks;
-        callbacks.onPrimaryDisplay = [weakSelf](const std::wstring& text, bool isError) {
-            [weakSelf handleDisplayUpdate:ToNSString(text) isError:isError ? YES : NO];
-        };
-        callbacks.onIsInError = [weakSelf](bool isInError) {
-            CalcManagerBridge* self = weakSelf;
-            if (self)
-            {
-                self->_isInError = isInError ? YES : NO;
-            }
-            if (self.onIsInErrorChanged)
-            {
-                self.onIsInErrorChanged(isInError ? YES : NO);
-            }
-        };
-        callbacks.onExpressionTokens = [weakSelf](const std::vector<std::pair<std::wstring, int>>& tokens) {
-            CalcManagerBridge* self = weakSelf;
-            if (self.onExpressionChanged)
-            {
-                NSMutableArray<CalcBridgeToken*>* result = [NSMutableArray arrayWithCapacity:tokens.size()];
-                for (const auto& [text, commandIndex] : tokens)
-                {
-                    [result addObject:[[CalcBridgeToken alloc] initWithText:ToNSString(text) commandIndex:commandIndex]];
-                }
-                self.onExpressionChanged(result);
-            }
-        };
-        callbacks.onParenthesisCount = [weakSelf](unsigned int count) {
-            CalcManagerBridge* self = weakSelf;
-            if (self.onParenthesisCountChanged)
-            {
-                self.onParenthesisCountChanged(count);
-            }
-        };
-        callbacks.onNoRightParenAdded = [weakSelf]() {
-            CalcManagerBridge* self = weakSelf;
-            if (self.onNoRightParenAdded)
-            {
-                self.onNoRightParenAdded();
-            }
-        };
-        callbacks.onMaxDigitsReached = [weakSelf]() {
-            CalcManagerBridge* self = weakSelf;
-            if (self.onMaxDigitsReached)
-            {
-                self.onMaxDigitsReached();
-            }
-        };
-        callbacks.onBinaryOperatorReceived = [weakSelf]() {
-            CalcManagerBridge* self = weakSelf;
-            if (self.onBinaryOperatorReceived)
-            {
-                self.onBinaryOperatorReceived();
-            }
-        };
-        callbacks.onHistoryItemAdded = [weakSelf](unsigned int index) {
-            CalcManagerBridge* self = weakSelf;
-            if (self.onHistoryItemAdded)
-            {
-                self.onHistoryItemAdded(index);
-            }
-        };
-        callbacks.onMemorizedNumbers = [weakSelf](const std::vector<std::wstring>& values) {
-            CalcManagerBridge* self = weakSelf;
-            if (self.onMemoryChanged)
-            {
-                NSMutableArray<NSString*>* result = [NSMutableArray arrayWithCapacity:values.size()];
-                for (const auto& value : values)
-                {
-                    [result addObject:ToNSString(value)];
-                }
-                self.onMemoryChanged(result);
-            }
-        };
-        callbacks.onMemoryItemChanged = [weakSelf](unsigned int index) {
-            CalcManagerBridge* self = weakSelf;
-            if (self.onMemoryItemChanged)
-            {
-                self.onMemoryItemChanged(index);
-            }
-        };
-        callbacks.onInputChanged = [weakSelf]() {
-            CalcManagerBridge* self = weakSelf;
-            if (self.onInputChanged)
-            {
-                self.onInputChanged();
-            }
-        };
-        _session->SetCallbacks(std::move(callbacks));
+        _session = calc_session_create(&locale);
+
+        calc_callbacks_t callbacks = {};
+        callbacks.user_data = (__bridge void*)self;
+        callbacks.on_primary_display = OnPrimaryDisplay;
+        callbacks.on_is_in_error = OnIsInError;
+        callbacks.on_expression_tokens = OnExpressionTokens;
+        callbacks.on_parenthesis_count = OnParenthesisCount;
+        callbacks.on_no_right_paren_added = OnNoRightParenAdded;
+        callbacks.on_max_digits_reached = OnMaxDigitsReached;
+        callbacks.on_binary_operator_received = OnBinaryOperatorReceived;
+        callbacks.on_history_item_added = OnHistoryItemAdded;
+        callbacks.on_memorized_numbers = OnMemorizedNumbers;
+        callbacks.on_memory_item_changed = OnMemoryItemChanged;
+        callbacks.on_input_changed = OnInputChanged;
+        calc_session_set_callbacks(_session, &callbacks);
     }
     return self;
+}
+
+- (void)dealloc
+{
+    calc_session_destroy(_session);
 }
 
 - (NSString*)primaryDisplay
@@ -211,146 +254,172 @@ namespace
     }
 }
 
+- (void)handleIsInError:(BOOL)isInError
+{
+    _isInError = isInError;
+    if (self.onIsInErrorChanged)
+    {
+        self.onIsInErrorChanged(isInError);
+    }
+}
+
 - (void)sendCommand:(NSInteger)command
 {
-    _session->SendCommand(static_cast<int>(command));
+    calc_send_command(_session, static_cast<int32_t>(command));
 }
 
 - (void)sendDigit:(NSInteger)digit
 {
-    [self sendCommand:kCommandDigit0 + digit];
+    calc_send_digit(_session, static_cast<int32_t>(digit));
 }
 
 - (void)displayPasteError
 {
-    _session->DisplayPasteError();
+    calc_display_paste_error(_session);
 }
 
 - (void)reset
 {
-    _session->Reset(true);
+    calc_reset(_session, true);
 }
 
 - (void)resetWithClearMemory:(BOOL)clearMemory
 {
-    _session->Reset(clearMemory == YES);
+    calc_reset(_session, clearMemory == YES);
 }
 
 - (void)setStandardMode
 {
-    _session->SetStandardMode();
+    calc_set_mode(_session, CALC_MODE_STANDARD);
 }
 
 - (void)setScientificMode
 {
-    _session->SetScientificMode();
+    calc_set_mode(_session, CALC_MODE_SCIENTIFIC);
 }
 
 - (void)setProgrammerMode
 {
-    _session->SetProgrammerMode();
+    calc_set_mode(_session, CALC_MODE_PROGRAMMER);
 }
 
 - (BOOL)isEngineRecording
 {
-    return _session->IsEngineRecording() ? YES : NO;
+    return calc_is_engine_recording(_session) ? YES : NO;
 }
 
 - (BOOL)isInputEmpty
 {
-    return _session->IsInputEmpty() ? YES : NO;
+    return calc_is_input_empty(_session) ? YES : NO;
 }
 
 - (BOOL)precisionLimited
 {
-    return MacCalc::CalcSession::PrecisionLimited() ? YES : NO;
+    return calc_precision_limited() ? YES : NO;
 }
 
 - (void)clearPrecisionLimited
 {
-    MacCalc::CalcSession::ClearPrecisionLimited();
+    calc_clear_precision_limited();
 }
 
 - (NSString*)decimalSeparator
 {
-    std::wstring separator(1, _session->DecimalSeparator());
-    return ToNSString(separator);
+    uint32_t codepoint = calc_decimal_separator(_session);
+    return [[NSString alloc] initWithBytes:&codepoint
+                                    length:sizeof(codepoint)
+                                  encoding:NSUTF32LittleEndianStringEncoding]
+        ?: @".";
 }
 
 - (void)setPrecision:(NSInteger)precision
 {
-    _session->SetPrecision(static_cast<int>(precision));
+    calc_set_precision(_session, static_cast<int32_t>(precision));
 }
 
 - (void)updateMaxIntDigits
 {
-    _session->UpdateMaxIntDigits();
+    calc_update_max_int_digits(_session);
 }
 
 - (void)setRadix:(NSInteger)radixType
 {
-    _session->SetRadix(static_cast<int>(radixType));
+    calc_set_radix(_session, static_cast<calc_radix_type_t>(radixType));
 }
 
 - (NSString*)resultForRadix:(NSInteger)radix precision:(NSInteger)precision groupDigits:(BOOL)groupDigits
 {
-    return ToNSString(_session->GetResultForRadix(static_cast<unsigned int>(radix), static_cast<int>(precision), groupDigits == YES));
+    char* result = calc_result_for_radix(_session,
+                                         static_cast<uint32_t>(radix),
+                                         static_cast<int32_t>(precision),
+                                         groupDigits == YES);
+    NSString* value = ToNSString(result);
+    calc_string_free(result);
+    return value;
 }
 
 - (void)memorizeNumber
 {
-    _session->MemorizeNumber();
+    calc_memory_store(_session);
 }
 
 - (void)memoryLoad:(NSUInteger)index
 {
-    _session->MemorizedNumberLoad(static_cast<unsigned int>(index));
+    calc_memory_recall(_session, static_cast<uint32_t>(index));
 }
 
 - (void)memoryAdd:(NSUInteger)index
 {
-    _session->MemorizedNumberAdd(static_cast<unsigned int>(index));
+    calc_memory_add(_session, static_cast<uint32_t>(index));
 }
 
 - (void)memorySubtract:(NSUInteger)index
 {
-    _session->MemorizedNumberSubtract(static_cast<unsigned int>(index));
+    calc_memory_subtract(_session, static_cast<uint32_t>(index));
 }
 
 - (void)memoryClear:(NSUInteger)index
 {
-    _session->MemorizedNumberClear(static_cast<unsigned int>(index));
+    calc_memory_clear(_session, static_cast<uint32_t>(index));
 }
 
 - (void)memoryClearAll
 {
-    _session->MemorizedNumberClearAll();
+    calc_memory_clear_all(_session);
 }
 
 - (NSArray<CalcBridgeHistoryEntry*>*)historyEntries
 {
-    auto entries = _session->GetHistoryEntries();
-    NSMutableArray<CalcBridgeHistoryEntry*>* result = [NSMutableArray arrayWithCapacity:entries.size()];
-    for (const auto& entry : entries)
+    size_t count = calc_history_count(_session);
+    NSMutableArray<CalcBridgeHistoryEntry*>* result = [NSMutableArray arrayWithCapacity:count];
+    for (size_t i = 0; i < count; ++i)
     {
-        [result addObject:[[CalcBridgeHistoryEntry alloc] initWithExpression:ToNSString(entry.expression) result:ToNSString(entry.result)]];
+        char* expression = nullptr;
+        char* entryResult = nullptr;
+        if (calc_history_entry(_session, i, &expression, &entryResult) == CALC_OK)
+        {
+            [result addObject:[[CalcBridgeHistoryEntry alloc] initWithExpression:ToNSString(expression)
+                                                                         result:ToNSString(entryResult)]];
+        }
+        calc_string_free(expression);
+        calc_string_free(entryResult);
     }
     return result;
 }
 
 - (BOOL)removeHistoryItem:(NSUInteger)index
 {
-    return _session->RemoveHistoryItem(static_cast<unsigned int>(index)) ? YES : NO;
+    return calc_history_remove(_session, static_cast<uint32_t>(index)) ? YES : NO;
 }
 
 - (void)clearHistory
 {
-    _session->ClearHistory();
+    calc_history_clear(_session);
 }
 
 - (BOOL)isOperandTokenAt:(NSUInteger)tokenPosition
 {
-    return _session->IsTokenEditableOperand(static_cast<unsigned int>(tokenPosition)) ? YES : NO;
+    return calc_is_operand_token(_session, static_cast<uint32_t>(tokenPosition)) ? YES : NO;
 }
 
 - (BOOL)updateOperandAtToken:(NSUInteger)tokenPosition
@@ -358,7 +427,13 @@ namespace
                   scientific:(BOOL)scientific
                  fToEChecked:(BOOL)fToEChecked
 {
-    return _session->UpdateOperandAtToken(static_cast<unsigned int>(tokenPosition), ToWString(text), scientific == YES, fToEChecked == YES) ? YES : NO;
+    return calc_update_operand(_session,
+                               static_cast<uint32_t>(tokenPosition),
+                               text.UTF8String,
+                               scientific == YES,
+                               fToEChecked == YES)
+        ? YES
+        : NO;
 }
 
 @end

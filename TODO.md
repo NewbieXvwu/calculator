@@ -929,9 +929,9 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 #### 回填任务
 
 - [ ] 改用共享层规格表（键盘 / 单位 / 快捷键 / 色板 / 模式元数据）
-- [ ] 改用 C ABI 门面
+- [x] 改用 C ABI 门面（2026-07-31）：`CalcManagerBridge.mm` 不再直接持有 `std::unique_ptr<MacCalc::CalcSession>`，改持 `calc_session_t*` 并全程委托 `calc_c_api`——ctor 用 `calc_grouping_format` + `calc_locale_t`（UTF-8）注入区域，`calc_callbacks_t` 装配 11 个 C thunk（`user_data` 为未持有的 bridge，无保留环）转发回 ObjC block，33 个方法逐一改调 `calc_*`（返回 `char*` 经 `calc_string_free` 释放）。至此 `calc_c_api` 成为 CalcSession 的**唯一**包装，跨平台 C 契约由 macOS 生产路径实际消费验证（消灭 mm 与 c_api 两套平行门面的重复）。零回归：`swift test` 126/126、engine-tests、calc-smoke（经 C ABI 显示/历史/进制端到端）全绿
 - [x] 图形几何改调共享层（2026-07-31）：生产路径的坐标变换（`toScreenX/Y`→`graph_to_screen_x/y`）、刻度步长（`niceStep`→`graph_nice_step`）、网格刻度枚举（`drawGrid`→`graph_ticks`）、显式曲线采样（`drawCurve`→`graph_sample_curve`）、隐式等值线追踪（`drawImplicit`→`graph_marching_squares`）、视窗平移/缩放/范围（`pan/zoom/zoom_at/applyRange`→对应 C ABI）全部改调 `graph_geometry.h`。`MarchingSquares.swift` 降级为对拍 oracle（`GraphGeometryTests`/`MacAppTests` 锁 C↔Swift 等价）。零回归：`swift test` 126/126、engine-tests、calc-smoke 全绿
-- [ ] `@Observable` 迁移（⏸️ 前置：部署目标升至 macOS 14+，见 S11 暂缓依据）
+- [ ] `@Observable` 迁移（🔄 进行中：用户已决定放弃 macOS 13 支持、解除 S11 前置约束，该项转由外部模型推进）
 - [x] ~~补 2 种线型~~ → 经核实无需补（2026-07-31）：原版 `EquationStylePanelControl` 用户可见 picker 只列 `Solid/Dash/Dot`，`DashDot`/`DashDotDot` 是底层渲染器枚举、UI 从不暴露（无 pattern、无 automation name、resw 无对应字符串）。fork 3 种线型即 UI 保真；补 2 种反成背离
 - [x] 补单调性 `Constant`（2026-07-31，S3 重写附带：常函数短路径给出 `(-∞, +∞) 恒定`）
 - [x] 分组模式改用结构（S8，2026-07-31：mm 桥经 MacCalc::Grouping + NumberFormatter 双组尺寸注入）
