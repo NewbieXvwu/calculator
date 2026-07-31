@@ -513,7 +513,7 @@ S10），列表本为示意粒度；macOS Swift 切换到 C ABI 属 P-macOS 回�
 - [x] 模式元数据 → `spec/modes.json` + `ModeDescriptor.swift` 一张表：消灭了 4 处平行 switch（usesEngine/precision/persistenceKey/announcementLabel、ContentView 三个尺寸 switch、模式菜单图标、⌘1-6 菜单），SpecTableTests 防漂移
 - [x] `LayoutTier` 分档阈值 → `spec/layout-tiers.json` + `LayoutTier.all` 静态表（降序匹配 + 0 兜底），含边界行为测试
 - [x] 14 色方程色板 → `spec/graph-colors.json`（深浅两套 hex），与 `GraphingViewModel.lightPalette/darkPalette` 逐色比对
-- [ ] 键盘布局五元组表 `spec/keyboard-layout.json`
+- [x] 键盘布局五元组表 `spec/keyboard-layout.json`：四键盘全量（标准 6 行含紧凑首行变体、科学 7 行、程序员 6 行含移位四态 shiftVariants、换算 4 行动作键盘）；label/style/command/a11y/disabled 五元组 + 动态键 kind（CE/C 切换、2nd 态 invPair、移位变体、locale 小数点）；SpecTableTests 校验命令名可解析、行跨度=列数、invPair ⇄ functionColumn、shiftVariants ⇄ BitShiftMode
 - [ ] 快捷键数据表 `spec/keyboard-shortcuts.json`（冲突矩阵归 S12）
 - [x] 单位换算数据表 `spec/units.json`（12 类 142 单位，脚本自 Swift 表机械提取零手抄；factor 位级比对 + 温度特判抽样）；C++ 静态表在共享层落地时以此 JSON 为数据源生成（macOS 现阶段消费方仍是 UnitConverterData.swift，防漂移已锁死）
 - [x] 图标语义名 `spec/icons.json`（40 项语义名，含 key.* 供键盘布局表引用）+ `AppIcons.swift` 镜像；全部视图调用点已切到语义常量，源码不再出现 SF Symbol 字面量（键面符号经键盘布局表落地）

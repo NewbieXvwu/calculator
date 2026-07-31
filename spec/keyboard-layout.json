@@ -1,0 +1,189 @@
+{
+  "$comment": "键盘布局五元组表（S6 规格表下沉）：label/style/command/a11y/disabled 为跨平台单一事实源。字号与间距属平台样式（标准模式分档见 layout-tiers.json），不入本表。label 三种形态：text 字面文字、icon 语义图标名（见 icons.json key.*）、digit 数字键。kind 表示动态键：clearOrClearEntry（有输入显示 CE 否则 C）、invToggle（2nd 切换）、invPair（随 2nd 态切换 normal/inverted）、shiftLeft/shiftRight（随移位模式取 shiftVariants）、decimalSeparator（随 locale）、spacer（占位）。disabled 规则：never、onError、onErrorOrHexDisabled（仅 HEX 进制可用）、onErrorOrDigitDisallowed(n)（按进制禁用数字）、unlessSupportsNegative（换算类目不支持负数时禁用）。converter 键盘的 command 为换算 ViewModel 动作而非引擎命令，converter 数字键 a11y 为数字字面量（a11yLiteral）。",
+  "shiftVariants": {
+    "arithmetic": { "left": { "label": "«", "command": "lshf" }, "right": { "label": "»", "command": "rshf" } },
+    "logical": { "left": { "label": "«", "command": "lshf" }, "right": { "label": "»", "command": "rshfl" } },
+    "rotate": { "left": { "label": "RoL", "command": "rol" }, "right": { "label": "RoR", "command": "ror" } },
+    "rotateCarry": { "left": { "label": "RoLC", "command": "rolc" }, "right": { "label": "RoRC", "command": "rorc" } }
+  },
+  "keypads": {
+    "standard": {
+      "columns": 4,
+      "rows": [
+        [
+          { "label": { "icon": "key.percent" }, "style": "function", "command": "percent", "a11y": "percentButton", "disabled": "onError" },
+          { "label": { "text": "CE" }, "style": "function", "command": "clearEntry", "a11y": "clearEntryButton", "disabled": "never" },
+          { "label": { "text": "C" }, "style": "function", "command": "clear", "a11y": "clearButton", "disabled": "never" },
+          { "label": { "icon": "key.backspace" }, "style": "function", "command": "backspace", "a11y": "backSpaceButton", "disabled": "never" }
+        ],
+        [
+          { "label": { "text": "¹⁄ₓ" }, "style": "function", "command": "reciprocal", "a11y": "invertButton", "disabled": "onError" },
+          { "label": { "text": "x²" }, "style": "function", "command": "sqr", "a11y": "xpower2Button", "disabled": "onError" },
+          { "label": { "text": "²√x" }, "style": "function", "command": "sqrt", "a11y": "squareRootButton", "disabled": "onError" },
+          { "label": { "icon": "key.divide" }, "style": "operator", "command": "divide", "a11y": "divideButton", "disabled": "onError" }
+        ],
+        [
+          { "label": { "digit": 7 }, "style": "digit", "command": "digit7", "a11y": "num7Button", "disabled": "never" },
+          { "label": { "digit": 8 }, "style": "digit", "command": "digit8", "a11y": "num8Button", "disabled": "never" },
+          { "label": { "digit": 9 }, "style": "digit", "command": "digit9", "a11y": "num9Button", "disabled": "never" },
+          { "label": { "icon": "key.multiply" }, "style": "operator", "command": "multiply", "a11y": "multiplyButton", "disabled": "onError" }
+        ],
+        [
+          { "label": { "digit": 4 }, "style": "digit", "command": "digit4", "a11y": "num4Button", "disabled": "never" },
+          { "label": { "digit": 5 }, "style": "digit", "command": "digit5", "a11y": "num5Button", "disabled": "never" },
+          { "label": { "digit": 6 }, "style": "digit", "command": "digit6", "a11y": "num6Button", "disabled": "never" },
+          { "label": { "icon": "key.subtract" }, "style": "operator", "command": "subtract", "a11y": "minusButton", "disabled": "onError" }
+        ],
+        [
+          { "label": { "digit": 1 }, "style": "digit", "command": "digit1", "a11y": "num1Button", "disabled": "never" },
+          { "label": { "digit": 2 }, "style": "digit", "command": "digit2", "a11y": "num2Button", "disabled": "never" },
+          { "label": { "digit": 3 }, "style": "digit", "command": "digit3", "a11y": "num3Button", "disabled": "never" },
+          { "label": { "icon": "key.add" }, "style": "operator", "command": "add", "a11y": "plusButton", "disabled": "onError" }
+        ],
+        [
+          { "label": { "icon": "key.negate" }, "style": "digit", "command": "sign", "a11y": "negateButton", "disabled": "onError" },
+          { "label": { "digit": 0 }, "style": "digit", "command": "digit0", "a11y": "num0Button", "disabled": "never" },
+          { "kind": "decimalSeparator", "style": "digit", "command": "point", "a11y": "decimalSeparatorButton", "disabled": "never" },
+          { "label": { "icon": "key.equals" }, "style": "operator", "command": "equals", "a11y": "equalButton", "disabled": "never" }
+        ]
+      ],
+      "compactFirstRow": {
+        "$comment": "紧凑分档（layout-tiers.json hideStandardFunctions）时，前两行收敛为此单行（去掉 % 与函数行，保留全部运算符）。",
+        "keys": [
+          { "label": { "text": "CE" }, "style": "function", "command": "clearEntry", "a11y": "clearEntryButton", "disabled": "never" },
+          { "label": { "text": "C" }, "style": "function", "command": "clear", "a11y": "clearButton", "disabled": "never" },
+          { "label": { "icon": "key.backspace" }, "style": "function", "command": "backspace", "a11y": "backSpaceButton", "disabled": "never" },
+          { "label": { "icon": "key.divide" }, "style": "operator", "command": "divide", "a11y": "divideButton", "disabled": "onError" }
+        ]
+      }
+    },
+    "scientific": {
+      "columns": 5,
+      "rows": [
+        [
+          { "kind": "invToggle", "label": { "text": "2ⁿᵈ" }, "style": "function", "a11y": "shiftButton", "disabled": "onError" },
+          { "label": { "text": "π" }, "style": "function", "command": "pi", "a11y": "piButton", "disabled": "onError" },
+          { "label": { "text": "e" }, "style": "function", "command": "euler", "a11y": "eulerButton", "disabled": "onError" },
+          { "kind": "clearOrClearEntry", "style": "function", "disabled": "never" },
+          { "label": { "icon": "key.backspace" }, "style": "function", "command": "backspace", "a11y": "backSpaceButton", "disabled": "never" }
+        ],
+        [
+          { "kind": "invPair", "style": "function", "disabled": "onError", "normal": { "label": "x²", "command": "sqr" }, "inverted": { "label": "x³", "command": "cube" } },
+          { "label": { "text": "¹⁄ₓ" }, "style": "function", "command": "reciprocal", "a11y": "invertButton", "disabled": "onError" },
+          { "label": { "text": "|x|" }, "style": "function", "command": "abs", "a11y": "absButton", "disabled": "onError" },
+          { "label": { "text": "exp" }, "style": "function", "command": "exp", "a11y": "expButton", "disabled": "onError" },
+          { "label": { "text": "mod" }, "style": "function", "command": "mod", "a11y": "modButton", "disabled": "onError" }
+        ],
+        [
+          { "kind": "invPair", "style": "function", "disabled": "onError", "normal": { "label": "√x", "command": "sqrt" }, "inverted": { "label": "∛x", "command": "cubeRoot" } },
+          { "label": { "text": "(" }, "style": "function", "command": "openParen", "a11y": "openParenthesisButton", "disabled": "onError" },
+          { "label": { "text": ")" }, "style": "function", "command": "closeParen", "a11y": "closeParenthesisButton", "disabled": "onError" },
+          { "label": { "text": "n!" }, "style": "function", "command": "factorial", "a11y": "factorialButton", "disabled": "onError" },
+          { "label": { "icon": "key.divide" }, "style": "operator", "command": "divide", "a11y": "divideButton", "disabled": "onError" }
+        ],
+        [
+          { "kind": "invPair", "style": "function", "disabled": "onError", "normal": { "label": "xʸ", "command": "power" }, "inverted": { "label": "ʸ√x", "command": "yroot" } },
+          { "label": { "digit": 7 }, "style": "digit", "command": "digit7", "a11y": "num7Button", "disabled": "never" },
+          { "label": { "digit": 8 }, "style": "digit", "command": "digit8", "a11y": "num8Button", "disabled": "never" },
+          { "label": { "digit": 9 }, "style": "digit", "command": "digit9", "a11y": "num9Button", "disabled": "never" },
+          { "label": { "icon": "key.multiply" }, "style": "operator", "command": "multiply", "a11y": "multiplyButton", "disabled": "onError" }
+        ],
+        [
+          { "kind": "invPair", "style": "function", "disabled": "onError", "normal": { "label": "10ˣ", "command": "pow10" }, "inverted": { "label": "2ˣ", "command": "pow2" } },
+          { "label": { "digit": 4 }, "style": "digit", "command": "digit4", "a11y": "num4Button", "disabled": "never" },
+          { "label": { "digit": 5 }, "style": "digit", "command": "digit5", "a11y": "num5Button", "disabled": "never" },
+          { "label": { "digit": 6 }, "style": "digit", "command": "digit6", "a11y": "num6Button", "disabled": "never" },
+          { "label": { "icon": "key.subtract" }, "style": "operator", "command": "subtract", "a11y": "minusButton", "disabled": "onError" }
+        ],
+        [
+          { "kind": "invPair", "style": "function", "disabled": "onError", "normal": { "label": "log", "command": "log" }, "inverted": { "label": "logᵧ", "command": "logBaseY" } },
+          { "label": { "digit": 1 }, "style": "digit", "command": "digit1", "a11y": "num1Button", "disabled": "never" },
+          { "label": { "digit": 2 }, "style": "digit", "command": "digit2", "a11y": "num2Button", "disabled": "never" },
+          { "label": { "digit": 3 }, "style": "digit", "command": "digit3", "a11y": "num3Button", "disabled": "never" },
+          { "label": { "icon": "key.add" }, "style": "operator", "command": "add", "a11y": "plusButton", "disabled": "onError" }
+        ],
+        [
+          { "kind": "invPair", "style": "function", "disabled": "onError", "normal": { "label": "ln", "command": "ln" }, "inverted": { "label": "eˣ", "command": "powE" } },
+          { "label": { "icon": "key.negate" }, "style": "digit", "command": "sign", "a11y": "negateButton", "disabled": "onError" },
+          { "label": { "digit": 0 }, "style": "digit", "command": "digit0", "a11y": "num0Button", "disabled": "never" },
+          { "kind": "decimalSeparator", "style": "digit", "command": "point", "a11y": "decimalSeparatorButton", "disabled": "never" },
+          { "label": { "icon": "key.equals" }, "style": "operator", "command": "equals", "a11y": "equalButton", "disabled": "never" }
+        ]
+      ]
+    },
+    "programmer": {
+      "columns": 5,
+      "rows": [
+        [
+          { "label": { "text": "A" }, "style": "function", "command": "digitA", "a11y": "aButton", "disabled": "onErrorOrHexDisabled" },
+          { "kind": "shiftLeft", "style": "function", "a11y": "Mac_ShiftLeft", "disabled": "onError" },
+          { "kind": "shiftRight", "style": "function", "a11y": "Mac_ShiftRight", "disabled": "onError" },
+          { "kind": "clearOrClearEntry", "style": "function", "disabled": "never" },
+          { "label": { "icon": "key.backspace" }, "style": "function", "command": "backspace", "a11y": "backSpaceButton", "disabled": "never" }
+        ],
+        [
+          { "label": { "text": "B" }, "style": "function", "command": "digitB", "a11y": "bButton", "disabled": "onErrorOrHexDisabled" },
+          { "label": { "text": "(" }, "style": "function", "command": "openParen", "a11y": "openParenthesisButton", "disabled": "onError" },
+          { "label": { "text": ")" }, "style": "function", "command": "closeParen", "a11y": "closeParenthesisButton", "disabled": "onError" },
+          { "label": { "text": "%" }, "style": "function", "command": "mod", "a11y": "modButton", "disabled": "onError" },
+          { "label": { "icon": "key.divide" }, "style": "operator", "command": "divide", "a11y": "divideButton", "disabled": "onError" }
+        ],
+        [
+          { "label": { "text": "C" }, "style": "function", "command": "digitC", "a11y": "cButton", "disabled": "onErrorOrHexDisabled" },
+          { "label": { "digit": 7 }, "style": "digit", "command": "digit7", "a11y": "num7Button", "disabled": "onErrorOrDigitDisallowed" },
+          { "label": { "digit": 8 }, "style": "digit", "command": "digit8", "a11y": "num8Button", "disabled": "onErrorOrDigitDisallowed" },
+          { "label": { "digit": 9 }, "style": "digit", "command": "digit9", "a11y": "num9Button", "disabled": "onErrorOrDigitDisallowed" },
+          { "label": { "icon": "key.multiply" }, "style": "operator", "command": "multiply", "a11y": "multiplyButton", "disabled": "onError" }
+        ],
+        [
+          { "label": { "text": "D" }, "style": "function", "command": "digitD", "a11y": "dButton", "disabled": "onErrorOrHexDisabled" },
+          { "label": { "digit": 4 }, "style": "digit", "command": "digit4", "a11y": "num4Button", "disabled": "onErrorOrDigitDisallowed" },
+          { "label": { "digit": 5 }, "style": "digit", "command": "digit5", "a11y": "num5Button", "disabled": "onErrorOrDigitDisallowed" },
+          { "label": { "digit": 6 }, "style": "digit", "command": "digit6", "a11y": "num6Button", "disabled": "onErrorOrDigitDisallowed" },
+          { "label": { "icon": "key.subtract" }, "style": "operator", "command": "subtract", "a11y": "minusButton", "disabled": "onError" }
+        ],
+        [
+          { "label": { "text": "E" }, "style": "function", "command": "digitE", "a11y": "eButton", "disabled": "onErrorOrHexDisabled" },
+          { "label": { "digit": 1 }, "style": "digit", "command": "digit1", "a11y": "num1Button", "disabled": "onErrorOrDigitDisallowed" },
+          { "label": { "digit": 2 }, "style": "digit", "command": "digit2", "a11y": "num2Button", "disabled": "onErrorOrDigitDisallowed" },
+          { "label": { "digit": 3 }, "style": "digit", "command": "digit3", "a11y": "num3Button", "disabled": "onErrorOrDigitDisallowed" },
+          { "label": { "icon": "key.add" }, "style": "operator", "command": "add", "a11y": "plusButton", "disabled": "onError" }
+        ],
+        [
+          { "label": { "text": "F" }, "style": "function", "command": "digitF", "a11y": "fButton", "disabled": "onErrorOrHexDisabled" },
+          { "label": { "icon": "key.negate" }, "style": "digit", "command": "sign", "a11y": "negateButton", "disabled": "onError" },
+          { "label": { "digit": 0 }, "style": "digit", "command": "digit0", "a11y": "num0Button", "disabled": "onErrorOrDigitDisallowed" },
+          { "label": { "icon": "key.equals" }, "style": "operator", "command": "equals", "a11y": "equalButton", "disabled": "never", "colSpan": 2 }
+        ]
+      ]
+    },
+    "converter": {
+      "columns": 4,
+      "rows": [
+        [
+          { "label": { "digit": 7 }, "style": "digit", "command": "inputDigit", "a11yLiteral": "7", "disabled": "never" },
+          { "label": { "digit": 8 }, "style": "digit", "command": "inputDigit", "a11yLiteral": "8", "disabled": "never" },
+          { "label": { "digit": 9 }, "style": "digit", "command": "inputDigit", "a11yLiteral": "9", "disabled": "never" },
+          { "label": { "icon": "key.backspace" }, "style": "function", "command": "inputBackspace", "a11y": "backSpaceButton", "disabled": "never" }
+        ],
+        [
+          { "label": { "digit": 4 }, "style": "digit", "command": "inputDigit", "a11yLiteral": "4", "disabled": "never" },
+          { "label": { "digit": 5 }, "style": "digit", "command": "inputDigit", "a11yLiteral": "5", "disabled": "never" },
+          { "label": { "digit": 6 }, "style": "digit", "command": "inputDigit", "a11yLiteral": "6", "disabled": "never" },
+          { "label": { "text": "C" }, "style": "function", "command": "clear", "a11y": "clearButton", "disabled": "never" }
+        ],
+        [
+          { "label": { "digit": 1 }, "style": "digit", "command": "inputDigit", "a11yLiteral": "1", "disabled": "never" },
+          { "label": { "digit": 2 }, "style": "digit", "command": "inputDigit", "a11yLiteral": "2", "disabled": "never" },
+          { "label": { "digit": 3 }, "style": "digit", "command": "inputDigit", "a11yLiteral": "3", "disabled": "never" },
+          { "label": { "icon": "key.negate" }, "style": "function", "command": "toggleSign", "a11y": "negateButton", "disabled": "unlessSupportsNegative" }
+        ],
+        [
+          { "label": { "digit": 0 }, "style": "digit", "command": "inputDigit", "a11yLiteral": "0", "disabled": "never", "colSpan": 2 },
+          { "kind": "decimalSeparator", "style": "digit", "command": "inputDecimal", "a11y": "decimalSeparatorButton", "disabled": "never" },
+          { "kind": "spacer" }
+        ]
+      ]
+    }
+  }
+}

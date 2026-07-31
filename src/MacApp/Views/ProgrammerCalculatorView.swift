@@ -177,35 +177,35 @@ struct ProgrammerCalculatorView: View {
                     CalcKey(model.shiftMode.leftKey.label, style: .function, fontSize: model.shiftMode.leftKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: L10n.format("Mac_ShiftLeft", model.shiftMode.label)) { model.buttonPressed(model.shiftMode.leftKey.command) }
                     CalcKey(model.shiftMode.rightKey.label, style: .function, fontSize: model.shiftMode.rightKey.label.count > 1 ? 12 : 16, disabled: model.isInError, a11yLabel: L10n.format("Mac_ShiftRight", model.shiftMode.label)) { model.buttonPressed(model.shiftMode.rightKey.command) }
                     clearKey
-                    CalcKey(symbol: "delete.left", style: .function, a11yLabel: L10n.button("backSpaceButton")) { model.buttonPressed(.backspace) }
+                    CalcKey(symbol: AppIcon.keyBackspace.sfSymbol, style: .function, a11yLabel: L10n.button("backSpaceButton")) { model.buttonPressed(.backspace) }
                 }
                 GridRow {
                     hexKey("B", .digitB)
                     CalcKey("(", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("openParenthesisButton")) { model.buttonPressed(.openParen) }
                     CalcKey(")", style: .function, fontSize: 18, disabled: model.isInError, a11yLabel: L10n.button("closeParenthesisButton")) { model.buttonPressed(.closeParen) }
                     CalcKey("%", style: .function, disabled: model.isInError, a11yLabel: L10n.button("modButton")) { model.buttonPressed(.mod) }
-                    CalcKey(symbol: "divide", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("divideButton")) { model.buttonPressed(.divide) }
+                    CalcKey(symbol: AppIcon.keyDivide.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("divideButton")) { model.buttonPressed(.divide) }
                 }
                 GridRow {
                     hexKey("C", .digitC)
                     digitKey(7); digitKey(8); digitKey(9)
-                    CalcKey(symbol: "multiply", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("multiplyButton")) { model.buttonPressed(.multiply) }
+                    CalcKey(symbol: AppIcon.keyMultiply.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("multiplyButton")) { model.buttonPressed(.multiply) }
                 }
                 GridRow {
                     hexKey("D", .digitD)
                     digitKey(4); digitKey(5); digitKey(6)
-                    CalcKey(symbol: "minus", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("minusButton")) { model.buttonPressed(.subtract) }
+                    CalcKey(symbol: AppIcon.keySubtract.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("minusButton")) { model.buttonPressed(.subtract) }
                 }
                 GridRow {
                     hexKey("E", .digitE)
                     digitKey(1); digitKey(2); digitKey(3)
-                    CalcKey(symbol: "plus", style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("plusButton")) { model.buttonPressed(.add) }
+                    CalcKey(symbol: AppIcon.keyAdd.sfSymbol, style: .operatorKey, disabled: model.isInError, a11yLabel: L10n.button("plusButton")) { model.buttonPressed(.add) }
                 }
                 GridRow {
                     hexKey("F", .digitF)
-                    CalcKey(symbol: "plus.forwardslash.minus", style: .digit, disabled: model.isInError, a11yLabel: L10n.button("negateButton")) { model.buttonPressed(.sign) }
+                    CalcKey(symbol: AppIcon.keyNegate.sfSymbol, style: .digit, disabled: model.isInError, a11yLabel: L10n.button("negateButton")) { model.buttonPressed(.sign) }
                     digitKey(0)
-                    CalcKey(symbol: "equal", style: .operatorKey, a11yLabel: L10n.button("equalButton")) { model.buttonPressed(.equals) }
+                    CalcKey(symbol: AppIcon.keyEquals.sfSymbol, style: .operatorKey, a11yLabel: L10n.button("equalButton")) { model.buttonPressed(.equals) }
                         .gridCellColumns(2)
                 }
             }

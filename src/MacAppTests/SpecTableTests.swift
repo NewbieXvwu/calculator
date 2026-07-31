@@ -237,4 +237,170 @@ final class SpecTableTests: XCTestCase {
         XCTAssertEqual(UnitConverterData.convert(0, from: celsius, to: kelvin, category: temp), 273.15, accuracy: 1e-12)
         XCTAssertEqual(UnitConverterData.convert(-40, from: fahrenheit, to: celsius, category: temp), -40, accuracy: 1e-12)
     }
+
+    // MARK: - spec/keyboard-layout.json ⇄ 四键盘布局
+
+    private struct LayoutSpec: Decodable {
+        struct ShiftKey: Decodable {
+            let label: String
+            let command: String
+        }
+        struct ShiftVariant: Decodable {
+            let left: ShiftKey
+            let right: ShiftKey
+        }
+        struct Label: Decodable {
+            let text: String?
+            let icon: String?
+            let digit: Int?
+        }
+        struct InvHalf: Decodable {
+            let label: String
+            let command: String
+        }
+        struct Key: Decodable {
+            let kind: String?
+            let label: Label?
+            let style: String?
+            let command: String?
+            let a11y: String?
+            let a11yLiteral: String?
+            let disabled: String?
+            let colSpan: Int?
+            let normal: InvHalf?
+            let inverted: InvHalf?
+        }
+        struct Keypad: Decodable {
+            struct CompactRow: Decodable {
+                let keys: [Key]
+            }
+            let columns: Int
+            let rows: [[Key]]
+            let compactFirstRow: CompactRow?
+        }
+        let shiftVariants: [String: ShiftVariant]
+        let keypads: [String: Keypad]
+    }
+
+    /// 引擎命令名解析表（JSON 命令名 → EngineCommand，规格表跨平台可移植的字符串形态）。
+    private static let engineCommandByName: [String: EngineCommand] = [
+        "percent": .percent, "clearEntry": .clearEntry, "clear": .clear, "backspace": .backspace,
+        "reciprocal": .reciprocal, "sqr": .sqr, "sqrt": .sqrt, "cube": .cube, "cubeRoot": .cubeRoot,
+        "power": .power, "yroot": .yroot, "pow10": .pow10, "pow2": .pow2, "log": .log, "logBaseY": .logBaseY,
+        "ln": .ln, "powE": .powE, "divide": .divide, "multiply": .multiply, "subtract": .subtract, "add": .add,
+        "sign": .sign, "point": .point, "equals": .equals, "pi": .pi, "euler": .euler, "abs": .abs,
+        "exp": .exp, "mod": .mod, "openParen": .openParen, "closeParen": .closeParen, "factorial": .factorial,
+        "digit0": .digit0, "digit1": .digit1, "digit2": .digit2, "digit3": .digit3, "digit4": .digit4,
+        "digit5": .digit5, "digit6": .digit6, "digit7": .digit7, "digit8": .digit8, "digit9": .digit9,
+        "digitA": .digitA, "digitB": .digitB, "digitC": .digitC, "digitD": .digitD, "digitE": .digitE, "digitF": .digitF,
+        "lshf": .lshf, "rshf": .rshf, "rshfl": .rshfl, "rol": .rol, "ror": .ror, "rolc": .rolc, "rorc": .rorc,
+    ]
+
+    func testKeyboardLayoutSpecMatchesKeypads() throws {
+        let spec = try loadJSON("keyboard-layout.json", as: LayoutSpec.self)
+
+        // 四键盘齐备，行数对照各视图网格。
+        XCTAssertEqual(Set(spec.keypads.keys), ["standard", "scientific", "programmer", "converter"])
+        let standard = try XCTUnwrap(spec.keypads["standard"])
+        let scientific = try XCTUnwrap(spec.keypads["scientific"])
+        let programmer = try XCTUnwrap(spec.keypads["programmer"])
+        let converter = try XCTUnwrap(spec.keypads["converter"])
+        XCTAssertEqual(standard.rows.count, 6)
+        XCTAssertEqual(scientific.rows.count, 7)
+        XCTAssertEqual(programmer.rows.count, 6)
+        XCTAssertEqual(converter.rows.count, 4)
+        XCTAssertEqual(standard.columns, 4)
+        XCTAssertEqual(scientific.columns, 5)
+        XCTAssertEqual(programmer.columns, 5)
+        XCTAssertEqual(converter.columns, 4)
+
+        let styles: Set<String> = ["digit", "function", "operator", "emphasized"]
+        let disabledRules: Set<String> = [
+            "never", "onError", "onErrorOrHexDisabled", "onErrorOrDigitDisallowed", "unlessSupportsNegative",
+        ]
+        let kinds: Set<String> = [
+            "clearOrClearEntry", "invToggle", "invPair", "shiftLeft", "shiftRight", "decimalSeparator", "spacer",
+        ]
+        let converterActions: Set<String> = ["inputDigit", "inputBackspace", "clear", "toggleSign", "inputDecimal"]
+        let keyIconSemantics = Set(AppIcon.all.map(\.semantic).filter { $0.hasPrefix("key.") })
+
+        func validate(_ key: LayoutSpec.Key, keypad: String) throws {
+            if key.kind == "spacer" { return }
+            if let kind = key.kind {
+                XCTAssertTrue(kinds.contains(kind), "\(keypad): 未知 kind \(kind)")
+            }
+            XCTAssertNotNil(key.style, keypad)
+            XCTAssertTrue(styles.contains(key.style ?? ""), "\(keypad): 未知 style \(key.style ?? "nil")")
+            XCTAssertTrue(disabledRules.contains(key.disabled ?? ""), "\(keypad): 未知 disabled \(key.disabled ?? "nil")")
+            if let icon = key.label?.icon {
+                XCTAssertTrue(keyIconSemantics.contains(icon), "\(keypad): 图标 \(icon) 不在 icons.json key.* 中")
+            }
+            if let command = key.command {
+                if keypad == "converter" {
+                    XCTAssertTrue(converterActions.contains(command), "converter: 未知动作 \(command)")
+                } else {
+                    XCTAssertNotNil(Self.engineCommandByName[command], "\(keypad): 命令 \(command) 无法解析")
+                }
+            }
+            // 数字键标签与命令一致（引擎键盘 digitN，换算键盘 inputDigit）。
+            if let digit = key.label?.digit {
+                XCTAssertEqual(key.command, keypad == "converter" ? "inputDigit" : "digit\(digit)", keypad)
+            }
+            // invPair 两态命令均可解析。
+            if key.kind == "invPair" {
+                XCTAssertNotNil(Self.engineCommandByName[key.normal?.command ?? ""], keypad)
+                XCTAssertNotNil(Self.engineCommandByName[key.inverted?.command ?? ""], keypad)
+            }
+            // 静态键必有命令；动态键（clearOrClearEntry/invToggle/invPair/shift/spacer）命令由 kind 决定。
+            if key.kind == nil || key.kind == "decimalSeparator" {
+                XCTAssertNotNil(key.command, keypad)
+            }
+        }
+
+        for (name, keypad) in spec.keypads {
+            for row in keypad.rows {
+                let span = row.reduce(0) { $0 + ($1.colSpan ?? 1) }
+                XCTAssertEqual(span, keypad.columns, "\(name): 行跨度 \(span) ≠ 列数 \(keypad.columns)")
+                for key in row {
+                    try validate(key, keypad: name)
+                }
+            }
+        }
+
+        // 标准模式紧凑首行：4 键（CE C ⌫ ÷），仅 standard 有。
+        let compact = try XCTUnwrap(standard.compactFirstRow)
+        XCTAssertEqual(compact.keys.count, 4)
+        XCTAssertEqual(compact.keys.compactMap(\.command), ["clearEntry", "clear", "backspace", "divide"])
+        for key in compact.keys {
+            try validate(key, keypad: "standard")
+        }
+        XCTAssertNil(scientific.compactFirstRow)
+        XCTAssertNil(programmer.compactFirstRow)
+        XCTAssertNil(converter.compactFirstRow)
+
+        // 科学模式左列 invPair ⇄ ScientificCalculatorView.functionColumn 逐项一致。
+        let invPairs = scientific.rows.dropFirst().compactMap(\.first)
+        XCTAssertEqual(invPairs.count, ScientificCalculatorView.functionColumn.count)
+        for (specKey, entry) in zip(invPairs, ScientificCalculatorView.functionColumn) {
+            XCTAssertEqual(specKey.kind, "invPair")
+            XCTAssertEqual(specKey.normal?.label, entry.0)
+            XCTAssertEqual(Self.engineCommandByName[specKey.normal?.command ?? ""], entry.1, entry.0)
+            XCTAssertEqual(specKey.inverted?.label, entry.2)
+            XCTAssertEqual(Self.engineCommandByName[specKey.inverted?.command ?? ""], entry.3, entry.2)
+        }
+
+        // 程序员模式移位键变体 ⇄ BitShiftMode 四态。
+        let shiftModeByName: [String: BitShiftMode] = [
+            "arithmetic": .arithmetic, "logical": .logical, "rotate": .rotate, "rotateCarry": .rotateCarry,
+        ]
+        XCTAssertEqual(Set(spec.shiftVariants.keys), Set(shiftModeByName.keys))
+        XCTAssertEqual(shiftModeByName.count, BitShiftMode.allCases.count)
+        for (name, variant) in spec.shiftVariants {
+            let mode = try XCTUnwrap(shiftModeByName[name])
+            XCTAssertEqual(variant.left.label, mode.leftKey.label, name)
+            XCTAssertEqual(Self.engineCommandByName[variant.left.command], mode.leftKey.command, name)
+            XCTAssertEqual(variant.right.label, mode.rightKey.label, name)
+            XCTAssertEqual(Self.engineCommandByName[variant.right.command], mode.rightKey.command, name)
+        }
+    }
 }

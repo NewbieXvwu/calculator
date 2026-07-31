@@ -195,7 +195,7 @@ struct UnitConverterView: View {
                     digitKey(7)
                     digitKey(8)
                     digitKey(9)
-                    CalcKey(symbol: "delete.left", style: .function, a11yLabel: L10n.button("backSpaceButton")) { converter.inputBackspace() }
+                    CalcKey(symbol: AppIcon.keyBackspace.sfSymbol, style: .function, a11yLabel: L10n.button("backSpaceButton")) { converter.inputBackspace() }
                 }
                 GridRow {
                     digitKey(4)
@@ -207,7 +207,7 @@ struct UnitConverterView: View {
                     digitKey(1)
                     digitKey(2)
                     digitKey(3)
-                    CalcKey(symbol: "plus.forwardslash.minus", style: .function,
+                    CalcKey(symbol: AppIcon.keyNegate.sfSymbol, style: .function,
                             disabled: !converter.currentCategory.supportsNegative, a11yLabel: L10n.button("negateButton")) { converter.toggleSign() }
                 }
                 GridRow {
