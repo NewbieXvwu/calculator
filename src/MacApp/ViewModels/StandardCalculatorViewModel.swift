@@ -583,88 +583,71 @@ private(set) var flashedCommand: EngineCommand?
 
     // MARK: - Engine callbacks
 
+    /// 线程契约：calc_c_api 的引擎执行是**同步**的（SendCommand 在调用线程内完成
+    /// 全部计算并同步触发回调），而 ViewModel 的方法只从主线程（@MainActor）进入，
+    /// 故所有回调必然落在主线程。闭包标注 @MainActor 使状态更新同步直达（无需
+    /// Task 中转），测试亦无需 drain。若未来把引擎挪到后台队列执行，此契约破裂，
+    /// 需改回异步中转（Task { @MainActor }）。
     private func wireCallbacks() {
-        bridge.onDisplayChanged = { [weak self] text, isError in
-            Task { @MainActor in
-                guard let self else { return }
-                self.displayValue = text
-                self.isInError = isError
-                self.updateProgrammerDisplay()
-                // 对应原版 DisplayUpdated 播报;错误文本始终播报。
-                if isError {
-                    self.announceNextDisplayChange = false
-                    AccessibilityAnnouncer.announce(text)
-                } else if self.announceNextDisplayChange {
-                    self.announceNextDisplayChange = false
-                    AccessibilityAnnouncer.announce(text)
-                }
+        bridge.onDisplayChanged = { @MainActor [weak self] text, isError in
+            guard let self else { return }
+            self.displayValue = text
+            self.isInError = isError
+            self.updateProgrammerDisplay()
+            // 对应原版 DisplayUpdated 播报;错误文本始终播报。
+            if isError {
+                self.announceNextDisplayChange = false
+                AccessibilityAnnouncer.announce(text)
+            } else if self.announceNextDisplayChange {
+                self.announceNextDisplayChange = false
+                AccessibilityAnnouncer.announce(text)
             }
         }
-        bridge.onIsInErrorChanged = { [weak self] isError in
-            Task { @MainActor in
-                self?.isInError = isError
-            }
+        bridge.onIsInErrorChanged = { @MainActor [weak self] isError in
+            self?.isInError = isError
         }
         // 对应原版 OnBinaryOperatorReceived → DisplayUpdated 播报。
-        bridge.onBinaryOperatorReceived = { [weak self] in
-            Task { @MainActor in
-                guard let self else { return }
-                AccessibilityAnnouncer.announce(self.displayValue)
-            }
+        bridge.onBinaryOperatorReceived = { @MainActor [weak self] in
+            guard let self else { return }
+            AccessibilityAnnouncer.announce(self.displayValue)
         }
         // 对应原版 MaxDigitsReached 播报。
-        bridge.onMaxDigitsReached = { [weak self] in
-            Task { @MainActor in
-                guard let self else { return }
-                AccessibilityAnnouncer.announce(L10n.format("Mac_Ann_MaxDigits", self.displayValue))
-            }
+        bridge.onMaxDigitsReached = { @MainActor [weak self] in
+            guard let self else { return }
+            AccessibilityAnnouncer.announce(L10n.format("Mac_Ann_MaxDigits", self.displayValue))
         }
         // 对应原版 NoParenthesisAdded 播报。
-        bridge.onNoRightParenAdded = {
-            Task { @MainActor in
-                AccessibilityAnnouncer.announce(L10n.string("Mac_Ann_NoParen"))
+        bridge.onNoRightParenAdded = { @MainActor in
+            AccessibilityAnnouncer.announce(L10n.string("Mac_Ann_NoParen"))
+        }
+        bridge.onExpressionChanged = { @MainActor [weak self] tokens in
+            self?.expressionTokens = tokens.enumerated().map { index, token in
+                ExpressionToken(id: index, text: token.text, isEditable: token.commandIndex != -1)
             }
         }
-        bridge.onExpressionChanged = { [weak self] tokens in
-            Task { @MainActor in
-                self?.expressionTokens = tokens.enumerated().map { index, token in
-                    ExpressionToken(id: index, text: token.text, isEditable: token.commandIndex != -1)
-                }
+        bridge.onParenthesisCountChanged = { @MainActor [weak self] count in
+            guard let self else { return }
+            // 对应原版 OpenParenthesisCountChanged 播报(仅计数变化时)。
+            if count != self.openParenthesisCount {
+                AccessibilityAnnouncer.announce(L10n.format("Mac_Ann_OpenParenCount", "\(count)"), highPriority: false)
             }
+            self.openParenthesisCount = count
         }
-        bridge.onParenthesisCountChanged = { [weak self] count in
-            Task { @MainActor in
-                guard let self else { return }
-                // 对应原版 OpenParenthesisCountChanged 播报(仅计数变化时)。
-                if count != self.openParenthesisCount {
-                    AccessibilityAnnouncer.announce(L10n.format("Mac_Ann_OpenParenCount", "\(count)"), highPriority: false)
-                }
-                self.openParenthesisCount = count
-            }
-        }
-        bridge.onMemoryChanged = { [weak self] values in
-            Task { @MainActor in
-                guard let self else { return }
-                self.memorizedNumbers = values.enumerated().map { MemorySlot(id: $0.offset, value: $0.element) }
-                self.isMemoryEmpty = self.memorizedNumbers.isEmpty
-            }
+        bridge.onMemoryChanged = { @MainActor [weak self] values in
+            guard let self else { return }
+            self.memorizedNumbers = values.enumerated().map { MemorySlot(id: $0.offset, value: $0.element) }
+            self.isMemoryEmpty = self.memorizedNumbers.isEmpty
         }
         // 对应原版 MemoryItemChanged 播报(M+/M− 后)。
-        bridge.onMemoryItemChanged = { [weak self] index in
-            Task { @MainActor in
-                guard let self, Int(index) < self.memorizedNumbers.count else { return }
-                AccessibilityAnnouncer.announce(L10n.format("Mac_Ann_MemoryUpdated", self.memorizedNumbers[Int(index)].value), highPriority: false)
-            }
+        bridge.onMemoryItemChanged = { @MainActor [weak self] index in
+            guard let self, Int(index) < self.memorizedNumbers.count else { return }
+            AccessibilityAnnouncer.announce(L10n.format("Mac_Ann_MemoryUpdated", self.memorizedNumbers[Int(index)].value), highPriority: false)
         }
-        bridge.onHistoryItemAdded = { [weak self] _ in
-            Task { @MainActor in
-                self?.refreshHistory()
-            }
+        bridge.onHistoryItemAdded = { @MainActor [weak self] _ in
+            self?.refreshHistory()
         }
-        bridge.onInputChanged = { [weak self] in
-            Task { @MainActor in
-                self?.refreshInputEmpty()
-            }
+        bridge.onInputChanged = { @MainActor [weak self] in
+            self?.refreshInputEmpty()
         }
     }
 

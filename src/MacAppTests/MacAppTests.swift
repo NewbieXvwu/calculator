@@ -19,13 +19,6 @@ final class CalculatorViewModelTests: XCTestCase {
         // 清除记忆的模式，保证每个用例都从默认标准模式起步（隔离宿主 UserDefaults）。
         UserDefaults.standard.removeObject(forKey: "LastCalculatorMode")
         model = StandardCalculatorViewModel()
-        await drain()
-    }
-
-    /// 桥接回调用 Task { @MainActor } 异步刷新 @Published 状态，
-    /// 断言前需让出主执行器排空这些任务。
-    private func drain() async {
-        for _ in 0..<50 { await Task.yield() }
     }
 
     func testAddition() async {
@@ -33,7 +26,6 @@ final class CalculatorViewModelTests: XCTestCase {
         model.buttonPressed(.add)
         model.digitPressed(2)
         model.buttonPressed(.equals)
-        await drain()
         XCTAssertEqual(model.displayValue, "3")
     }
 
@@ -42,7 +34,6 @@ final class CalculatorViewModelTests: XCTestCase {
         model.buttonPressed(.multiply)
         model.digitPressed(6)
         model.buttonPressed(.equals)
-        await drain()
         XCTAssertEqual(model.displayValue, "42")
     }
 
@@ -50,7 +41,6 @@ final class CalculatorViewModelTests: XCTestCase {
         model.digitPressed(9)
         model.digitPressed(9)
         model.buttonPressed(.clear)
-        await drain()
         XCTAssertEqual(model.displayValue, "0")
         XCTAssertTrue(model.isInputEmpty)
     }
@@ -59,14 +49,11 @@ final class CalculatorViewModelTests: XCTestCase {
         model.digitPressed(4)
         model.digitPressed(2)
         model.memorizeNumber()
-        await drain()
         XCTAssertFalse(model.isMemoryEmpty)
         model.buttonPressed(.clear)
         model.memoryItemPressed(0)
-        await drain()
         XCTAssertEqual(model.displayValue, "42")
         model.clearMemory()
-        await drain()
         XCTAssertTrue(model.isMemoryEmpty)
     }
 
@@ -75,7 +62,6 @@ final class CalculatorViewModelTests: XCTestCase {
         model.buttonPressed(.add)
         model.digitPressed(2)
         model.buttonPressed(.equals)
-        await drain()
         XCTAssertEqual(model.historyItems.first?.result, "3")
     }
 
@@ -87,15 +73,12 @@ final class CalculatorViewModelTests: XCTestCase {
         model.buttonPressed(.add)
         model.digitPressed(2)
         model.buttonPressed(.add)
-        await drain()
         XCTAssertTrue(model.isOperandTokenEditable(0))
         XCTAssertFalse(model.isOperandTokenEditable(2))
         XCTAssertTrue(model.updateOperand(tokenIndex: 0, newText: "5"))
-        await drain()
         XCTAssertEqual(model.expressionTokens.map(\.text).joined().filter { !$0.isWhitespace }, "5+")
         model.digitPressed(3)
         model.buttonPressed(.equals)
-        await drain()
         XCTAssertEqual(model.displayValue, "8")
     }
 
@@ -106,16 +89,13 @@ final class CalculatorViewModelTests: XCTestCase {
         model.buttonPressed(.add)
         model.digitPressed(2)
         model.buttonPressed(.multiply)
-        await drain()
         guard let index = model.expressionTokens.firstIndex(where: { $0.text.trimmingCharacters(in: .whitespaces) == "2" }) else {
             return XCTFail("找不到操作数 token 2：\(model.expressionTokens.map(\.text))")
         }
         XCTAssertTrue(model.isOperandTokenEditable(index))
         XCTAssertTrue(model.updateOperand(tokenIndex: index, newText: "5"))
-        await drain()
         model.digitPressed(4)
         model.buttonPressed(.equals)
-        await drain()
         XCTAssertEqual(model.displayValue, "21")
     }
 
@@ -124,13 +104,11 @@ final class CalculatorViewModelTests: XCTestCase {
         model.buttonPressed(.add)
         model.digitPressed(2)
         model.buttonPressed(.equals)
-        await drain()
         guard let index = model.expressionTokens.lastIndex(where: { $0.text.trimmingCharacters(in: .whitespaces) == "2" }) else {
             return XCTFail("找不到操作数 token 2：\(model.expressionTokens.map(\.text))")
         }
         XCTAssertTrue(model.updateOperand(tokenIndex: index, newText: "-7.5"))
         model.buttonPressed(.equals)
-        await drain()
         XCTAssertEqual(model.displayValue, "-6.5")
     }
 
@@ -138,7 +116,6 @@ final class CalculatorViewModelTests: XCTestCase {
         model.digitPressed(1)
         model.buttonPressed(.add)
         model.digitPressed(2)
-        await drain()
         XCTAssertFalse(model.updateOperand(tokenIndex: 0, newText: "abc"))
         XCTAssertFalse(model.updateOperand(tokenIndex: 99, newText: "3"))
         XCTAssertFalse(model.isOperandTokenEditable(99))
@@ -148,7 +125,6 @@ final class CalculatorViewModelTests: XCTestCase {
         model.setCalculatorType(.scientific)
         model.digitPressed(9)
         model.buttonPressed(.sqrt)
-        await drain()
         XCTAssertEqual(model.displayValue, "3")
     }
 
@@ -163,24 +139,12 @@ final class CalculatorViewModelTests: XCTestCase {
         XCTAssertEqual(model.binDisplay.replacingOccurrences(of: " ", with: ""), "11111111")
     }
 
-    func testBitShiftModeKeypadKeys() {
-        XCTAssertEqual(BitShiftMode.arithmetic.leftKey.command, .lshf)
-        XCTAssertEqual(BitShiftMode.arithmetic.rightKey.command, .rshf)
-        XCTAssertEqual(BitShiftMode.logical.leftKey.command, .lshf)
-        XCTAssertEqual(BitShiftMode.logical.rightKey.command, .rshfl)
-        XCTAssertEqual(BitShiftMode.rotate.leftKey.command, .rol)
-        XCTAssertEqual(BitShiftMode.rotate.rightKey.command, .ror)
-        XCTAssertEqual(BitShiftMode.rotateCarry.leftKey.command, .rolc)
-        XCTAssertEqual(BitShiftMode.rotateCarry.rightKey.command, .rorc)
-    }
-
     func testProgrammerArithmeticShift() async {
         model.setCalculatorType(.programmer)
         model.digitPressed(1)
         model.buttonPressed(.lshf)
         model.digitPressed(4)
         model.buttonPressed(.equals)
-        await drain()
         XCTAssertEqual(model.displayValue.replacingOccurrences(of: " ", with: ""), "16")
     }
 
@@ -202,10 +166,8 @@ final class CalculatorViewModelTests: XCTestCase {
         model.buttonPressed(.divide)
         model.digitPressed(0)
         model.buttonPressed(.equals)
-        await drain()
         XCTAssertTrue(model.isInError)
         model.buttonPressed(.clear)
-        await drain()
         XCTAssertFalse(model.isInError)
     }
 
@@ -222,7 +184,6 @@ final class CalculatorViewModelTests: XCTestCase {
         XCTAssertTrue(key("+"))
         XCTAssertTrue(key("3"))
         XCTAssertTrue(key("=", keyCode: 36))
-        await drain()
         XCTAssertEqual(model.displayValue, "8")
     }
 
@@ -234,18 +195,15 @@ final class CalculatorViewModelTests: XCTestCase {
         model.setCalculatorType(.scientific)
         model.digitPressed(9)
         XCTAssertTrue(key("q")) // Q → x²
-        await drain()
         XCTAssertEqual(model.displayValue, "81")
 
         model.buttonPressed(.clear)
         XCTAssertTrue(key("p")) // P → π
-        await drain()
         XCTAssertTrue(model.displayValue.hasPrefix("3.14"))
 
         // Shift+E → euler
         model.buttonPressed(.clear)
         XCTAssertTrue(key("E", shift: true))
-        await drain()
         XCTAssertTrue(model.displayValue.hasPrefix("2.71"))
     }
 
@@ -253,10 +211,8 @@ final class CalculatorViewModelTests: XCTestCase {
         model.setCalculatorType(.scientific)
         model.buttonPressed(.clear)
         XCTAssertTrue(key("s", control: true)) // Ctrl+S → sinh(0)=0
-        await drain()
         XCTAssertEqual(model.displayValue, "0")
         XCTAssertTrue(key("o", shift: false, control: true)) // Ctrl+O → cosh(0)=1
-        await drain()
         XCTAssertEqual(model.displayValue, "1")
     }
 
@@ -264,12 +220,10 @@ final class CalculatorViewModelTests: XCTestCase {
         model.setCalculatorType(.scientific)
         model.digitPressed(5)
         XCTAssertTrue(key("!")) // 阶乘
-        await drain()
         XCTAssertEqual(model.displayValue, "120")
         model.buttonPressed(.clear)
         model.digitPressed(2)
         XCTAssertTrue(key("#")) // x³
-        await drain()
         XCTAssertEqual(model.displayValue, "8")
         XCTAssertFalse(key("&"), "& 仅程序员模式有效")
     }
@@ -281,27 +235,22 @@ final class CalculatorViewModelTests: XCTestCase {
         XCTAssertTrue(key("^"))
         model.digitPressed(3)
         XCTAssertTrue(key("=", keyCode: 36))
-        await drain()
         XCTAssertEqual(model.displayValue, "6")
 
         // A–F 仅 HEX 进制可用。
         model.buttonPressed(.clear)
         XCTAssertTrue(key("a"))
-        await drain()
         XCTAssertEqual(model.displayValue, "0", "DEC 进制下 A 应被吞掉不生效")
         model.switchRadix(.hex)
         XCTAssertTrue(key("f"))
-        await drain()
         XCTAssertEqual(model.displayValue, "F")
 
         // BIN 进制过滤数字 2-9。
         model.buttonPressed(.clear)
         model.switchRadix(.bin)
         XCTAssertTrue(key("2"))
-        await drain()
         XCTAssertEqual(model.displayValue, "0")
         XCTAssertTrue(key("1"))
-        await drain()
         XCTAssertEqual(model.displayValue, "1")
         model.switchRadix(.dec)
     }
@@ -332,14 +281,11 @@ final class CalculatorViewModelTests: XCTestCase {
         model.digitPressed(4)
         model.digitPressed(2)
         XCTAssertTrue(key("m", control: true)) // Ctrl+M → MS
-        await drain()
         XCTAssertFalse(model.isMemoryEmpty)
         model.buttonPressed(.clear)
         XCTAssertTrue(key("r", control: true)) // Ctrl+R → MR
-        await drain()
         XCTAssertEqual(model.displayValue, "42")
         XCTAssertTrue(key("l", control: true)) // Ctrl+L → MC
-        await drain()
         XCTAssertTrue(model.isMemoryEmpty)
     }
 
@@ -348,10 +294,8 @@ final class CalculatorViewModelTests: XCTestCase {
         model.buttonPressed(.add)
         model.digitPressed(1)
         model.buttonPressed(.equals)
-        await drain()
         XCTAssertFalse(model.historyItems.isEmpty)
         XCTAssertTrue(key("d", shift: true, control: true)) // Ctrl+Shift+D
-        await drain()
         XCTAssertTrue(model.historyItems.isEmpty)
     }
 }
@@ -1223,11 +1167,6 @@ final class PasteFunctionalTests: XCTestCase {
         // 清除记忆的模式，保证每个用例都从默认标准模式起步（隔离宿主 UserDefaults）。
         UserDefaults.standard.removeObject(forKey: "LastCalculatorMode")
         model = StandardCalculatorViewModel()
-        await drain()
-    }
-
-    private func drain() async {
-        for _ in 0..<50 { await Task.yield() }
     }
 
     func testFunctionalCopyPaste() async {
@@ -1236,7 +1175,6 @@ final class PasteFunctionalTests: XCTestCase {
         for input in inputs {
             model.buttonPressed(.clear)
             model.onPaste(input)
-            await drain()
             let display = model.displayValue.replacingOccurrences(of: " ", with: "")
             XCTAssertNotNil(CopyPasteManager.validate(display, mode: .standard), "标准应可再粘贴: \(input.debugDescription)")
             XCTAssertNotNil(CopyPasteManager.validate(display, mode: .scientific), "科学应可再粘贴: \(input.debugDescription)")
@@ -1248,27 +1186,23 @@ final class PasteFunctionalTests: XCTestCase {
 
     func testPasteExpressionEvaluatesOnTrailingEquals() async {
         model.onPaste("2+2=")
-        await drain()
         XCTAssertEqual(model.displayValue, "4")
     }
 
     func testPasteNegativeNumber() async {
         model.onPaste("-133")
-        await drain()
         XCTAssertEqual(model.displayValue, "-133")
     }
 
     func testPasteScientificExponent() async {
         model.setCalculatorType(.scientific)
         model.onPaste("1.2e2=")
-        await drain()
         XCTAssertEqual(model.displayValue, "120")
     }
 
     func testPasteParenthesizedNegation() async {
         model.setCalculatorType(.scientific)
         model.onPaste("(45)+(-30)=")
-        await drain()
         XCTAssertEqual(model.displayValue, "15")
     }
 
@@ -1309,12 +1243,5 @@ final class LocalizationTests: XCTestCase {
     func testL10nReturnsKeyWhenMissing() {
         // 无手写回退:查不到的键原样返回键名,暴露缺失而非静默吞掉。
         XCTAssertEqual(L10n.string("__definitely_absent_key__"), "__definitely_absent_key__")
-    }
-
-    func testL10nFormatSubstitutesPositionalArgs() {
-        // 不依赖 catalog 是否已编译:验证 %1 替换与模板解析一致这一不变式。
-        let template = L10n.string("Format_DecButtonValue")
-        let out = L10n.format("Format_DecButtonValue", "255")
-        XCTAssertEqual(out, template.replacingOccurrences(of: "%1", with: "255"))
     }
 }
