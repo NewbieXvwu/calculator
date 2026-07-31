@@ -1097,6 +1097,20 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 - [ ] giac 交叉编译 iOS arm64 + 模拟器切片 → XCFramework
 - [ ] **gmp/mpfr/gettext 一并交叉编译**（当前 `Package.swift` 的 `-L/opt/homebrew/lib` 硬编码必须参数化）
 
+**摸底记录（2026-08-01）**：AppKit 依赖面量化——`src/MacApp` 30 个 Swift
+文件中 14 个含 AppKit 引用，主要使用点及 TODO 映射：NSView/NSViewRepresentable
+→ UIView/UIViewRepresentable、NSColor → UIColor、NSVisualEffectView →
+UIVisualEffectView、NSApp → UIApplication、NSPasteboard → UIPasteboard、
+NSEvent → onKeyPress/UIKeyCommand、NSAccessibility → UIAccessibility、
+NSSharingServicePicker → UIActivityViewController、NSAppearance →
+traitCollection、NSFont → UIFont；NSRegularExpression/NSNumber 为 Foundation
+通用。**ViewModel 层仅 2 处 NSPasteboard**（StandardCalculatorViewModel/
+UnitConverterViewModel），引擎桥 CalcManagerBridge 为 Swift+ObjC++ 混合，
+iOS 模拟器 triple 可编译。实测：纯逻辑文件（GraphExpression/ModeDescriptor/
+UnitConverterData/AppIcons/EngineCommand）交叉编译到
+arm64-apple-ios18.0-simulator 无平台 API 障碍（失败均为跨文件引用，
+非平台问题）——iOS 移植的主要工作是 P-iOS-1 的平台适配层，无技术阻断。
+
 #### P-iOS-1 · 五模式完整体
 - AppKit → UIKit 映射：
   - `NSPasteboard` → `UIPasteboard`
