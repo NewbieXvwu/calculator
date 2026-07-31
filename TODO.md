@@ -105,8 +105,10 @@
 - [x] 自定义关于面板（应用菜单 `CommandGroup(.appInfo)` → `orderFrontStandardAboutPanel`），
       附版权 + 第三方许可声明（Giac GPLv3 合规可见性）；设置入口 ⌘, 由 Settings scene 提供
 - [x] 不照抄 Apple 计算器特有功能（RPN/数学笔记，不做）
-- 千位分隔符菜单直达：评估后**暂缓**——引擎（CalcSession/CalcManager）分组由 locale 固定 `3;0`，
-  运行时开关需新增桥接方法并触发重排，且原版本身走 Settings 复选框而非菜单；待有需求再做
+- 千位分隔符开关：**豁免（原版无此功能）**——原版 Settings.xaml 仅有主题三选与关于区，
+  无任何分组开关；分组行为来自 OS 区域设置（`LocalizationSettings.h` 读 `LOCALE_SGROUPING`
+  经 `EngineResourceProvider` 喂引擎，应用内不可调）。本移植同构：`CalcManagerBridge.mm`
+  读 macOS `Locale.groupingSeparator`。补菜单开关=自创设计，违反 1:1 原则，故不做
 
 ### P2-3 键盘监听机制风险 ✅ 已完成
 `NSEvent.addLocalMonitorForEvents`（`CalculatorChrome.swift`）全局截键，MathLive/WKWebView
