@@ -8,6 +8,7 @@
 //   - 图形设置：三角单位（弧度/角度/梯度）、线宽 1–4（对应 GraphingSettings.xaml）。
 
 import SwiftUI
+import CalcManagerBridge
 
 /// 方程线型（对应 GraphControl.EquationLineStyle：Solid/Dash/Dot）。
 enum EquationLineStyle: String, CaseIterable {
@@ -317,28 +318,37 @@ final class GraphingViewModel: ObservableObject {
     var xSpan: Double { xMax - xMin }
     var ySpan: Double { yMax - yMin }
 
+    /// 构造共享层视窗（平移/缩放/范围只用 x/y 边界，width/height 填占位）。
+    private func currentViewport() -> graph_viewport_t {
+        graph_viewport_t(x_min: xMin, x_max: xMax, y_min: yMin, y_max: yMax, width: 1, height: 1)
+    }
+
+    private func writeBack(_ vp: graph_viewport_t) {
+        xMin = vp.x_min; xMax = vp.x_max
+        yMin = vp.y_min; yMax = vp.y_max
+    }
+
     /// 以数学坐标位移平移视窗。
     func pan(dxMath: Double, dyMath: Double) {
-        xMin -= dxMath; xMax -= dxMath
-        yMin -= dyMath; yMax -= dyMath
+        var vp = currentViewport()
+        graph_pan(&vp, dxMath, dyMath)
+        writeBack(vp)
         isManualAdjustment = true
     }
 
     /// 以视窗中心为锚缩放（factor<1 放大，>1 缩小）。
     func zoom(factor: Double) {
-        let cx = (xMin + xMax) / 2, cy = (yMin + yMax) / 2
-        let hx = xSpan / 2 * factor, hy = ySpan / 2 * factor
-        xMin = cx - hx; xMax = cx + hx
-        yMin = cy - hy; yMax = cy + hy
+        var vp = currentViewport()
+        graph_zoom(&vp, factor)
+        writeBack(vp)
         isManualAdjustment = true
     }
 
     /// 以指定数学坐标点为锚缩放（滚轮/捏合手势用）。
     func zoom(factor: Double, anchorX: Double, anchorY: Double) {
-        xMin = anchorX + (xMin - anchorX) * factor
-        xMax = anchorX + (xMax - anchorX) * factor
-        yMin = anchorY + (yMin - anchorY) * factor
-        yMax = anchorY + (yMax - anchorY) * factor
+        var vp = currentViewport()
+        graph_zoom_at(&vp, factor, anchorX, anchorY)
+        writeBack(vp)
         isManualAdjustment = true
     }
 
@@ -349,10 +359,9 @@ final class GraphingViewModel: ObservableObject {
     /// 设置面板手动输入范围：仅在 min < max 时生效，返回是否接受。
     @discardableResult
     func applyRange(xMin: Double, xMax: Double, yMin: Double, yMax: Double) -> Bool {
-        guard xMin < xMax, yMin < yMax,
-              xMin.isFinite, xMax.isFinite, yMin.isFinite, yMax.isFinite else { return false }
-        self.xMin = xMin; self.xMax = xMax
-        self.yMin = yMin; self.yMax = yMax
+        var vp = currentViewport()
+        guard graph_apply_range(&vp, xMin, xMax, yMin, yMax) else { return false }
+        writeBack(vp)
         return true
     }
 

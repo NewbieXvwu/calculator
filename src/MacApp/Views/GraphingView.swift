@@ -922,24 +922,27 @@ private struct GraphCanvas: View {
 
     // MARK: - 坐标映射
 
+    /// 由当前视窗与画布尺寸构造共享层视窗结构（C ABI 几何的输入）。
+    private func makeViewport(_ size: CGSize) -> graph_viewport_t {
+        graph_viewport_t(
+            x_min: graph.xMin, x_max: graph.xMax, y_min: graph.yMin, y_max: graph.yMax,
+            width: Double(size.width), height: Double(size.height))
+    }
+
     private func toScreenX(_ x: Double, _ size: CGSize) -> CGFloat {
-        CGFloat((x - graph.xMin) / graph.xSpan) * size.width
+        var vp = makeViewport(size)
+        return CGFloat(graph_to_screen_x(&vp, x))
     }
 
     private func toScreenY(_ y: Double, _ size: CGSize) -> CGFloat {
-        // 数学 y 向上翻转到屏幕 y 向下。
-        size.height - CGFloat((y - graph.yMin) / graph.ySpan) * size.height
+        var vp = makeViewport(size)
+        return CGFloat(graph_to_screen_y(&vp, y))
     }
 
     // MARK: - 绘制
 
     private func niceStep(_ span: Double, target: Int) -> Double {
-        let rough = span / Double(target)
-        let mag = pow(10, floor(log10(rough)))
-        let norm = rough / mag
-        let step: Double
-        if norm < 1.5 { step = 1 } else if norm < 3 { step = 2 } else if norm < 7 { step = 5 } else { step = 10 }
-        return step * mag
+        graph_nice_step(span, Int32(target))
     }
 
     private func drawGrid(context: GraphicsContext, size: CGSize) {
@@ -947,24 +950,28 @@ private struct GraphCanvas: View {
         let stepY = niceStep(graph.ySpan, target: 10)
         let gridColor = Color.secondary.opacity(0.15)
 
-        var x = (graph.xMin / stepX).rounded(.up) * stepX
-        while x <= graph.xMax {
-            let sx = toScreenX(x, size)
+        var xs = [Double](repeating: 0, count: 512)
+        let nx = xs.withUnsafeMutableBufferPointer {
+            graph_ticks(graph.xMin, graph.xMax, stepX, $0.baseAddress, $0.count)
+        }
+        for i in 0..<min(Int(nx), xs.count) {
+            let sx = toScreenX(xs[i], size)
             var path = Path()
             path.move(to: CGPoint(x: sx, y: 0))
             path.addLine(to: CGPoint(x: sx, y: size.height))
             context.stroke(path, with: .color(gridColor), lineWidth: 0.5)
-            x += stepX
         }
 
-        var y = (graph.yMin / stepY).rounded(.up) * stepY
-        while y <= graph.yMax {
-            let sy = toScreenY(y, size)
+        var ys = [Double](repeating: 0, count: 512)
+        let ny = ys.withUnsafeMutableBufferPointer {
+            graph_ticks(graph.yMin, graph.yMax, stepY, $0.baseAddress, $0.count)
+        }
+        for i in 0..<min(Int(ny), ys.count) {
+            let sy = toScreenY(ys[i], size)
             var path = Path()
             path.move(to: CGPoint(x: 0, y: sy))
             path.addLine(to: CGPoint(x: size.width, y: sy))
             context.stroke(path, with: .color(gridColor), lineWidth: 0.5)
-            y += stepY
         }
     }
 
@@ -990,35 +997,30 @@ private struct GraphCanvas: View {
 
     private func drawCurve(_ expr: GraphExpression, color: Color, stroke: StrokeStyle, context: GraphicsContext, size: CGSize) {
         guard size.width > 1 else { return }
-        var path = Path()
-        var penDown = false
-        var lastScreenY: CGFloat = 0
-        // 间断阈值：单像素列 y 跳变超过画布高度视为断裂（垂直渐近线等）。
-        let jumpThreshold = size.height * 1.5
+        var vp = makeViewport(size)
+        let params = graph.parameters
+        let trig = graph.trigMode
+        let box = GraphIntervalBox(
+            interval: { _, _, _, _ in GraphIntervalResult(lo: 0, hi: 0, domain: .defined) },
+            point: nil,
+            explicit: { expr.evaluate(x: $0, params: params, trig: trig) })
 
-        let columns = Int(size.width)
-        for column in 0...columns {
-            let sx = CGFloat(column)
-            let mathX = graph.xMin + Double(sx) / Double(size.width) * graph.xSpan
-            guard let mathY = expr.evaluate(x: mathX, params: graph.parameters, trig: graph.trigMode) else {
-                penDown = false
-                continue
+        let cap = Int(size.width) + 1
+        var samples = [graph_sample_t](repeating: graph_sample_t(), count: cap)
+        var count = 0
+        withExtendedLifetime(box) {
+            let ctx = Unmanaged.passUnretained(box).toOpaque()
+            count = samples.withUnsafeMutableBufferPointer { buf in
+                graph_sample_curve(&vp, graphExplicitThunk, ctx, buf.baseAddress, buf.count)
             }
-            let sy = toScreenY(mathY, size)
-
-            if penDown && abs(sy - lastScreenY) > jumpThreshold {
-                penDown = false // 断裂
-            }
-
-            if penDown {
-                path.addLine(to: CGPoint(x: sx, y: sy))
-            } else {
-                path.move(to: CGPoint(x: sx, y: sy))
-                penDown = true
-            }
-            lastScreenY = sy
         }
 
+        var path = Path()
+        for i in 0..<min(count, cap) {
+            let s = samples[i]
+            let pt = CGPoint(x: s.sx, y: s.sy)
+            if s.move { path.move(to: pt) } else { path.addLine(to: pt) }
+        }
         context.stroke(path, with: .color(color), style: stroke)
     }
 
@@ -1055,13 +1057,22 @@ private struct GraphCanvas: View {
         // MS 网格与四叉树叶节点逐点对齐（2^k 格），补格抑制判定才成立。
         let cols = Int(graph_pow2_cell_count(Double(size.width), pixelPx))
         let rows = Int(graph_pow2_cell_count(Double(size.height), pixelPx))
-        let segments = MarchingSquares.trace(
-            f: { expr.evaluate(x: $0, y: $1, params: params, trig: trig) },
-            xMin: graph.xMin, xMax: graph.xMax, yMin: graph.yMin, yMax: graph.yMax,
-            cols: cols, rows: rows)
+        let segCap = max(1, 2 * cols * rows)  // graph_marching_squares 最坏情形
+        var segments = [graph_segment_t](repeating: graph_segment_t(), count: segCap)
+        var segCount = 0
+        withExtendedLifetime(box) {
+            let ctx = Unmanaged.passUnretained(box).toOpaque()
+            segCount = segments.withUnsafeMutableBufferPointer { buf -> Int in
+                Int(graph_marching_squares(
+                    graph.xMin, graph.xMax, graph.yMin, graph.yMax,
+                    Int32(cols), Int32(rows), graphCornerThunk, ctx,
+                    buf.baseAddress, buf.count))
+            }
+        }
 
         var path = Path()
-        for seg in segments {
+        for i in 0..<min(segCount, segCap) {
+            let seg = segments[i]
             path.move(to: CGPoint(x: toScreenX(seg.x1, size), y: toScreenY(seg.y1, size)))
             path.addLine(to: CGPoint(x: toScreenX(seg.x2, size), y: toScreenY(seg.y2, size)))
         }
@@ -1153,12 +1164,26 @@ private struct GraphCanvas: View {
 private final class GraphIntervalBox {
     let interval: (Double, Double, Double, Double) -> GraphIntervalResult
     let point: ((Double, Double) -> Double?)?
+    let explicit: ((Double) -> Double?)?
 
     init(interval: @escaping (Double, Double, Double, Double) -> GraphIntervalResult,
-         point: ((Double, Double) -> Double?)?) {
+         point: ((Double, Double) -> Double?)?,
+         explicit: ((Double) -> Double?)? = nil) {
         self.interval = interval
         self.point = point
+        self.explicit = explicit
     }
+}
+
+/// 显式曲线 y=f(x) 的 C 回调（graph_eval_fn）：穿过 void* 上下文求值，
+/// 未定义返回 false（out_y 被忽略）。供 graph_sample_curve 逐列采样使用。
+private let graphExplicitThunk: @convention(c) (
+    UnsafeMutableRawPointer?, Double, UnsafeMutablePointer<Double>?
+) -> Bool = { ctx, x, out in
+    let box = Unmanaged<GraphIntervalBox>.fromOpaque(ctx!).takeUnretainedValue()
+    guard let y = box.explicit?(x) else { return false }
+    out!.pointee = y
+    return true
 }
 
 /// 单帧最多接收的矩形数；超出则加粗 pixel_px 重算（保守方向）。

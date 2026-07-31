@@ -930,7 +930,7 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 
 - [ ] 改用共享层规格表（键盘 / 单位 / 快捷键 / 色板 / 模式元数据）
 - [ ] 改用 C ABI 门面
-- [ ] 图形几何改调共享层
+- [x] 图形几何改调共享层（2026-07-31）：生产路径的坐标变换（`toScreenX/Y`→`graph_to_screen_x/y`）、刻度步长（`niceStep`→`graph_nice_step`）、网格刻度枚举（`drawGrid`→`graph_ticks`）、显式曲线采样（`drawCurve`→`graph_sample_curve`）、隐式等值线追踪（`drawImplicit`→`graph_marching_squares`）、视窗平移/缩放/范围（`pan/zoom/zoom_at/applyRange`→对应 C ABI）全部改调 `graph_geometry.h`。`MarchingSquares.swift` 降级为对拍 oracle（`GraphGeometryTests`/`MacAppTests` 锁 C↔Swift 等价）。零回归：`swift test` 126/126、engine-tests、calc-smoke 全绿
 - [ ] `@Observable` 迁移（⏸️ 前置：部署目标升至 macOS 14+，见 S11 暂缓依据）
 - [x] ~~补 2 种线型~~ → 经核实无需补（2026-07-31）：原版 `EquationStylePanelControl` 用户可见 picker 只列 `Solid/Dash/Dot`，`DashDot`/`DashDotDot` 是底层渲染器枚举、UI 从不暴露（无 pattern、无 automation name、resw 无对应字符串）。fork 3 种线型即 UI 保真；补 2 种反成背离
 - [x] 补单调性 `Constant`（2026-07-31，S3 重写附带：常函数短路径给出 `(-∞, +∞) 恒定`）

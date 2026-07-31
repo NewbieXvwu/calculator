@@ -5,6 +5,11 @@
 // 在视窗上按网格采样 F 的符号，逐格用线性插值求 F=0 与格边的交点，
 // 产出数学坐标下的线段集合；渲染层再映射到屏幕。
 // 鞍点格（4 个交点）用格中心采样消歧。
+//
+// 注意：共享层几何下沉回填后，生产渲染（GraphingView.drawImplicit）已改调
+// C ABI 的 graph_marching_squares。本 Swift 实现现仅作对拍 oracle——
+// GraphGeometryTests / MacAppTests 用它逐段锁定 C 版与 Swift 版语义等价。
+// 请勿当作死代码删除，否则平价测试失去参照。
 
 import Foundation
 
