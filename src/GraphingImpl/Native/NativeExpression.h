@@ -37,6 +37,10 @@ namespace NativeGraphingImpl
             std::string variableNames,       // 逗号分隔的变量名（x 或 x,y）
             bool isEmptySet);
 
+        // 拷贝构造：Graph 持有表达式的独立副本（所有权语义，防止调用方
+        // unique_ptr 析构后图内悬垂——见 NativeGraph.cpp）。
+        NativeExpression(const NativeExpression& other);
+
         unsigned int GetExpressionID() const override { return m_id; }
         bool IsEmptySet() const override { return m_isEmptySet; }
 
@@ -45,6 +49,11 @@ namespace NativeGraphingImpl
 
         // UTF-8 形式的原始输入（giac 求值用）。
         const std::string& GetRawUtf8() const { return m_rawUtf8; }
+
+        // 归一化主体（UTF-8）：显式 = 等号右侧；隐式/不等式 = (lhs)-(rhs)。
+        // 分析/求值一律用 body，不得用原始输入（原始输入含 "y=" 前缀会被
+        // giac 当赋值语句处理，导致 domain/solve 等命令失效甚至崩溃）。
+        const std::string& GetBodyUtf8() const { return m_explicitRhs; }
 
         // 求值（数值）。显式：y=f(x)；隐式/不等式：F(x,y)。
         // 失败（未定义/解析失败/引擎错误）返回 nullopt。

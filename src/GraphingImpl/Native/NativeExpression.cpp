@@ -111,6 +111,32 @@ namespace NativeGraphingImpl
         {
             m_validationError = out;
         }
+        // giac 对不完整语法（尾随操作符，如 "2+"）惰性返回原样文本且不报错，
+        // 语法层面直接拦截（不依赖 giac 行为）。
+        if (m_valid && !m_explicitRhs.empty())
+        {
+            const char last = m_explicitRhs.back();
+            if (last == '+' || last == '-' || last == '*' || last == '/' || last == '^' || last == '=')
+            {
+                m_valid = false;
+                m_validationError = "trailing operator";
+            }
+        }
+    }
+
+    NativeExpression::NativeExpression(const NativeExpression& other)
+        : m_id(++g_nextExpressionId)
+        , m_raw(other.m_raw)
+        , m_rawUtf8(other.m_rawUtf8)
+        , m_kind(other.m_kind)
+        , m_explicitRhs(other.m_explicitRhs)
+        , m_inequalityRelation(other.m_inequalityRelation)
+        , m_variableNames(other.m_variableNames)
+        , m_isEmptySet(other.m_isEmptySet)
+        , m_valid(other.m_valid)
+        , m_validationError(other.m_validationError)
+    {
+        // 拷贝不重新触发 giac 校验（原对象已校验过，结果原样继承）。
     }
 
     std::optional<double> NativeExpression::EvaluateAt(double x, std::optional<double> y) const

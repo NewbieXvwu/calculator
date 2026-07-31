@@ -224,6 +224,7 @@ namespace NativeGraphingImpl
         {
             native = std::const_pointer_cast<NativeExpression>(std::shared_ptr<const NativeExpression>(n, [](const NativeExpression*) {}));
         }
+        // 空表达式 → 空图（Graph 内部深拷贝表达式，不持有裸指针）。
         return std::make_shared<Graph>(native);
     }
 

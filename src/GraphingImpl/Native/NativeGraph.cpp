@@ -11,7 +11,9 @@ namespace NativeGraphingImpl
     {
         if (expression)
         {
-            m_nativeEquations.push_back(std::move(expression));
+            // 深拷贝：Graph 持有表达式的独立副本，不依赖调用方的生命周期
+            //（调用方的 unique_ptr/shared_ptr 析构不影响图内表达式）。
+            m_nativeEquations.push_back(std::make_shared<NativeExpression>(*expression));
         }
         m_graphRenderer = std::make_shared<GraphRenderer>(&m_nativeEquations);
         m_analyzer = m_nativeEquations.empty() ? nullptr : std::make_shared<GraphAnalyzer>(m_nativeEquations.front());
@@ -21,16 +23,13 @@ namespace NativeGraphingImpl
     {
         if (graphingExp)
         {
-            // 把新表达式加入方程集合；返回方程列表给调用方。
+            // 把新表达式加入方程集合（深拷贝，所有权独立）；返回方程列表给调用方。
             if (auto* native = dynamic_cast<NativeExpression*>(const_cast<Graphing::IExpression*>(graphingExp)))
             {
-                auto shared = std::shared_ptr<NativeExpression>(native, [](NativeExpression*) {});
-                // 注意：表达式由 MathSolver 持有所有权时走另一路径（见
-                // MathSolver::CreateGrapher）；此处仅当外部传入时登记。
                 bool already = false;
                 for (const auto& e : m_nativeEquations)
                 {
-                    if (e.get() == native)
+                    if (e->GetRawUtf8() == native->GetRawUtf8() && e->GetKind() == native->GetKind())
                     {
                         already = true;
                         break;
@@ -38,7 +37,7 @@ namespace NativeGraphingImpl
                 }
                 if (!already)
                 {
-                    m_nativeEquations.push_back(shared);
+                    m_nativeEquations.push_back(std::make_shared<NativeExpression>(*native));
                 }
                 m_analyzer = std::make_shared<GraphAnalyzer>(m_nativeEquations.back());
             }

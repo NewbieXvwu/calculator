@@ -199,7 +199,7 @@ namespace NativeGraphingImpl
     void GraphAnalyzer::AnalyzeDomainRange()
     {
         // 定义域：直接查 giac 的 domain（符号形式）。
-        const std::string expr = "domain(" + m_expression->GetRawUtf8() + ")";
+        const std::string expr = "domain(" + m_expression->GetBodyUtf8() + ")";
         const std::string raw = Query(expr);
         if (raw.empty())
         {
@@ -218,7 +218,7 @@ namespace NativeGraphingImpl
     void GraphAnalyzer::AnalyzeZerosAndIntercepts()
     {
         // 零点：solve(f=0,x)。原版格式：x = −√2 or x = 0 or x = √2（英文 or）。
-        const std::string raw = Query("solve(" + m_expression->GetRawUtf8() + "=0,x)");
+        const std::string raw = Query("solve(" + m_expression->GetBodyUtf8() + "=0,x)");
         if (raw.empty())
         {
             m_tooComplex |= kTypeZeros;
@@ -260,7 +260,7 @@ namespace NativeGraphingImpl
         }
 
         // Y 截距：f(0)。
-        const std::string yraw = Query("subst(" + m_expression->GetRawUtf8() + ",x=0)");
+        const std::string yraw = Query("subst(" + m_expression->GetBodyUtf8() + ",x=0)");
         if (yraw.empty())
         {
             m_tooComplex |= kTypeZeros;
@@ -274,7 +274,7 @@ namespace NativeGraphingImpl
     void GraphAnalyzer::AnalyzeExtrema()
     {
         // 极值：extrema(f,x)（giac 符号解）。输出 (x,y) 列表。
-        const std::string raw = Query("extrema(" + m_expression->GetRawUtf8() + ",x)");
+        const std::string raw = Query("extrema(" + m_expression->GetBodyUtf8() + ",x)");
         if (raw.empty() || raw == "[]")
         {
             return;  // 无极值或查询失败——失败时保持空（UI 显示「无」），
@@ -289,7 +289,7 @@ namespace NativeGraphingImpl
     void GraphAnalyzer::AnalyzeInflectionPoints()
     {
         // 拐点：f''=0 的解。本次仅做查询，输出格式对齐留待 KGF 对照。
-        const std::string raw = Query("solve(diff(" + m_expression->GetRawUtf8() + ",x,2)=0,x)");
+        const std::string raw = Query("solve(diff(" + m_expression->GetBodyUtf8() + ",x,2)=0,x)");
         if (raw.empty() || raw == "[]")
         {
             return;
@@ -302,7 +302,7 @@ namespace NativeGraphingImpl
     void GraphAnalyzer::AnalyzeAsymptotes()
     {
         // 垂直渐近线：denominator 零点（macOS S3 已验证的正确路径）。
-        const std::string vraw = Query("solve(denom(normal(" + m_expression->GetRawUtf8() + "))=0,x)");
+        const std::string vraw = Query("solve(denom(normal(" + m_expression->GetBodyUtf8() + "))=0,x)");
         if (vraw.empty() || vraw == "[]")
         {
             m_verticalAsymptotes.clear();
@@ -334,8 +334,8 @@ namespace NativeGraphingImpl
         }
 
         // 水平渐近线：limit 双侧。`+infinity` 记号需过滤（黑名单已含）。
-        const std::string plus = Query("limit(" + m_expression->GetRawUtf8() + ",x,+inf)");
-        const std::string minus = Query("limit(" + m_expression->GetRawUtf8() + ",x,-inf)");
+        const std::string plus = Query("limit(" + m_expression->GetBodyUtf8() + ",x,+inf)");
+        const std::string minus = Query("limit(" + m_expression->GetBodyUtf8() + ",x,-inf)");
         m_horizontalAsymptotes.clear();
         if (!plus.empty() && plus.find("infinity") == std::string::npos && plus != "+inf" && plus != "-inf")
         {
@@ -351,7 +351,7 @@ namespace NativeGraphingImpl
 
     void GraphAnalyzer::AnalyzeParity()
     {
-        const std::string f = m_expression->GetRawUtf8();
+        const std::string f = m_expression->GetBodyUtf8();
         // f(x) - f(-x) == 0 → 偶；f(x) + f(-x) == 0 → 奇。
         const std::string even = Query("normal(" + f + "-subst(" + f + ",x=-x))");
         const std::string odd = Query("normal(" + f + "+subst(" + f + ",x=-x))");
@@ -380,7 +380,7 @@ namespace NativeGraphingImpl
 
     void GraphAnalyzer::AnalyzePeriodicity()
     {
-        const std::string raw = Query("period(" + m_expression->GetRawUtf8() + ",x)");
+        const std::string raw = Query("period(" + m_expression->GetBodyUtf8() + ",x)");
         if (raw.empty())
         {
             return;
