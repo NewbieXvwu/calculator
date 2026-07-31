@@ -1051,8 +1051,20 @@ P-<平台>-X   豁免清单（必须写 M1 四类理由之一）
 > 产物 `third_party/giac-win/bin/libgiac_bridge.dll`（32MB）+ .def + mingw 导入库。
 > 语义对齐 macOS GiacBridge：caseval 求值 + stderr 警告捕获（_pipe+_dup2，
 > 64KB 容量限制诚实记录）+ std::mutex 串行 + 异常不穿 C 边界（M4）。
-> 冒烟 9/9：8 个求值全对 + 警告通道工作。UWP 主程序侧 LoadLibrary 接入
-> `IMathSolver` 属 P-Windows-1/2 下一步。
+> 冒烟 9/9：8 个求值全对 + 警告通道工作。
+>
+> **Native 实现（2026-08-01 编译 + 运行时验证全绿）**：`src/GraphingImpl/Native/`
+> 全部落地——NativeMathSolver（ParseInput 分类：显式 y=f(x)/隐式 F(x,y)=0/
+> 不等式/Unicode≤≥归一化/尾操作符语法拒绝）、NativeExpression（evalf(subst)
+> 数值求值 + 拷贝构造）、NativeGraph（深拷贝方程，消除悬垂）、
+> NativeGraphRenderer（D2D 网格/轴/曲线/marching squares/不等式中心采样，
+> 几何全部复用共享层 graph_geometry C ABI）、NativeGraphAnalyzer（KGF 最小
+> 子集：domain/zeros/yint/parity/VA/HA/period，值域/单调性/斜渐近线诚实标
+> too complex）、GiacBridgeLoader（LoadLibrary）。vcxproj 集成 + /utf-8。
+> Mock 保留（USE_NATIVE_GRAPHING_IMPL 宏切换）。运行时测试
+> `src/GraphingImpl/NativeTests/main.cpp` 24 项断言全 PASS（MSVC console +
+> libgiac_bridge.dll）。实测修复：Graph 深拷贝所有权、分析器用归一化 body
+> （原始输入 y= 前缀会让 giac 当赋值致 extrema 崩溃）、尾操作符拦截。
 >
 > **可先做、零风险的真实增量**：把 geometry（`graph_geometry.*`）编入一个新的
 > `GiacGraphingImpl`/`NativeGraphingImpl` 工程并接上 `IGraphRenderer` 的 D2D 绘制，
