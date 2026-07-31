@@ -765,7 +765,7 @@ ViewModel 全量翻倍，与"机械替换 2–3 人日"的前提矛盾，且回�
 
 ---
 
-### S12 · 快捷键跨平台冲突矩阵 🟡 P2
+### S12 · 快捷键跨平台冲突矩阵 ✅ 已完成（2026-07-31）
 
 129 项在各平台冲突情况不同。建立三层结构：
 
@@ -787,6 +787,25 @@ ViewModel 全量翻倍，与"机械替换 2–3 人日"的前提矛盾，且回�
 落地 `spec/shortcuts.json` + 各平台覆盖表。
 
 **成本**：3 人日
+
+**验收记录（2026-07-31）**：落地 `spec/shortcut-conflicts.json`（绑定清单已由 S6 的
+`keyboard-shortcuts.json` 承担，本表是其上的平台覆盖层）。内容：三层语义
+（safe / platformConflict / userOverridable）、五平台保留集合（macOS 标记
+resolved、reserved 为空）、IME 约束（composing 让位 + 文本提交与 keydown
+双通道，affects 覆盖全部 5 类字符分发通道）、9 组冲突条目——Web：⌘1-6→
+Ctrl+Shift+数字（Ctrl+1..8 为标签切换）、Ctrl+L/R/P→Ctrl+Alt+同字母、F5→
+Ctrl+Alt+5、科学 ⌃S/O/T/U/N/D→Ctrl+Alt+同字母、⌃⇧T/I/J→Ctrl+Alt+Shift+
+同字母、置顶 notApplicable；Android/鸿蒙：F2-F12 requiresFn（媒体层优先）；
+Linux：置顶 menuOnly（Ctrl+Alt+方向键被工作区抓取）。防漂移测试
+`SpecTableTests.testShortcutConflictMatrixCrossReferencesBindings` 锁三条硬约束：
+① 每个 ref 必须真实存在于 keyboard-shortcuts.json；② Web 保留集合与全部
+现有绑定（menu/functionKeys/controlChords/科学 ⌃、⌃⇧ 和弦，cmd≡ctrl 归一化）
+的碰撞必须被冲突条目全覆盖——新增绑定若撞保留集合即红；③ remap 目标不得
+落回保留集合、平台内不重复、不与 Web 幸存绑定撞车。诚实记录未消费项：
+Android/鸿蒙/Linux 的保留集合含"系统截图/工作区"等非和弦描述性词条，
+不参与归一化碰撞检查（无绑定可撞，仅作用户覆盖时的拒绝依据，由各平台
+实现期落地）；AltGr≡Ctrl+Alt 的欧洲布局歧义已在 web.notes 标注，属实现期
+约束而非本表可验证项。
 
 ---
 

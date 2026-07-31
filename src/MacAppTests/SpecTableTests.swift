@@ -623,4 +623,191 @@ final class SpecTableTests: XCTestCase {
             model.setWordSize(.qword)
         }
     }
+
+    // MARK: - spec/shortcut-conflicts.json ⇄ keyboard-shortcuts.json（S12 冲突矩阵）
+
+    private struct ConflictsSpec: Decodable {
+        struct Tiers: Decodable {
+            let safe: String
+            let platformConflict: String
+            let userOverridable: String
+        }
+        struct Platform: Decodable {
+            let status: String
+            let reserved: [String]
+            let notes: String
+        }
+        struct IME: Decodable {
+            let rule: String
+            let affects: [String]
+        }
+        struct Ref: Decodable {
+            let section: String
+            let id: String
+        }
+        enum Remap: Decodable {
+            case one(String)
+            case many([String])
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.singleValueContainer()
+                if let single = try? container.decode(String.self) {
+                    self = .one(single)
+                } else {
+                    self = .many(try container.decode([String].self))
+                }
+            }
+
+            var targets: [String] {
+                switch self {
+                case .one(let target): return [target]
+                case .many(let targets): return targets
+                }
+            }
+        }
+        struct Resolution: Decodable {
+            let resolution: String
+            let remap: Remap?
+            let note: String?
+        }
+        struct Conflict: Decodable {
+            let refs: [Ref]
+            let reason: String
+            let platforms: [String: Resolution]
+        }
+        let tiers: Tiers
+        let platforms: [String: Platform]
+        let imeConstraint: IME
+        let conflicts: [Conflict]
+    }
+
+    /// 组合键规范化：cmd→ctrl、opt→alt，修饰键固定 ctrl,alt,shift 序，键名小写。
+    private func normalizeCombo(_ keys: String) -> String {
+        var parts = keys.lowercased().split(separator: "+").map(String.init)
+        let key = parts.removeLast()
+        var mods = Set(parts.map { $0 == "cmd" ? "ctrl" : ($0 == "opt" ? "alt" : $0) })
+        var out: [String] = []
+        for mod in ["ctrl", "alt", "shift"] where mods.remove(mod) != nil {
+            out.append(mod)
+        }
+        XCTAssertTrue(mods.isEmpty, "未知修饰键: \(keys)")
+        return (out + [key]).joined(separator: "+")
+    }
+
+    func testShortcutConflictMatrixCrossReferencesBindings() throws {
+        let matrix = try loadJSON("shortcut-conflicts.json", as: ConflictsSpec.self)
+        let shortcuts = try loadJSON("keyboard-shortcuts.json", as: ShortcutsSpec.self)
+
+        // 平台集合齐备；macOS 已解决且不再出现在 conflicts 中。
+        XCTAssertEqual(Set(matrix.platforms.keys), ["web", "android", "ohos", "linux", "macos"])
+        let macos = try XCTUnwrap(matrix.platforms["macos"])
+        XCTAssertEqual(macos.status, "resolved")
+        XCTAssertTrue(macos.reserved.isEmpty)
+        for (name, platform) in matrix.platforms where name != "macos" {
+            XCTAssertEqual(platform.status, "open", name)
+            XCTAssertFalse(platform.reserved.isEmpty, name)
+        }
+
+        // IME 约束覆盖全部字符类分发通道。
+        let charSections: Set<String> = [
+            "digits", "characters", "localeDecimalSeparator", "scientificLetters", "programmerHexLetters",
+        ]
+        XCTAssertEqual(Set(matrix.imeConstraint.affects), charSections)
+        XCTAssertFalse(matrix.imeConstraint.rule.isEmpty)
+
+        // ref 必须指向 keyboard-shortcuts.json 中真实存在的绑定。
+        let sciByCategory: [String: [String: String]] = [
+            "plain": shortcuts.scientificLetters.plain,
+            "shift": shortcuts.scientificLetters.shift,
+            "control": shortcuts.scientificLetters.control,
+            "controlShift": shortcuts.scientificLetters.controlShift,
+        ]
+        func bindingExists(_ ref: ConflictsSpec.Ref) -> Bool {
+            switch ref.section {
+            case "menu": return shortcuts.menu.contains { $0.keys == ref.id }
+            case "special": return shortcuts.special.contains { $0.key == ref.id }
+            case "functionKeys": return shortcuts.functionKeys.contains { $0.key == ref.id }
+            case "characters": return shortcuts.characters.contains { $0.char == ref.id }
+            case "controlChords":
+                if let letter = ref.id.split(separator: "+").last.map(String.init), ref.id.hasPrefix("shift+") {
+                    return shortcuts.controlChords.contains { $0.key == letter && $0.shift == true }
+                }
+                return shortcuts.controlChords.contains { $0.key == ref.id && $0.shift != true }
+            case "scientificLetters":
+                let pieces = ref.id.split(separator: ":").map(String.init)
+                guard pieces.count == 2, let category = sciByCategory[pieces[0]] else { return false }
+                return category[pieces[1]] != nil
+            default: return false
+            }
+        }
+
+        let resolutions: Set<String> = ["remap", "requiresFn", "menuOnly", "notApplicable"]
+        var coveredWebRefs: Set<String> = []
+        var remapsByPlatform: [String: [String]] = [:]
+        for conflict in matrix.conflicts {
+            XCTAssertFalse(conflict.refs.isEmpty, conflict.reason)
+            XCTAssertFalse(conflict.platforms.isEmpty, conflict.reason)
+            for ref in conflict.refs {
+                XCTAssertTrue(bindingExists(ref), "\(ref.section):\(ref.id) 不存在于 keyboard-shortcuts.json")
+            }
+            for (platformName, entry) in conflict.platforms {
+                XCTAssertNotEqual(platformName, "macos", "macOS 已解决，不应再登记冲突: \(conflict.reason)")
+                XCTAssertNotNil(matrix.platforms[platformName], platformName)
+                XCTAssertTrue(resolutions.contains(entry.resolution), "\(platformName): 未知 resolution \(entry.resolution)")
+                XCTAssertEqual(entry.remap != nil, entry.resolution == "remap", "\(platformName): remap 字段与 resolution 不符")
+                if case .many(let targets)? = entry.remap {
+                    XCTAssertEqual(targets.count, conflict.refs.count, "\(platformName): remap 数组须与 refs 一一对应")
+                }
+                if let remap = entry.remap {
+                    remapsByPlatform[platformName, default: []].append(contentsOf: remap.targets.map(normalizeCombo))
+                }
+                if platformName == "web" {
+                    for ref in conflict.refs {
+                        coveredWebRefs.insert("\(ref.section):\(ref.id)")
+                    }
+                }
+            }
+        }
+
+        // Web 保留集合与现有绑定的碰撞必须全部被 conflicts 覆盖（Web 是最严重平台）。
+        let webReserved = Set(try XCTUnwrap(matrix.platforms["web"]).reserved.map(normalizeCombo))
+        var webBindings: [(refKey: String, combo: String)] = []
+        for item in shortcuts.menu {
+            webBindings.append(("menu:\(item.keys)", normalizeCombo(item.keys)))
+        }
+        for entry in shortcuts.functionKeys {
+            webBindings.append(("functionKeys:\(entry.key)", normalizeCombo(entry.key)))
+        }
+        for chord in shortcuts.controlChords {
+            let shifted = chord.shift == true
+            let refKey = "controlChords:\(shifted ? "shift+" : "")\(chord.key)"
+            webBindings.append((refKey, normalizeCombo("ctrl+\(shifted ? "shift+" : "")\(chord.key)")))
+        }
+        for (letter, _) in shortcuts.scientificLetters.control {
+            webBindings.append(("scientificLetters:control:\(letter)", normalizeCombo("ctrl+\(letter)")))
+        }
+        for (letter, _) in shortcuts.scientificLetters.controlShift {
+            webBindings.append(("scientificLetters:controlShift:\(letter)", normalizeCombo("ctrl+shift+\(letter)")))
+        }
+        for binding in webBindings where webReserved.contains(binding.combo) {
+            XCTAssertTrue(
+                coveredWebRefs.contains(binding.refKey),
+                "\(binding.refKey)（\(binding.combo)）落入 Web 保留集合但未被冲突矩阵覆盖")
+        }
+
+        // remap 目标不得落回所在平台保留集合，且平台内互不重复、不与该平台幸存绑定撞车。
+        for (platformName, targets) in remapsByPlatform {
+            let reserved = Set(try XCTUnwrap(matrix.platforms[platformName]).reserved.map(normalizeCombo))
+            XCTAssertEqual(Set(targets).count, targets.count, "\(platformName): remap 目标重复")
+            for target in targets {
+                XCTAssertFalse(reserved.contains(target), "\(platformName): remap 目标 \(target) 落回保留集合")
+            }
+            if platformName == "web" {
+                let surviving = Set(webBindings.filter { !coveredWebRefs.contains($0.refKey) }.map(\.combo))
+                for target in targets {
+                    XCTAssertFalse(surviving.contains(target), "web: remap 目标 \(target) 与幸存绑定撞车")
+                }
+            }
+        }
+    }
 }

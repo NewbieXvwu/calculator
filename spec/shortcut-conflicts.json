@@ -1,0 +1,168 @@
+{
+  "$comment": "S12 快捷键跨平台冲突矩阵。三层结构：safe（未出现在 conflicts 的绑定各平台原样生效）→ platformConflict（conflicts 列出的绑定在对应平台按 resolution 处理）→ userOverridable（所有绑定允许用户覆盖，覆盖结果不得落入所在平台 reserved 集合）。绑定引用 spec/keyboard-shortcuts.json（S6 唯一事实源），ref 的 id 语义按 section：menu=keys、special/functionKeys=key、characters=char、controlChords=(shift+)key、scientificLetters=类别:字母。macOS 已在 S6 解决（⌃ 字面映射、⌘ 放行菜单栏），conflicts 不含 macos 字段。防漂移测试（SpecTableTests.testShortcutConflictMatrix）校验：ref 必须真实存在、web 保留集合与绑定的碰撞必须被本表全覆盖、remap 不得落回保留集合且平台内不重复。",
+  "tiers": {
+    "safe": "默认层：未出现在 conflicts 的绑定在所有平台原样生效（含全部无修饰字符词条，受 imeConstraint 约束）。",
+    "platformConflict": "conflicts 列出的绑定在对应平台按 resolution 处理：remap（改挂到给定和弦，原 byMode/动作语义不变）、requiresFn（需按住 Fn 才到达功能键层）、menuOnly（仅经应用菜单触发，不设默认物理键）、notApplicable（平台无此能力，绑定不注册）。",
+    "userOverridable": "所有绑定允许用户覆盖；覆盖结果落入所在平台 platforms.*.reserved 集合时拒绝并提示。"
+  },
+  "platforms": {
+    "web": {
+      "status": "open",
+      "reserved": [
+        "ctrl+w", "ctrl+t", "ctrl+n", "ctrl+l", "ctrl+d", "ctrl+r", "ctrl+p", "ctrl+s", "ctrl+o", "ctrl+u",
+        "ctrl+1", "ctrl+2", "ctrl+3", "ctrl+4", "ctrl+5", "ctrl+6", "ctrl+7", "ctrl+8",
+        "f5",
+        "ctrl+shift+t", "ctrl+shift+i", "ctrl+shift+j", "ctrl+shift+c",
+        "alt+left", "alt+right"
+      ],
+      "notes": "最严重平台。macOS 浏览器上 Ctrl 读作 Cmd，本表统一写 ctrl。Ctrl+W/T/N、Ctrl+Shift+T、Ctrl+1..8 在 Chrome 中 preventDefault 无效；其余组合虽技术上可拦截，但按冲突集合一律视为不可用（劫持浏览器惯例伤害用户）。Ctrl+1..8 为标签页切换（Firefox 为 Alt+1..8，同样占用）。改键层统一用 ctrl+alt+*：注意部分欧洲布局 AltGr ≡ Ctrl+Alt，实现须区分 AltGr 产生的字符输入（走 imeConstraint 的文本通道）与快捷键。"
+    },
+    "android": {
+      "status": "open",
+      "reserved": [
+        "home", "back", "recents", "alt+tab", "meta+任意组合",
+        "截图/锁屏/亮度/音量硬件键", "输入法切换组合"
+      ],
+      "notes": "外接键盘 / PC 模式。本项目绑定不含 Meta 组合与系统导航键，冲突集中在 F2..F12：外接键盘默认 Fn 锁定为媒体层（亮度/音量/截图等系统功能优先于功能键）。"
+    },
+    "ohos": {
+      "status": "open",
+      "reserved": [
+        "home", "back", "recents", "alt+tab", "meta+任意组合",
+        "截图/锁屏/亮度/音量硬件键", "输入法切换组合"
+      ],
+      "notes": "鸿蒙 PC 模式，保留集合与处理策略同 Android：系统键不可拦截，F 键默认为媒体层。"
+    },
+    "linux": {
+      "status": "open",
+      "reserved": [
+        "alt+f1", "alt+f2", "alt+f4", "alt+f7", "alt+f8", "super+任意组合",
+        "ctrl+alt+up", "ctrl+alt+down", "ctrl+alt+left", "ctrl+alt+right",
+        "ctrl+alt+f1..f12", "截图/工作区/平铺组合"
+      ],
+      "notes": "DE 全局抓取先于应用收到事件。Web 改键层的 ctrl+alt+字母 在主流 DE 默认未占用，可作改键目标；但 ctrl+alt+F1..F12（VT 切换）与 ctrl+alt+方向键（工作区切换）绝不可用作改键目标。"
+    },
+    "macos": {
+      "status": "resolved",
+      "reserved": [],
+      "notes": "S6 已解决：⌃ 组合字面映射进 handleKey，⌘ 组合一律放行给菜单栏；见 keyboard-shortcuts.json $comment。"
+    }
+  },
+  "imeConstraint": {
+    "rule": "物理按键分发必须让位于 IME：composing 期间（KeyboardEvent.isComposing / Android InputMethodManager 组合态 / NSTextInputContext 有 marked text）的按键一律交给输入法，不作为快捷键消费；文本提交（textInput/commitText/insertText）与物理 keydown 是两条独立通道，字符类词条只消费未被 IME 占用的 keydown，否则中日韩输入法的组合串会被误当快捷键。",
+    "affects": ["digits", "characters", "localeDecimalSeparator", "scientificLetters", "programmerHexLetters"]
+  },
+  "conflicts": [
+    {
+      "refs": [
+        { "section": "menu", "id": "cmd+1" },
+        { "section": "menu", "id": "cmd+2" },
+        { "section": "menu", "id": "cmd+3" },
+        { "section": "menu", "id": "cmd+4" },
+        { "section": "menu", "id": "cmd+5" },
+        { "section": "menu", "id": "cmd+6" }
+      ],
+      "reason": "⌘/Ctrl+1..8 是浏览器标签页切换（Chrome 不可拦截；Firefox 为 Alt+1..8 同样占用），模式切换改挂 Ctrl+Shift+数字。",
+      "platforms": {
+        "web": {
+          "resolution": "remap",
+          "remap": ["ctrl+shift+1", "ctrl+shift+2", "ctrl+shift+3", "ctrl+shift+4", "ctrl+shift+5", "ctrl+shift+6"]
+        }
+      }
+    },
+    {
+      "refs": [
+        { "section": "menu", "id": "ctrl+l" },
+        { "section": "controlChords", "id": "L" }
+      ],
+      "reason": "Ctrl+L 聚焦浏览器地址栏。",
+      "platforms": {
+        "web": { "resolution": "remap", "remap": "ctrl+alt+l" }
+      }
+    },
+    {
+      "refs": [
+        { "section": "menu", "id": "ctrl+r" },
+        { "section": "controlChords", "id": "R" }
+      ],
+      "reason": "Ctrl+R 刷新页面。",
+      "platforms": {
+        "web": { "resolution": "remap", "remap": "ctrl+alt+r" }
+      }
+    },
+    {
+      "refs": [
+        { "section": "menu", "id": "ctrl+p" },
+        { "section": "controlChords", "id": "P" }
+      ],
+      "reason": "Ctrl+P 打印页面。",
+      "platforms": {
+        "web": { "resolution": "remap", "remap": "ctrl+alt+p" }
+      }
+    },
+    {
+      "refs": [{ "section": "functionKeys", "id": "F5" }],
+      "reason": "F5 刷新页面且不可拦截。改挂后原 byMode 分发不变（程序员 radix:hex、科学 angle:rad 仍由同一物理和弦触发）。",
+      "platforms": {
+        "web": { "resolution": "remap", "remap": "ctrl+alt+5" }
+      }
+    },
+    {
+      "refs": [
+        { "section": "functionKeys", "id": "F2" },
+        { "section": "functionKeys", "id": "F3" },
+        { "section": "functionKeys", "id": "F4" },
+        { "section": "functionKeys", "id": "F5" },
+        { "section": "functionKeys", "id": "F6" },
+        { "section": "functionKeys", "id": "F7" },
+        { "section": "functionKeys", "id": "F8" },
+        { "section": "functionKeys", "id": "F9" },
+        { "section": "functionKeys", "id": "F12" }
+      ],
+      "reason": "Android/鸿蒙外接键盘默认 Fn 锁定为媒体层，F2..F12 被亮度/音量/截图等系统功能占用。",
+      "platforms": {
+        "android": { "resolution": "requiresFn", "note": "按住 Fn 到达功能键层；进制/角度/字长切换在键盘不可达时依赖屏上按钮，无功能损失。" },
+        "ohos": { "resolution": "requiresFn", "note": "同 Android。" }
+      }
+    },
+    {
+      "refs": [
+        { "section": "scientificLetters", "id": "control:S" },
+        { "section": "scientificLetters", "id": "control:O" },
+        { "section": "scientificLetters", "id": "control:T" },
+        { "section": "scientificLetters", "id": "control:U" },
+        { "section": "scientificLetters", "id": "control:N" },
+        { "section": "scientificLetters", "id": "control:D" }
+      ],
+      "reason": "Ctrl+S/O/T/U/N/D 为浏览器保存/打开/新标签/查看源码/新窗口/收藏（T、N 不可拦截）。双曲/幂类和弦改挂 Ctrl+Alt+同字母。",
+      "platforms": {
+        "web": {
+          "resolution": "remap",
+          "remap": ["ctrl+alt+s", "ctrl+alt+o", "ctrl+alt+t", "ctrl+alt+u", "ctrl+alt+n", "ctrl+alt+d"]
+        }
+      }
+    },
+    {
+      "refs": [
+        { "section": "scientificLetters", "id": "controlShift:T" },
+        { "section": "scientificLetters", "id": "controlShift:I" },
+        { "section": "scientificLetters", "id": "controlShift:J" }
+      ],
+      "reason": "Ctrl+Shift+T 恢复关闭的标签（不可拦截），Ctrl+Shift+I/J 打开开发者工具。反双曲和弦改挂 Ctrl+Alt+Shift+同字母。",
+      "platforms": {
+        "web": {
+          "resolution": "remap",
+          "remap": ["ctrl+alt+shift+t", "ctrl+alt+shift+i", "ctrl+alt+shift+j"]
+        }
+      }
+    },
+    {
+      "refs": [{ "section": "menu", "id": "opt+cmd+up" }],
+      "reason": "窗口置顶是窗口系统能力：Web 无置顶概念；Linux 上 Ctrl+Alt+方向键被工作区切换全局抓取，无安全的等价和弦。",
+      "platforms": {
+        "web": { "resolution": "notApplicable" },
+        "linux": { "resolution": "menuOnly", "note": "仅经应用菜单触发，不设默认物理键。" }
+      }
+    }
+  ]
+}
