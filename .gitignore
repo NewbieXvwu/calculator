@@ -299,7 +299,18 @@ src/CalcViewModel/DataLoaders/DataLoaderConstants.h
 # SwiftPM
 .build/
 .build-giac/
+.build-portable/
 third_party/giac/lib/
+
+# SwiftPM 本地用户配置（随用户的工具链/Xcode 变化）
+.swiftpm/
+
+# Xcode DerivedData 本地构建缓存
+.dd/
+.dd-opt/
+
+# 本地临时与实验文件
+.scratch/
 
 .DS_Store
 **/.DS_Store
