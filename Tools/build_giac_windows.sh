@@ -67,24 +67,32 @@ cd src
 COMMON="-DHAVE_CONFIG_H -I. -I.. -DIN_GIAC -I. -I.. -I. -I.. -I/mingw64/include -O3 -std=gnu++17 -U_GLIBCXX_ASSERTIONS -DUSE_OBJET_BIDON -fno-strict-aliasing -DGIAC_GENERIC_CONSTANTS -DTIMEOUT"
 mkdir -p build_objs
 n=0
+pids=()
 for f in *.cc; do
     base=$(basename "$f" .cc)
     obj="build_objs/${base}.o"
     if [ ! -f "$obj" ]; then
         x86_64-w64-mingw32-g++ $COMMON -c "$f" -o "$obj" &
+        pids+=("$!")
         n=$((n+1))
-        if [ $((n % 20)) -eq 0 ]; then wait; fi
+        if [ $((n % 20)) -eq 0 ]; then
+            # 逐 PID 检查退出码：无参 wait 静默返回 0，编译失败会被吞掉
+            for p in "${pids[@]}"; do wait "$p" || { echo "!! 编译失败 (PID $p)" >&2; exit 1; }; done
+            pids=()
+        fi
     fi
 done
-wait
+for p in "${pids[@]}"; do wait "$p" || { echo "!! 编译失败 (PID $p)" >&2; exit 1; }; done
+pids=()
 for f in *.c; do
     base=$(basename "$f" .c)
     obj="build_objs/${base}.o"
     if [ ! -f "$obj" ]; then
         x86_64-w64-mingw32-gcc $COMMON -c "$f" -o "$obj" &
+        pids+=("$!")
     fi
 done
-wait
+for p in "${pids[@]}"; do wait "$p" || { echo "!! 编译失败 (PID $p)" >&2; exit 1; }; done
 mkdir -p "$PREFIX/lib" "$PREFIX/include"
 ar rcs "$PREFIX/lib/libgiac_mingw.a" build_objs/*.o
 cp -r ../src/*.h "$PREFIX/include/" 2>/dev/null || true

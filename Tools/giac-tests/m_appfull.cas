@@ -1,0 +1,14 @@
+all_trig_solutions:=1;
+normal(diff(sin(x)*exp(x),x));
+domain(1/(x^2-4),x);
+solve(sin(x)^2-1=0,x);
+solve(diff(x^3-3*x,x)=0,x);
+solve(denom(normal(1/(x^2-1)))=0,x);
+limit(x^2+1,x,+inf);
+limit(1/x,x,0,1);
+sign(subst(diff(x^3-3*x,x),x=2));
+period(sin(3*x),x);
+normal(subst(1/(x+1),x=-x)+1/(x+1));
+purge(x);
+assume(x>=0);
+solve(x^2=4,x);

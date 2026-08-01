@@ -59,12 +59,14 @@ let package = Package(
                 // libgiac.a 由 Tools/build_giac.sh 产出到 third_party/giac/lib，
                 // 依赖 Homebrew 的 gmp/mpfr/gettext。路径见文件顶部：giac 已解析为
                 // 绝对路径，Homebrew 前缀可经 HOMEBREW_PREFIX 覆盖，不再绑定仓库根/Apple Silicon。
+                // 注意：libgiac.a 以 --disable-nls 构建（ENABLE_NLS 未定义），不引用
+                // gettext/intl 符号，因此不链接 -lintl（Homebrew gettext keg-only，
+                // 新机器上 /opt/homebrew/lib/libintl.a 未必存在，避免无条件链接失败）。
                 .unsafeFlags(["-L\(giacLibDir)", "-L\(homebrewPrefix)/lib"]),
                 .linkedLibrary("giac"),
                 .linkedLibrary("mpfr"),
                 .linkedLibrary("gmp"),
                 .linkedLibrary("gmpxx"),
-                .linkedLibrary("intl"),
                 .linkedFramework("Accelerate"),
             ]
         ),

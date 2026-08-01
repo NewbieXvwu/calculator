@@ -25,7 +25,7 @@ x86_64-w64-mingw32-g++ -O2 -std=gnu++17 -DGIAC_BRIDGE_EXPORTS \
     -I"$SRC" \
     "$SRC/giac_bridge.cpp" \
     "$GIAC_PREFIX/lib/libgiac_mingw.a" \
-    -L/mingw64/lib -lmpfr -lgmp -lintl -lpthread -lm \
+    -L/mingw64/lib -lmpfr -lgmp -lgmpxx -lintl -lpthread -lm \
     -static -static-libgcc -static-libstdc++ \
     -shared \
     -Wl,--out-implib,"$OUT/libgiac_bridge_mingw.a" \

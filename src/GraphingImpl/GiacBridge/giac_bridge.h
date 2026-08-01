@@ -9,11 +9,14 @@
 //   - 串行锁（giac 全局 context 非线程安全）
 //   - 异常绝不穿过 C 边界（M4）
 //
+// 警告捕获实现：iostream 层替换 std::cerr.rdbuf()（giac 警告走 std::cerr），
+// 不劫持进程级 fd 2——无管道容量死锁、不影响其他线程 stderr、UWP 无控制台
+// 时依然有效（旧 CRT _pipe 方案的限制已随实现移除）。
+//
 // 已知限制（诚实记录）：
-//   - stderr 捕获用 CRT 管道（_pipe 64KB）。单次求值警告远超 64KB 时写端会阻塞
-//     求值线程——giac 单条分析警告量级为 KB，实测不会触发；macOS 侧用非阻塞写端
-//     丢弃多余警告，Windows CRT 无等价物，故以容量限制替代。
 //   - caseval 返回全局静态缓冲，本桥立即复制到调用方缓冲后才释放锁。
+//   - 捕获窗口内（仅本线程、锁内）其他线程经 std::cerr 的输出会一并进入
+//     警告缓冲；经 stdio（printf/fputs）的输出不受影响。
 
 #pragma once
 

@@ -1,0 +1,10 @@
+assume(x,real);
+about(x);
+type(x);
+type(1);
+type(1.5);
+type(1+2*i);
+DOM_INT;
+Beta(2,3,x);
+Beta(2,3);
+Beta(0.5,0.5,0.3);

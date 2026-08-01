@@ -1,0 +1,27 @@
+// 16. rand (预期差异)
+rand(100);
+rand(10);
+rand();
+rand(5);
+rand(1000000);
+rand(0);
+rand(-5);
+rand(2^64);
+alea(10);
+alea();
+randpoly(3);
+randpoly(4,x);
+randpoly(3,x);
+randmatrix(2,3);
+randmatrix(3,3);
+randperm(5);
+randperm(3);
+randvector(5);
+randvector(3);
+randbits(10);
+random(100);
+random(1,10);
+srand(42);
+rand(10);
+rand(10);
+rand(10);

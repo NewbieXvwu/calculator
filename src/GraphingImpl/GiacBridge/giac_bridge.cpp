@@ -5,13 +5,10 @@
 
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <mutex>
+#include <sstream>
 #include <string>
-
-// Windows CRT 的 stderr 重定向原语（_pipe / _dup2 / _dup / _close / _read）。
-#include <fcntl.h>
-#include <io.h>
-#include <process.h>
 
 // libgiac_mingw.a 导出的 C 链接入口（src/giac/caseval.cc，nm 确认符号未修饰）。
 extern "C" const char* caseval(const char*);
@@ -24,42 +21,28 @@ std::mutex& bridgeMutex() {
     return m;
 }
 
-// 捕获「在调用 capture 与 release 之间执行 fn() 时写往 stderr 的文本」。
-// fd 2 临时指到管道（64KB）；giac 单条分析警告为 KB 量级，不会写满
-// （见头文件「已知限制」）。求值完成后恢复 fd 2 并读回。
+// 捕获「在调用 capture 与 release 之间执行 fn() 时写往 std::cerr 的文本」。
+// 实现：在 iostream 层临时替换 std::cerr.rdbuf() 为 ostringstream，而非劫持
+// 进程级 fd 2。相比旧的 CRT _pipe 方案：
+//   - 无 64KB 管道容量限制：写满会阻塞求值线程 → 永久死锁（旧 H3）；现在
+//     缓冲无限增长（警告量级为 KB，实际无碍），无写端阻塞。
+//   - 不触碰 fd 2：其他线程/库经 stdio（printf/fputs）写的 stderr 不受影响
+//     （旧 H4 会混入 warnings 或丢失）；本线程 cerr 之外的输出天然隔离。
+//   - UWP 无控制台（_fileno(stderr) == -1，旧方案捕获静默失效）依然有效。
+// 异常安全：fn() 抛异常时先恢复 rdbuf 再重抛，调用方（giac_bridge_evaluate）
+// 的 catch(...) 折叠为 GIAC_ERROR 文本。
 template <typename Fn>
 std::string captureStderr(Fn&& fn) {
-    int fds[2] = { -1, -1 };
-    int savedErr = -1;
-    bool redirected = false;
-    if (_pipe(fds, 64 * 1024, _O_BINARY) == 0) {
-        savedErr = _dup(_fileno(stderr));
-        if (savedErr >= 0) {
-            _dup2(fds[1], _fileno(stderr));
-            redirected = true;
-        } else {
-            _close(fds[0]);
-            _close(fds[1]);
-            fds[0] = fds[1] = -1;
-        }
+    std::ostringstream oss;
+    std::streambuf* saved = std::cerr.rdbuf(oss.rdbuf());
+    try {
+        fn();
+    } catch (...) {
+        std::cerr.rdbuf(saved);
+        throw;
     }
-
-    fn();
-
-    std::string captured;
-    if (redirected) {
-        fflush(stderr);
-        _dup2(savedErr, _fileno(stderr));
-        _close(savedErr);
-        _close(fds[1]);
-        char buf[4096];
-        int n;
-        while ((n = static_cast<int>(_read(fds[0], buf, sizeof(buf)))) > 0) {
-            captured.append(buf, static_cast<size_t>(n));
-        }
-        _close(fds[0]);
-    }
-    return captured;
+    std::cerr.rdbuf(saved);
+    return oss.str();
 }
 
 void copyOut(char* dst, unsigned int cap, const char* src) {
@@ -99,7 +82,38 @@ int giac_bridge_evaluate(
 
         const char* text = result ? result : "GIAC_ERROR: null result";
         copyOut(out, cap, text);
-        copyOut(warnings_out, warnings_cap, warnings.c_str());
+        if (capture) {
+            // W-2/W-4：rdbuf 捕获是进程级全局，其他线程写 cerr 会混入；
+            // 只保留 giac 警告特征行（诚实性判定依赖的文本），并限制缓冲
+            // 大小（防恶意/故障查询产生 GB 级警告的慢速 OOM），保留尾部
+            // （最新警告对诚实性判定最相关）。
+            std::string filtered;
+            size_t pos = 0;
+            while (pos <= warnings.size()) {
+                size_t nl = warnings.find('\n', pos);
+                std::string line = warnings.substr(pos, nl == std::string::npos ? std::string::npos : nl - pos);
+                std::string low;
+                low.reserve(line.size());
+                for (char c : line) low += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (low.find("periodic") != std::string::npos ||
+                    low.find("assume") != std::string::npos ||
+                    low.find("approx") != std::string::npos ||
+                    low.find("bisection") != std::string::npos ||
+                    low.find("warning") != std::string::npos ||
+                    low.find("error") != std::string::npos) {
+                    filtered += line;
+                    filtered += '\n';
+                }
+                if (nl == std::string::npos) break;
+                pos = nl + 1;
+            }
+            const size_t kTailLimit = 64 * 1024;
+            if (filtered.size() > kTailLimit)
+                filtered = filtered.substr(filtered.size() - kTailLimit);
+            copyOut(warnings_out, warnings_cap, filtered.c_str());
+        } else if (warnings_out && warnings_cap > 0) {
+            warnings_out[0] = '\0';
+        }
         return 0;
     } catch (...) {
         // 异常绝不穿过 C 边界（M4）：折叠为错误文本。

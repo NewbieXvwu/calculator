@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-// 绘图模式的表达式求值器（Mock 数学引擎），对应原版 GraphingImpl/Mocks 的角色：
-// 先用纯 Swift 递归下降解析器跑通绘图 UI 架构；后续再用 Giac(CAS) 替换以支持
-// 隐式方程、符号分析（零点/极值/渐近线等）。
+// 绘图模式的表达式求值器（生产路径）：纯 Swift 递归下降解析器 + S4 区间算术内核
+// （隐式方程、Tupper 区间求值）。符号分析（零点/极值/渐近线等）由 GiacMathSolver（giac）
+// 承担；几何采样/等值线/刻度下沉共享 C 层 graph_geometry。
 //
 // 支持语法：
 //   - 数字、变量 x、常数 pi / π / e
@@ -52,9 +52,19 @@ struct GraphExpression {
     let parameters: Set<String>
 
     /// 解析失败返回 nil。会剥离前缀 "y=" / "f(x)="。
+    /// 输入长度上限（DoS 护栏）：超长平铺表达式（"1+1+1+…"）会构造左深 AST，
+    /// Node.eval 递归深度 ≈ 项数，实测 15 万字符即主线程栈溢出 SIGSEGV
+    /// （攻击审查 4.1）。2000 字符 ≈ 2000 层递归，实测安全（1500 层 OK）。
+    static let maxInputLength = 2000
+
+    /// 解析嵌套深度上限（DoS 护栏）：深括号 "((((…1…))))" 的 parsePrimary 递归，
+    /// 实测 2500 层即在 512KB 分析线程 SIGBUS（攻击审查 4.1）。
+    static let maxParseDepth = 200
+
     init?(_ source: String) {
         let cleaned = GraphExpression.stripPrefix(source)
         guard !cleaned.isEmpty else { return nil }
+        guard cleaned.count <= GraphExpression.maxInputLength else { return nil }
         var parser = Parser(cleaned)
         guard let node = parser.parseExpression(), parser.isAtEnd else { return nil }
         root = node
@@ -222,7 +232,14 @@ struct GraphExpression {
             case .number(let v):
                 if v == .pi { return "pi" }
                 if v == M_E { return "exp(1)" }
-                return v == v.rounded() && abs(v) < 1e15
+                // 非有限值（1e999 等溢出 → ±inf）：显式输出 inf/-inf，由展示层
+                // 白名单拒绝（攻击审查 1.3：String(inf) 曾产生常函数捷径错误答案）。
+                if v.isInfinite { return v > 0 ? "inf" : "-inf" }
+                if v.isNaN { return "undef" }
+                // 精确整数值用整数形式序列化（阈值 Int64 上限 9.2e18）：giac 对
+                // "1e16" 这类科学计数法走 double 路径（1 ULP=2），1e16+1 会被
+                // 舍入丢 1（攻击审查 D1.4）；整数形式走精确整数路径。
+                return v == v.rounded() && abs(v) < 9.2e18
                     ? String(Int64(v)) : String(v)
             case .variable: return "x"
             case .variableY: return "y"
@@ -265,7 +282,7 @@ struct GraphExpression {
     }
 
     /// 顶层是否为 sin/cos 调用（整个表达式形如 sin(g(x)) / cos(g(x))）。
-    /// 值域构造（TODO S3·R2）用它走"有界振荡"路径：|f| ≤ 1 由 sin/cos 值域保证，
+    /// 值域构造（S3·R2）用它走"有界振荡"路径：|f| ≤ 1 由 sin/cos 值域保证，
     /// 端点可达性再经 solve(f=±1) 验证。
     var isTopLevelSinOrCos: Bool {
         if case .call(let name, _) = root, name == "sin" || name == "cos" {
@@ -279,6 +296,7 @@ struct GraphExpression {
     private struct Parser {
         private let chars: [Character]
         private var pos = 0
+        private var depth = 0
 
         init(_ s: String) { chars = Array(s.lowercased()) }
 
@@ -372,6 +390,9 @@ struct GraphExpression {
 
             if c == "(" {
                 _ = advance()
+                depth += 1
+                defer { depth -= 1 }
+                guard depth <= GraphExpression.maxParseDepth else { return nil }
                 guard let inner = parseExpression(), match(")") else { return nil }
                 return inner
             }
