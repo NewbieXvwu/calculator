@@ -2,10 +2,10 @@
 // Licensed under the MIT License.
 
 // 排版对照 Views/GraphingCalculator/GraphingCalculator.xaml：
-//   左侧图形画布（2* 宽，自研渲染器）＋ 右侧方程输入区（1* 宽）。
-//   顶栏与其它模式共用 CalculatorHeader。
-// 渲染器为自研：SwiftUI Canvas(CoreGraphics) 逐像素列自适应采样 +
-// 间断点检测 + 网格/坐标轴；平移用拖拽、缩放用捏合与按钮。
+//   左侧图形画布（layoutPriority 2，弹性）＋ 右侧方程输入区（固定 220pt）。
+//   顶栏由 ContentView 共享工具栏提供（历史侧栏开关 + 模式菜单）。
+// 渲染：SwiftUI Canvas(CoreGraphics) 绘制，几何采样/间断点检测/刻度/坐标变换
+// 走共享 C 层 graph_geometry（S7）；平移用拖拽、缩放用捏合与按钮。
 // 图形设置（GraphingSettings.xaml）：范围四框 / 三角单位 / 线宽 / 重置。
 // 方程样式（EquationStylePanelControl.xaml)：14 色 + 实线/虚线/点线。
 
@@ -590,8 +590,8 @@ private struct GiacAnalysisRow: View {
     }
 }
 
-/// 自研图形渲染器：网格 + 坐标轴 + 逐像素列自适应采样曲线 + 间断检测 +
-/// 跟踪光标（ActiveTracing）与右上角命令面板（对照 GraphControlCommandPanel）。
+/// 图形画布渲染：网格/坐标轴/曲线采样/间断检测走共享 C 层 graph_geometry（S7），
+/// Swift 侧负责 Canvas 绘制与交互；跟踪光标（ActiveTracing）与右上角命令面板（对照 GraphControlCommandPanel）。
 private struct GraphCanvas: View {
     let graph: GraphingViewModel
     @Environment(\.colorScheme) private var colorScheme

@@ -203,7 +203,7 @@ struct CalcKey: View {
 }
 
 /// 按键玻璃皮肤：26 用真 Liquid Glass（语义 tint + 按压弹性），
-/// 13–15 回退到 `.regularMaterial` 底 + 同色语义 tint 叠加（丢失折射/弹性，视觉近似）。
+/// 14–15 回退到 `.regularMaterial` 底 + 同色语义 tint 叠加（丢失折射/弹性，视觉近似）。
 private struct CalcKeyGlass: ViewModifier {
     let style: CalcKeyStyle
     let disabled: Bool

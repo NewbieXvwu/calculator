@@ -61,7 +61,7 @@ struct LayoutTier {
     let clearFont: CGFloat
     let hideStandardFunctions: Bool
 
-    /// 按 minHeight 降序；最后一档 minHeight 0 兜底（Tiny + HideStandardFunctions）。
+    /// 按 minHeight 降序；最后一档 minHeight 0 兜底（compact + HideStandardFunctions，对应原版 Tiny 档）。
     static let all: [LayoutTier] = [
         LayoutTier(name: "large", minHeight: 360, digitFont: 26, opFont: 24, funcFont: 18, clearFont: 16, hideStandardFunctions: false),
         LayoutTier(name: "medium", minHeight: 260, digitFont: 18, opFont: 16, funcFont: 14, clearFont: 14, hideStandardFunctions: false),

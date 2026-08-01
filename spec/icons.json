@@ -2,7 +2,7 @@
   "$comment": "S6/D8 规格表下沉：图标语义名 → 各平台图标名。语义名跨平台稳定；macos 列为 SF Symbol 名（其余平台各自补列）。macOS 侧镜像为 AppIcons.swift，由 SpecTableTests 防漂移。key.* 供键盘布局表（spec/keyboard-layout.json）引用。",
   "icons": [
     { "semantic": "chrome.sidebar.history", "macos": "sidebar.leading", "note": "工具栏历史/记忆侧栏开关" },
-    { "semantic": "chrome.mode.menu", "macos": "circle.grid.3x3", "note": "SF 公共库无 calculator 字形，暂以九宫格兜底（TODO P1-3 自绘 symbol）" },
+    { "semantic": "chrome.mode.menu", "macos": "circle.grid.3x3", "note": "SF 公共库无 calculator 字形，暂以九宫格兜底" },
 
     { "semantic": "mode.standard", "macos": "plus.slash.minus" },
     { "semantic": "mode.scientific", "macos": "function" },

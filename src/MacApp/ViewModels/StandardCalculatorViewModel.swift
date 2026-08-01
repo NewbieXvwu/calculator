@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 // Swift port of src/CalcViewModel/StandardCalculatorViewModel.cpp (core logic).
-// Programmer-mode specifics arrive in Phase 2.
 
 import AppKit
 import CalcManagerBridge
@@ -17,7 +16,9 @@ enum CalculatorMode {
     case date
     /// 单位换算：不走计算引擎，用 UnitConverterData 静态换算。
     case converter
-    /// 绘图：不走 CalcManager，用 GraphExpression(Mock)/Giac 求值与自研渲染。
+    /// 绘图：不走 CalcManager。求值用自研 GraphExpression 递归下降内核（S4 区间算术），
+    /// 符号分析走 GiacMathSolver（giac CAS），几何/采样/刻度下沉共享 C 层 graph_geometry（S7），
+    /// 渲染为 SwiftUI 自绘。
     case graphing
 
     /// 模式元数据统一查 ModeDescriptor 表（S6 规格表下沉，唯一事实源）。

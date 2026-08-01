@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 // 排版对照 Views/DateCalculator.xaml：
-//   顶栏（历史圆钮 + 模式菜单，与其它模式共用 CalculatorHeader）
+//   顶栏（历史圆钮 + 模式菜单，与其它模式共用，由 ContentView 提供）
 //   模式选择（日期差 / 加减日期，对应原版顶部 ComboBox）
 //   日期差：起始日期选择器 + 结束日期选择器 → 差值结果 + 纯天数结果
 //   加减日期：起始日期 + 加/减分段 + 年/月/日 步进 → 结果日期

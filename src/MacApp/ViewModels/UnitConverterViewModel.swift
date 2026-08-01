@@ -5,7 +5,7 @@
 //   - 类别选择、from/to 单位选择、活动输入框切换（SwitchActive）。
 //   - 数字/小数点/退格/清除/正负号输入（对应原版 SendCommand 的数字键处理）。
 //   - 换算与补充结果（CalculateSuggested）。
-// 换算数据与算法在 UnitConverterData 中（静态单位；货币后续单独接入）。
+// 换算数据与算法在 UnitConverterData 中（静态单位表 + 动态货币汇率；货币经 CurrencyService 加载）。
 
 import AppKit
 import Foundation

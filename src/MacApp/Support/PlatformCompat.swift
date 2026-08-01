@@ -52,5 +52,5 @@ struct GlassKeypadContainer<Content: View>: View {
 }
 
 /// 方向键导航的键位抽象（`onKeyPress` 的 `KeyPress.Key` 与移动逻辑解耦，
-/// 便于图形画布复用而不泄漏 14-only 符号到绘制层）。
+/// 便于图形画布复用而不把平台键盘事件类型泄漏到绘制层）。
 enum ArrowKey { case left, right, up, down }

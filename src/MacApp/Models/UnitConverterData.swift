@@ -1,8 +1,9 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-// 静态单位换算数据表，移植自 src/CalcViewModel/DataLoaders/UnitConverterDataLoader.cpp
-// 的 GetConversionData / GetExplicitConversionData。
+// 静态单位换算数据表，镜像自 spec/units.json（S6 规格表下沉，SpecTableTests 双向防漂移）；
+// 数据最初移植自 src/CalcViewModel/DataLoaders/UnitConverterDataLoader.cpp 的
+// GetConversionData / GetExplicitConversionData。
 //
 // 换算原理与原版一致：
 //   - 普通类别：每个单位有一个相对「基准单位」的换算因子 factor（基准单位 factor == 1）。

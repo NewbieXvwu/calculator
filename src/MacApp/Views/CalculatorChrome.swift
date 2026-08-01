@@ -10,7 +10,7 @@ import AppKit
 import SwiftUI
 
 /// 工具栏模式菜单按钮（trailing 端，Apple 计算器惯例位置）。
-/// 按钮字形：SF 公共库无 `calculator`，先以 `circle.grid.3x3` 兜底（TODO P1-3 自绘 symbol）。
+/// 按钮字形：SF 公共库无 `calculator`，先以 `circle.grid.3x3` 兜底。
 struct ModeMenuButton: View {
     let model: StandardCalculatorViewModel
 
@@ -49,8 +49,8 @@ private struct KeyMonitor: ViewModifier {
     private func install() {
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            // 文本输入/网页视图聚焦时放行：MathLive(WKWebView)、日期/换算的 NSTextField
-            // 需要原样收到按键，否则计算器按键映射会吞掉输入。
+            // 文本输入/网页视图聚焦时放行：MathLive(WKWebView)、日期模式的
+            // DatePicker(.field) 内部文本编辑需要原样收到按键，否则计算器按键映射会吞掉输入。
             if KeyMonitor.isTextInputFocused { return event }
             let flags = event.modifierFlags
             let consumed = model.handleKey(

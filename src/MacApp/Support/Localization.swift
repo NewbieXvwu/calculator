@@ -5,7 +5,8 @@
 // 唯一真相源是 Resources/Localizable.xcstrings（60 语言，从原版 resw 转换而来）。
 // xcodebuild 构建时经 xcstringstool 原生编译为各语言 .lproj/Localizable.strings 进 bundle,
 // 由 Bundle.module 解析。没有手写回退——键查不到时原样返回键名（暴露缺失,不静默吞掉）。
-// 纯 `swift build`（不跑 xcstringstool）下所有键都会退化成键名,故 UI 文案验证走 xcodebuild。
+// 纯 `swift build` 也会编译 xcstrings（实测产物含 en/zh-hans 真实翻译，非键名退化）；
+// 完整 60 语言产物仍以 xcodebuild 为准，UI 文案验证走 xcodebuild。
 
 import Foundation
 

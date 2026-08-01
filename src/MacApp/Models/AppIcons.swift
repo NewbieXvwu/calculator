@@ -11,7 +11,7 @@ struct AppIcon {
 
     // MARK: chrome
     static let sidebarHistory = AppIcon(semantic: "chrome.sidebar.history", sfSymbol: "sidebar.leading")
-    /// SF 公共库无 calculator 字形，暂以九宫格兜底（TODO P1-3 自绘 symbol）。
+    /// SF 公共库无 calculator 字形，暂以九宫格兜底。
     static let modeMenu = AppIcon(semantic: "chrome.mode.menu", sfSymbol: "circle.grid.3x3")
 
     // MARK: 历史/记忆面板

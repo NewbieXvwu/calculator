@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 // 排版对照 Views/UnitConverter.xaml 的行结构：
-//   顶栏（模式菜单，与其它模式共用 CalculatorHeader）
+//   顶栏（模式菜单，与其它模式共用，由 ContentView 提供）
 //   类别选择（对应原版顶部导航中的换算类别）
 //   数值1（活动可点）+ 单位1 下拉
 //   ⇅ 交换
